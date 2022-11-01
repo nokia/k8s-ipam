@@ -1,0 +1,14 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  labels:
+    app.kubernetes.io/name: ipprefix
+    app.kubernetes.io/instance: network1-prefix1-gw
+    app.kubernetes.io/part-of: ipam
+    app.kubernetes.io/created-by: ipam
+    nephio.org/cluster: nephio-edge-01
+    nephio.org/interface: n3
+  name: network1-prefix1-n3
+spec:
+  prefix: 10.0.0.2/32
+  networkInstance: network-1

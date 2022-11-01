@@ -1,0 +1,85 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipallocations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipallocations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipallocations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipprefixes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipprefixes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipprefixes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - networkinstances
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - networkinstances/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - networkinstances/status
+  verbs:
+  - get
+  - patch
+  - update

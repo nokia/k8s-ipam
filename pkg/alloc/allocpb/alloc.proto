@@ -1,0 +1,46 @@
+/*
+Copyright 2022 The Nephio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+package alloc;
+option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
+
+service Allocation {
+  rpc AllocationRequest (Request) returns (Response) {}
+  rpc DeAllocationRequest (Request) returns (Response) {}
+}
+
+message Request {
+  string namespace = 1;
+  string name = 2;
+  string kind = 3; // ipam
+  map<string, string> labels  = 4;
+  Spec spec = 5;
+}
+
+message Spec {
+  string prefix = 1;
+  uint32 prefixLength = 2;
+  map<string, string> selector  = 3;
+}
+
+message Response {
+  string prefix = 1;
+  string parentPrefix = 2;
+}

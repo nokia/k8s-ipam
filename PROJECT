@@ -1,0 +1,34 @@
+domain: nephio.org
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+projectName: ipam
+repo: github.com/nephio-project/ipam
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: nephio.org
+  group: ipam
+  kind: NetworkInstance
+  path: github.com/nephio-project/ipam/apis/ipam/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: nephio.org
+  group: ipam
+  kind: IPPrefix
+  path: github.com/nephio-project/ipam/apis/ipam/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nephio.org
+  group: ipam
+  kind: IPAllocation
+  path: github.com/nephio-project/ipam/apis/ipam/v1alpha1
+  version: v1alpha1
+version: "3"
