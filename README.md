@@ -315,7 +315,7 @@ ipallocation.ipam.nephio.org/pool         True   True     10.0.2.0/23           
 ```
 ## License
 
-Copyright 2022 nephio.
+Copyright 2022 nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
