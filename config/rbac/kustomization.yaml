@@ -1,3 +1,7 @@
+# Copyright 2022 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
 resources:
 # All RBAC will be applied under this service account in
 # the deployment namespace. You may comment out this resource

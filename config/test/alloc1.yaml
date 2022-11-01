@@ -1,7 +1,9 @@
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPAllocation
 metadata:
-  name: ipalloc2
+  name: pkgrev-alloc1
+  labels:
+    "grpc-client": "test"
 spec:
   selector:
     matchLabels:

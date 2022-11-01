@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Nephio Authors.
+Copyright 2022 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -170,9 +170,12 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 		return nil, nil, err
 	}
 	parentPrefix := ""
+	pPrefix := ""
+	pPrefixLength := ""
 	prefix := alloc.Spec.Prefix
 	// The allocation request contains an ip prefix
 	if prefix != "" {
+		r.l.Info("allocate with prefix ", "prefix", prefix)
 		a, err := netaddr.ParseIPPrefix(prefix)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot parse ip prefix")
@@ -210,6 +213,7 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 
 		prefix = route.String()
 	} else {
+		r.l.Info("allocate w/o prefix ")
 		// check if the prefix/alloc already exists in the routing table
 		// based on the name of the allocator
 		routes := rt.GetByLabel(s.allocSelector)
@@ -217,6 +221,16 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 			// there should only be 1 route with this name in the route table
 			routes[0].UpdateLabel(s.labels)
 			prefix = routes[0].String()
+
+			prefixLength := r.getPrefixLength(routes[0], alloc)
+			if prefixLength == 32 || prefixLength == 128 {
+				pPrefix = routes[0].GetLabels().Get(ipamv1alpha1.NephioParentNetKey)
+				pPrefixLength = routes[0].GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey)
+				if pPrefix != "" && pPrefixLength != "" {
+					parentPrefix = strings.Join([]string{pPrefix, pPrefixLength}, "/")
+				}
+			}
+
 		} else {
 			// alloc has no prefix assigned, try to assign prefix
 			routes := rt.GetByLabel(s.labelSelector)
@@ -234,8 +248,8 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 				if prefixLength == 32 || prefixLength == 128 {
 					selectedRoute = routes[0]
 
-					pPrefix := selectedRoute.GetLabels().Get(ipamv1alpha1.NephioParentNetKey)
-					pPrefixLength := selectedRoute.GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey)
+					pPrefix = selectedRoute.GetLabels().Get(ipamv1alpha1.NephioParentNetKey)
+					pPrefixLength = selectedRoute.GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey)
 
 					r.l.Info("parent prefix ", "route", selectedRoute.String(), "parent-prefix", pPrefix, "pPrefixLength", pPrefixLength)
 					if pPrefix != "" && pPrefixLength != "" {
@@ -243,11 +257,13 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 					} else {
 						p := netaddr.MustParseIPPrefix(selectedRoute.String())
 
+						pPrefix = strings.Split(selectedRoute.String(), "/")[0]
+						//pPrefix =
 						prefixSize, _ := p.IPNet().Mask.Size()
-						prefixLength := strconv.Itoa(prefixSize)
+						pPrefixLength = strconv.Itoa(prefixSize)
 
 						n := strings.Split(p.Masked().IPNet().String(), "/")
-						parentPrefix = strings.Join([]string{n[0], prefixLength}, "/")
+						parentPrefix = strings.Join([]string{n[0], pPrefixLength}, "/")
 					}
 				} else {
 					for _, route := range routes {
@@ -269,6 +285,10 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 					return nil, nil, errors.New("no free prefix found")
 				}
 				route := table.NewRoute(a)
+				if prefixLength == 32 || prefixLength == 128 {
+					s.labels[ipamv1alpha1.NephioParentNetKey] = pPrefix
+					s.labels[ipamv1alpha1.NephioParentPrefixLengthKey] = pPrefixLength
+				}
 				route.UpdateLabel(s.labels)
 				if err := rt.Add(route); err != nil {
 					if !strings.Contains(err.Error(), "already exists") {
@@ -296,6 +316,7 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 		ni.Status.Allocations[r.String()] = *r.GetLabels()
 	}
 
+	r.l.Info("parent prefix ", "prefix", prefix, "parent-prefix", parentPrefix)
 	return &parentPrefix, &prefix, errors.Wrap(r.c.Status().Update(ctx, ni), "cannot update ni status")
 }
 
