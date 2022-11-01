@@ -3,18 +3,18 @@
 The IPAM is a kubernetes native IP address management, which supports:
 - virtual networks to allow for overlapping IP(s)
 - IP addresses, IP prefixes, IP pools and IP ranges within a virtual network
-- A k8s api for configuring and allocating IP addresses within a virtual network
+- A k8s api using CRD(s) for configuring and allocating IP addresses within a virtual network
 - A GRPC API for allocating and deallocating IP addresses/prefixes/pools
-- labels as selectors for IP address allocation or to provide metadata to the object
+- labels as selectors for IP address allocation or to provide metadata to the ipam resource
 - IPv6 and IPv4 in single stack or dual stack mode
 
--> add picture
+![ipam architecture](ipam-architecture.jpg)
 
 ## ipam logic and terminology
 
 The IPAM has multiple network contexts (implemented as network-instances) that can have multiple prefixes that can be nested. The top prefix of a nested hierarchy is called an aggregated prefix. At the bottom layer we can have IP ranges or IP addresses that are allocated from within a prefix.
 
-TODO add picture
+![ipam hierarchy](ipam-hierarchy.jpg)
 
 Prefix - A subnet defined within an aggregate prefix. Prefixes extend the hierarchy by nesting within one another. (For example, 2000:1:1::/64 will appear within 2000:1::/48.) 
 
