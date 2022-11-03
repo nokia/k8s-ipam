@@ -17,7 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // IPAllocationSpec defines the desired state of IPAllocation
@@ -67,3 +70,10 @@ type IPAllocationList struct {
 func init() {
 	SchemeBuilder.Register(&IPAllocation{}, &IPAllocationList{})
 }
+
+var (
+	IPAllocationKind             = reflect.TypeOf(IPAllocation{}).Name()
+	IPAllocationGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: IPAllocationKind}.String()
+	IPAllocationKindAPIVersion   = IPAllocationKind + "." + GroupVersion.String()
+	IPAllocationGroupVersionKind = GroupVersion.WithKind(IPAllocationKind)
+)

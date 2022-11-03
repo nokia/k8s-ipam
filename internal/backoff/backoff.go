@@ -14,33 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allochandler
+package backoff
 
-import (
-	"context"
-
-	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
-)
-
-type Options struct {
-	Ipam ipam.Ipam
-}
-
-type SubServer interface {
-	Allocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
-	DeAllocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
-}
-
-func New(o *Options) SubServer {
-	s := &subServer{
-		ipam: o.Ipam,
+// Continue is a convenience function to check when we can fire
+// the next invocation of the desired backoff code
+//
+//	for backoff.Continue(c) {
+//	 ... your code ...
+//	}
+func Continue(c Controller) bool {
+	select {
+	case <-c.Done():
+		return false
+	case _, ok := <-c.Next():
+		return ok
 	}
-	return s
-}
-
-type subServer struct {
-	l    logr.Logger
-	ipam ipam.Ipam
 }

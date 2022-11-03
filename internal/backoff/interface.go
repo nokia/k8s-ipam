@@ -14,33 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allochandler
+package backoff
 
-import (
-	"context"
+import "context"
 
-	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
-)
-
-type Options struct {
-	Ipam ipam.Ipam
+type Controller interface {
+	Done() <-chan struct{}
+	Next() <-chan struct{}
 }
 
-type SubServer interface {
-	Allocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
-	DeAllocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
-}
-
-func New(o *Options) SubServer {
-	s := &subServer{
-		ipam: o.Ipam,
-	}
-	return s
-}
-
-type subServer struct {
-	l    logr.Logger
-	ipam ipam.Ipam
+type Policy interface {
+	Start(context.Context) Controller
 }

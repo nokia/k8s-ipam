@@ -98,7 +98,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.l.Error(err, "cannot get resource")
 			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get resource")
 		}
-		return reconcile.Result{}, nil
+		return ctrl.Result{}, nil
 	}
 
 	if meta.WasDeleted(cr) {
@@ -108,11 +108,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
 			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		r.l.Info("Successfully deleted resource")
-		return reconcile.Result{Requeue: false}, nil
+		return ctrl.Result{Requeue: false}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
@@ -121,7 +121,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
 		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	_, ok := r.Ipam.Get(req.NamespacedName.String())

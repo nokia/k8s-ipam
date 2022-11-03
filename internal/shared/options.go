@@ -19,12 +19,18 @@ package shared
 import (
 	"time"
 
+	"github.com/henderiw-nephio/ipam/internal/injectors"
 	"github.com/henderiw-nephio/ipam/internal/ipam"
+	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 type Options struct {
-	Poll  time.Duration
-	Copts controller.Options
-	Ipam  ipam.Ipam
+	PorchClient client.Client
+	AllocClient allocpb.AllocationClient
+	Poll        time.Duration
+	Copts       controller.Options
+	Ipam        ipam.Ipam
+	Injectors   injectors.Injectors
 }
