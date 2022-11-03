@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (s *subServer) AllocationRequest(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
 	s.l = log.FromContext(ctx)
 	s.l.Info("allocate", "alloc", alloc)
 
@@ -39,7 +39,7 @@ func (s *subServer) AllocationRequest(ctx context.Context, alloc *allocpb.Reques
 	}, nil
 }
 
-func (s *subServer) DeAllocationRequest(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+func (s *subServer) DeAllocation(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
 	s.l = log.FromContext(ctx)
 	s.l.Info("deallocate", "alloc", alloc)
 

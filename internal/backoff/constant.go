@@ -14,18 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package client
+package backoff
 
-type Config struct {
-	Address    string
-	Username   string
-	Password   string
-	Proxy      bool
-	NoTLS      bool
-	TLSCA      string
-	TLSCert    string
-	TLSKey     string
-	SkipVerify bool
-	Insecure   bool
-	MaxMsgSize int
+import (
+	"context"
+)
+
+func NewConstantPolicy() Policy {
+	return &constantPolicy{}
+}
+
+type constantPolicy struct{}
+
+func (p *constantPolicy) Start(ctx context.Context) Controller {
+	return newController(ctx)
 }

@@ -35,13 +35,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
 	"github.com/henderiw-nephio/ipam/controllers"
 	"github.com/henderiw-nephio/ipam/internal/allochandler"
 	"github.com/henderiw-nephio/ipam/internal/grpcserver"
 	"github.com/henderiw-nephio/ipam/internal/healthhandler"
+	"github.com/henderiw-nephio/ipam/internal/injectors"
 	"github.com/henderiw-nephio/ipam/internal/ipam"
 	"github.com/henderiw-nephio/ipam/internal/shared"
+	"github.com/henderiw-nephio/ipam/pkg/alloc/alloc"
+	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -54,6 +58,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(porchv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -98,11 +103,31 @@ func main() {
 		os.Exit(1)
 	}
 
+	allocClient, err := alloc.CreateClient(&alloc.Config{
+		Address:  "127.0.0.1:9999",
+		Insecure: true,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create grpc ipam client")
+		os.Exit(1)
+	}
+
+	porchClient, err := porch.CreateClient()
+	if err != nil {
+		setupLog.Error(err, "unable to create porch client")
+		os.Exit(1)
+	}
+
+	injectors := injectors.New()
+
 	ipam := ipam.New(mgr.GetClient())
 	// initialize controllers
 	if err := controllers.Setup(mgr, &shared.Options{
-		Ipam: ipam,
-		Poll: 5 * time.Second,
+		PorchClient: porchClient,
+		AllocClient: allocClient,
+		Ipam:        ipam,
+		Injectors:   injectors,
+		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
@@ -120,8 +145,8 @@ func main() {
 		Address:  ":" + strconv.Itoa(9999),
 		Insecure: true,
 	},
-		grpcserver.WithAllocHandler(ah.AllocationRequest),
-		grpcserver.WithDeAllocHandler(ah.DeAllocationRequest),
+		grpcserver.WithAllocHandler(ah.Allocation),
+		grpcserver.WithDeAllocHandler(ah.DeAllocation),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)

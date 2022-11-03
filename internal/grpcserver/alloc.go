@@ -22,7 +22,7 @@ import (
 	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
 )
 
-func (s *GrpcServer) AllocationRequest(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -37,7 +37,7 @@ func (s *GrpcServer) AllocationRequest(ctx context.Context, req *allocpb.Request
 	return resp, nil
 }
 
-func (s *GrpcServer) DeAllocationRequest(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) DeAllocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)

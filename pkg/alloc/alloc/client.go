@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package client
+package alloc
 
 import (
 	"context"
@@ -33,7 +33,7 @@ const (
 	maxMsgSize     = 512 * 1024 * 1024
 )
 
-func New(ctx context.Context, c *Config) (allocpb.AllocationClient, error) {
+func CreateClient(c *Config) (allocpb.AllocationClient, error) {
 	var opts []grpc.DialOption
 	fmt.Printf("grpc client config: %v\n", *c)
 	if c.Insecure {
@@ -46,7 +46,7 @@ func New(ctx context.Context, c *Config) (allocpb.AllocationClient, error) {
 		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
-	timeoutCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	conn, err := grpc.DialContext(timeoutCtx, c.Address, opts...)
