@@ -46,6 +46,11 @@ type Allocation struct {
 	//specificLabels  map[string]string
 }
 
+type AllocatedPrefix struct {
+	AllocatedPrefix string
+	Gateway         string
+}
+
 func (r *Allocation) GetName() string {
 	return r.NamespacedName.Name
 }
@@ -105,31 +110,21 @@ func (r *Allocation) GetSelectorLabels() map[string]string {
 	return l
 }
 
-/*
-func (r *Allocation) buildNewAllocation() *Allocation {
-	labels := map[string]string{}
-	for k, v := range r.GetLabels() {
-		labels[k] = v
-	}
-	for k, v := range r.specificLabels {
-		labels[k] = v
-	}
-	r.Labels = labels
-	return r
-}
-*/
-
 func (r *Allocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	l := map[string]string{
 		ipamv1alpha1.NephioGatewayKey: "true",
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.In, []string{v})
-		if err != nil {
-			return nil, err
+		// exclude any key that is not network and networkinstance
+		if k == ipamv1alpha1.NephioNetworkNameKey ||
+			k == ipamv1alpha1.NephioNetworkInstanceKey {
+			req, err := labels.NewRequirement(k, selection.In, []string{v})
+			if err != nil {
+				return nil, err
+			}
+			fullselector = fullselector.Add(*req)
 		}
-		fullselector = fullselector.Add(*req)
 	}
 	for k, v := range r.GetSelectorLabels() {
 		req, err := labels.NewRequirement(k, selection.In, []string{v})
@@ -240,11 +235,6 @@ func (r *Allocation) GetPrefixLengthFromRoute(route *table.Route) uint8 {
 		return 32
 	}
 	return 128
-}
-
-type AllocatedPrefix struct {
-	AllocatedPrefix string
-	Gateway         string
 }
 
 func BuildAllocationFromIPPrefix(cr *ipamv1alpha1.IPPrefix) *Allocation {

@@ -44,47 +44,42 @@ cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: NetworkInstance
 metadata:
-  labels:
-    app.kubernetes.io/created-by: ipam
-  name: network-1
+  name: vpc-1
+spec:
 EOF
 ```
 
-The next step is to create a prefix from which ip addresses can be allocated
+The next step is to create a prefix from which ip addresses can be allocated.
+
+A network prefix example with a gateway.
 
 ```
 cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPPrefix
 metadata:
+  name: net1-prefix1
   labels:
-    app.kubernetes.io/name: ipprefix
-    app.kubernetes.io/instance: network1-prefix1
-    app.kubernetes.io/part-of: ipam
-    app.kubernetes.io/created-by: ipam
-    nephio.org/cluster: nephio-edge-01
-  name: network1-prefix1
+    nephio.org/gateway: "true"
 spec:
-  prefix: 10.0.0.1/24
-  networkInstance: network-1
+  prefix: 10.0.1.1/24
+  network: net1
+  networkInstance: vpc-1
 EOF
 ```
+
+An aggregated prefix example
 
 ```
 cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPPrefix
 metadata:
-  labels:
-    app.kubernetes.io/name: ipprefix
-    app.kubernetes.io/instance: network1-prefix2
-    app.kubernetes.io/part-of: ipam
-    app.kubernetes.io/created-by: ipam
-    nephio.org/cluster: nephio-edge-01
-  name: network1-prefix2
+  name: aggregate0
 spec:
-  prefix: 10.0.0.0/16
-  networkInstance: network-1
+  kind: aggregate
+  prefix: 10.0.0.0/8
+  networkInstance: vpc-1
 EOF
 ```
 
@@ -97,12 +92,12 @@ kubectl get ipam
 The output will look like this
 
 ```
-NAME                                        SYNC   STATUS   NETWORK     PREFIX        AGE
-ipprefix.ipam.nephio.org/network1-prefix1   True   True     network-1   10.0.0.1/24   14s
-ipprefix.ipam.nephio.org/network1-prefix2   True   True     network-1   10.0.0.0/16   3s
+NAME                                    SYNC   STATUS   NETWORK   KIND        NETWORK   PREFIX-REQ    PREFIX-ALLOC   AGE
+ipprefix.ipam.nephio.org/aggregate0     True   True     vpc-1     aggregate             10.0.0.0/8    10.0.0.0/8     5s
+ipprefix.ipam.nephio.org/net1-prefix1   True   True     vpc-1     network     net1      10.0.1.1/24   10.0.1.1/24    75s
 
-NAME                                        SYNC   STATUS   AGE
-networkinstance.ipam.nephio.org/network-1   True   True     2m57s
+NAME                                    SYNC   STATUS   AGE
+networkinstance.ipam.nephio.org/vpc-1   True   True     2m44s
 ```
 
 To view the IPAM IP allocation we can look at the allocations under the network-instance
@@ -115,58 +110,63 @@ The output will look like this
 
 ```
 k describe networkinstances.ipam.nephio.org network-1
-Name:         network-1
+Name:         vpc-1
 Namespace:    default
 API Version:  ipam.nephio.org/v1alpha1
 Kind:         NetworkInstance
+
+....
+
 Status:
   Allocations:
-    10.0.0.0/16:
-      app.kubernetes.io/created-by:  ipam
-      app.kubernetes.io/instance:    network1-prefix2
-      app.kubernetes.io/name:        ipprefix
-      app.kubernetes.io/part-of:     ipam
-      nephio.org/address-family:     ipv4
-      nephio.org/allocation-name:    network1-prefix2
-      nephio.org/cluster:            nephio-edge-01
-      nephio.org/network-instance:   network-1
-      nephio.org/origin:             prefix
-      nephio.org/prefix-length:      16
-      nephio.org/prefix-name:        network1-prefix2
-    10.0.0.0/24:
-      app.kubernetes.io/created-by:  ipam
-      app.kubernetes.io/instance:    network1-prefix1
-      app.kubernetes.io/name:        ipprefix
-      app.kubernetes.io/part-of:     ipam
-      nephio.org/address-family:     ipv4
-      nephio.org/allocation-name:    network1-prefix1
-      nephio.org/cluster:            nephio-edge-01
-      nephio.org/network-instance:   network-1
-      nephio.org/origin:             prefix
-      nephio.org/prefix-length:      24
-      nephio.org/prefix-name:        network1-prefix1
-    10.0.0.1/32:
-      app.kubernetes.io/created-by:     ipam
-      app.kubernetes.io/instance:       network1-prefix1
-      app.kubernetes.io/name:           ipprefix
-      app.kubernetes.io/part-of:        ipam
+    10.0.0.0/8:
+      nephio.org/address-family:    ipv4
+      nephio.org/allocation-name:   aggregate0
+      nephio.org/network-instance:  vpc-1
+      nephio.org/origin:            prefix
+      nephio.org/prefix-kind:       aggregate
+      nephio.org/prefix-length:     8
+      nephio.org/prefix-name:       aggregate0
+    10.0.1.0/24:
+      nephio.org/address-family:    ipv4
+      nephio.org/allocation-name:   10.0.1.0-24
+      nephio.org/network:           10.0.1.0
+      nephio.org/network-instance:  vpc-1
+      nephio.org/network-name:      net1
+      nephio.org/origin:            system
+      nephio.org/prefix-kind:       network
+      nephio.org/prefix-length:     24
+      nephio.org/prefix-name:       net
+    10.0.1.0/32:
       nephio.org/address-family:        ipv4
-      nephio.org/allocation-name:       network1-prefix1
-      nephio.org/cluster:               nephio-edge-01
-      nephio.org/gateway:               true
-      nephio.org/network-instance:      network-1
-      nephio.org/origin:                prefix
-      nephio.org/parent-net:            10.0.0.0
+      nephio.org/allocation-name:       10.0.1.0
+      nephio.org/network:               10.0.1.0
+      nephio.org/network-instance:      vpc-1
+      nephio.org/network-name:          net1
+      nephio.org/origin:                system
       nephio.org/parent-prefix-length:  24
-      nephio.org/prefix-length:         24
-      nephio.org/prefix-name:           network1-prefix1
+      nephio.org/prefix-kind:           network
+      nephio.org/prefix-length:         32
+      nephio.org/prefix-name:           net
+    10.0.1.1/32:
+      nephio.org/address-family:        ipv4
+      nephio.org/allocation-name:       net1-prefix1
+      nephio.org/gateway:               true
+      nephio.org/network:               10.0.1.0
+      nephio.org/network-instance:      vpc-1
+      nephio.org/network-name:          net1
+      nephio.org/origin:                prefix
+      nephio.org/parent-prefix-length:  24
+      nephio.org/prefix-kind:           network
+      nephio.org/prefix-length:         32
+      nephio.org/prefix-name:           net1-prefix1
   Conditions:
     Kind:                  Synced
-    Last Transition Time:  2022-11-01T07:37:51Z
+    Last Transition Time:  2022-11-07T11:01:28Z
     Reason:                ReconcileSuccess
     Status:                True
     Kind:                  Ready
-    Last Transition Time:  2022-11-01T07:37:51Z
+    Last Transition Time:  2022-11-07T11:01:28Z
     Reason:                Ready
     Status:                True
 Events:                    <none>
@@ -175,7 +175,7 @@ Events:                    <none>
 ### IP address allocation 
 
 To request an IP address from the IPAM system we either use the K8s or the GRPC API.
-By providing a network-instance and prefix-name label-selector an IP address will be allocated
+By providing a network-instance and network-name label-selector an IP address will be allocated
 from an IPAM prefix that matches these labels.
 
 ```
@@ -183,37 +183,39 @@ cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPAllocation
 metadata:
- name: ipalloc
+  name: alloc1
 spec:
- selector:
-   matchLabels:
-     nephio.org/network-instance: network-1
-     nephio.org/prefix-name: network1-prefix1
+  kind: network
+  selector:
+    matchLabels:
+      nephio.org/network-instance:  vpc-1
+      nephio.org/network-name: net1
 EOF
 ```
 
 A prefix and parent prefix is allocated
 
 ```
-NAME                                   SYNC   STATUS   PREFIX        PARENTPREFIX   AGE
-ipallocation.ipam.nephio.org/ipalloc   True   True     10.0.0.0/32   10.0.0.0/24    6s
+NAME                                  SYNC   STATUS   KIND      AF    PREFIXLENGTH   PREFIX-REQ   PREFIX-ALLOC   GATEWAY    AGE
+ipallocation.ipam.nephio.org/alloc1   True   True     network                                     10.0.1.2/32    10.0.1.1   4s
 ```
 
 ### static IP address allocation 
 
-To support static or determinsitic IP allocation a predetermined IP is allocated using the IP Prefix API, that sets a specific label e.g. network1-prefix1-n3
+To support static or determinsitic IP allocation a predetermined IP is allocated using the IP Prefix API, that sets a specific label e.g. key: nephio.org/interface value: n3. Any key and value can be used other thna the system defined once
 
 ```
 cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPPrefix
 metadata:
+  name: net1-prefix10
   labels:
     nephio.org/interface: n3
-  name: network1-prefix1-n3
 spec:
-  prefix: 10.0.0.2/32
-  networkInstance: network-1
+  prefix: 10.0.1.10/24
+  network: net1
+  networkInstance: vpc-1
 EOF
 ```
 
@@ -224,67 +226,66 @@ cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPAllocation
 metadata:
-  name: ipalloc-n3
+  name: alloc2-n3
 spec:
+  kind: network
   selector:
     matchLabels:
-      nephio.org/network-instance: network-1
-      nephio.org/prefix-name: network1-prefix1
+      nephio.org/network-instance:  vpc-1
+      nephio.org/network-name: net1
       nephio.org/interface: n3
 EOF
 ```
 
 ```
-NAME                                           SYNC   STATUS   NETWORK     PREFIX        AGE
-ipprefix.ipam.nephio.org/network1-prefix1      True   True     network-1   10.0.0.1/24   16m
-ipprefix.ipam.nephio.org/network1-prefix1-n3   True   True     network-1   10.0.0.2/32   2m43s
-ipprefix.ipam.nephio.org/network1-prefix2      True   True     network-1   10.0.0.0/16   16m
+NAME                                     SYNC   STATUS   NETWORK   KIND        NETWORK   PREFIX-REQ     PREFIX-ALLOC   AGE
+ipprefix.ipam.nephio.org/aggregate0      True   True     vpc-1     aggregate             10.0.0.0/8     10.0.0.0/8     19m
+ipprefix.ipam.nephio.org/net1-prefix1    True   True     vpc-1     network     net1      10.0.1.1/24    10.0.1.1/24    21m
+ipprefix.ipam.nephio.org/net1-prefix10   True   True     vpc-1     network     net1      10.0.1.10/24   10.0.1.10/24   14m
 
-NAME                                        SYNC   STATUS   AGE
-networkinstance.ipam.nephio.org/network-1   True   True     18m
-
-NAME                                      SYNC   STATUS   PREFIX        PARENTPREFIX   AGE
-ipallocation.ipam.nephio.org/ipalloc      True   True     10.0.0.0/32   10.0.0.0/24    5m27s
-ipallocation.ipam.nephio.org/ipalloc-n3   True   True     10.0.0.2/32   10.0.0.0/24    13s
+NAME                                     SYNC   STATUS   KIND      AF    PREFIXLENGTH   PREFIX-REQ   PREFIX-ALLOC   GATEWAY     AGE
+ipallocation.ipam.nephio.org/alloc1      True   True     network                                     10.0.1.11/32   10.0.1.0    17m
+ipallocation.ipam.nephio.org/alloc2-n3   True   True     network                                     10.0.1.10/32   10.0.1.10   11m
 ```
 
 ### GW IP address allocation
 
-To request the GW IP of the prefix, we use the following mechanism.
+To request the GW IP of the prefix, we use the following mechanism:
 
-First when creating the IP prefix we create it using the following notation 10.0.0.1/24. As such the .1 is allocated by the IPAM as a gateway IP automatically.
+- First when creating the IP prefix we create it using the following notation 10.0.0.1/24. As such the .1 is allocated by the IPAM as a gateway IP automatically.
 
 Allocate an IP with the ephio.org/gateway: "true" label in the label selector
 
 ```
+cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
-kind: IPAllocation
+kind: IPPrefix
 metadata:
-  name: ipalloc-gw
+  name: net1-prefix1
+  labels:
+    nephio.org/gateway: "true"
 spec:
-  selector:
-    matchLabels:
-      nephio.org/network-instance: network-1
-      nephio.org/prefix-name: network1-prefix1
-      nephio.org/gateway: "true"
+  prefix: 10.0.1.1/24
+  network: net1
+  networkInstance: vpc-1
+EOF
 ```
 
 Now also the GW IP will be referenced
 
 ```
-henderiw@henderiookpro16 samples % k get ipam
-NAME                                           SYNC   STATUS   NETWORK     PREFIX        AGE
-ipprefix.ipam.nephio.org/network1-prefix1      True   True     network-1   10.0.0.1/24   19m
-ipprefix.ipam.nephio.org/network1-prefix1-n3   True   True     network-1   10.0.0.2/32   5m58s
-ipprefix.ipam.nephio.org/network1-prefix2      True   True     network-1   10.0.0.0/16   19m
+kubectl get ipam
+```
 
-NAME                                        SYNC   STATUS   AGE
-networkinstance.ipam.nephio.org/network-1   True   True     22m
+```
+NAME                                     SYNC   STATUS   NETWORK   KIND        NETWORK   PREFIX-REQ     PREFIX-ALLOC   AGE
+ipprefix.ipam.nephio.org/aggregate0      True   True     vpc-1     aggregate             10.0.0.0/8     10.0.0.0/8     19m
+ipprefix.ipam.nephio.org/net1-prefix1    True   True     vpc-1     network     net1      10.0.1.1/24    10.0.1.1/24    21m
+ipprefix.ipam.nephio.org/net1-prefix10   True   True     vpc-1     network     net1      10.0.1.10/24   10.0.1.10/24   14m
 
-NAME                                      SYNC   STATUS   PREFIX        PARENTPREFIX   AGE
-ipallocation.ipam.nephio.org/ipalloc      True   True     10.0.0.0/32   10.0.0.0/24    8m42s
-ipallocation.ipam.nephio.org/ipalloc-gw   True   True     10.0.0.1/32   10.0.0.0/24    2s
-ipallocation.ipam.nephio.org/ipalloc-n3   True   True     10.0.0.2/32   10.0.0.0/24    3m28s
+NAME                                     SYNC   STATUS   KIND      AF    PREFIXLENGTH   PREFIX-REQ   PREFIX-ALLOC   GATEWAY     AGE
+ipallocation.ipam.nephio.org/alloc1      True   True     network                                     10.0.1.11/32   10.0.1.0    17m
+ipallocation.ipam.nephio.org/alloc2-n3   True   True     network                                     10.0.1.10/32   10.0.1.10   11m
 ```
 
 ### pool allocation
@@ -292,31 +293,27 @@ ipallocation.ipam.nephio.org/ipalloc-n3   True   True     10.0.0.2/32   10.0.0.0
 To allocate a pool we speific the prefix length and the network-instance that should match
 
 ```
+cat <<EOF | kubectl apply -f -
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPAllocation
 metadata:
-  name: pool
+  name: alloc-pool1
 spec:
-  prefixLength: 23
+  kind: pool
+  prefixLength: 16
   selector:
     matchLabels:
-      nephio.org/network-instance: network-1
+      nephio.org/network-instance:  vpc-1
+EOF
 ```
 
 ```
-NAME                                        SYNC   STATUS   AGE
-networkinstance.ipam.nephio.org/network-1   True   True     25m
+kubectl get get ipallocations.ipam.nephio.org
+```
 
-NAME                                           SYNC   STATUS   NETWORK     PREFIX        AGE
-ipprefix.ipam.nephio.org/network1-prefix1      True   True     network-1   10.0.0.1/24   23m
-ipprefix.ipam.nephio.org/network1-prefix1-n3   True   True     network-1   10.0.0.2/32   9m30s
-ipprefix.ipam.nephio.org/network1-prefix2      True   True     network-1   10.0.0.0/16   22m
-
-NAME                                      SYNC   STATUS   PREFIX        PARENTPREFIX   AGE
-ipallocation.ipam.nephio.org/ipalloc      True   True     10.0.0.0/32   10.0.0.0/24    12m
-ipallocation.ipam.nephio.org/ipalloc-gw   True   True     10.0.0.1/32   10.0.0.0/24    3m34s
-ipallocation.ipam.nephio.org/ipalloc-n3   True   True     10.0.0.2/32   10.0.0.0/24    7m
-ipallocation.ipam.nephio.org/pool         True   True     10.0.2.0/23                  58s
+```
+NAME                                       SYNC   STATUS   KIND      AF    PREFIXLENGTH   PREFIX-REQ   PREFIX-ALLOC   GATEWAY     AGE
+ipallocation.ipam.nephio.org/alloc-pool1   True   True     pool            16                          10.1.0.0/16                4s
 ```
 ## License
 
