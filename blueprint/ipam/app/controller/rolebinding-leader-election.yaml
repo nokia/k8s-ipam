@@ -11,6 +11,7 @@ metadata:
     app.kubernetes.io/part-of: ipam
     app.kubernetes.io/version: tbd
   name: ipam-controller-leader-election-role-binding
+  namespace: ipam
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -18,3 +19,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: ipam-controller
+  namespace: ipam

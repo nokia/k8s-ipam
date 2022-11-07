@@ -4,6 +4,7 @@ metadata:
   annotations: {}
   creationTimestamp: null
   name: ipam-controller
+  namespace: ipam
 spec:
   replicas: 1
   selector:
@@ -22,6 +23,7 @@ spec:
         app.kubernetes.io/version: tbd
         fn.kptgen.dev/controller: ipam-controller
       name: ipam-controller
+      namespace: ipam
     spec:
       containers:
       - args:
