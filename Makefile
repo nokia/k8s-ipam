@@ -62,9 +62,9 @@ manifests: controller-gen kpt kptgen ## Generate WebhookConfiguration, ClusterRo
 	rm ${KPT_BLUEPRINT_PKG_DIR}/app/package-context.yaml
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen protoc-gen-gofast protoc-gen-go-grpc ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	protoc -I . -I ./vendor $(shell find ./pkg/ -name '*.proto') --gofast_out=. --gofast_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative
+	protoc -I . $(shell find ./pkg/ -name '*.proto') --gofast_out=. --gofast_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -152,12 +152,16 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 KPT ?= $(LOCALBIN)/kpt
 KPTGEN ?= $(LOCALBIN)/kptgen
+PROTOC_GO_FAST ?= $(LOCALBIN)/protoc-gen-gofast
+PROTOC_GO_GRPC ?= $(LOCALBIN)/protoc-gen-go-grpc
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.2
 KPT_VERSION ?= main
 KPTGEN_VERSION ?= v0.0.9
+PROTOC_GO_FAST_VERSION ?= latest
+PROTOC_GO_GRPC_VERSION ?= latest
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -184,3 +188,14 @@ $(KPT): $(LOCALBIN)
 kptgen: $(KPTGEN) ## Download kptgen locally if necessary.
 $(KPTGEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/kptgen || GOBIN=$(LOCALBIN) go install -v github.com/henderiw-kpt/kptgen@$(KPTGEN_VERSION)
+
+.PHONY: protoc-gen-gofast
+protoc-gen-gofast: $(PROTOC_GO_FAST) ## Download protoc-gen-gofast locally if necessary.
+$(PROTOC_GO_FAST): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/gogo/protobuf/protoc-gen-gofast@$(PROTOC_GO_FAST_VERSION)
+
+.PHONY: protoc-gen-go-grpc
+protoc-gen-gogrpc: $(PROTOC_GO_GRPC) ## Download protoc-gen-golang-grpc locally if necessary.
+$(PROTOC_GO_GRPC): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
+
