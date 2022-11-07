@@ -30,7 +30,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam2"
+	"github.com/henderiw-nephio/ipam/internal/ipam"
 	"github.com/henderiw-nephio/ipam/internal/meta"
 	"github.com/henderiw-nephio/ipam/internal/resource"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -77,22 +77,13 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam2.Ipam
+	Ipam         ipam.Ipam
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
 	l logr.Logger
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the IPPrefix object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("reconcile", "req", req)
@@ -110,22 +101,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if meta.WasDeleted(cr) {
 		// TBD remove finalizer
-		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPAllocation(cr)); err != nil {
+		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPAllocation(cr)); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
 				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
-		/*
-			if err := r.Ipam.DeAllocateIPPrefixes(ctx, alloc); err != nil {
-				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
-					r.l.Error(err, "cannot delete resource")
-					alloc.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
-					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, alloc), errUpdateStatus)
-				}
-			}
-		*/
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
@@ -192,7 +174,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
 
-	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPAllocation(cr))
+	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromIPAllocation(cr))
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))

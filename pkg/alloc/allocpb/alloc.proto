@@ -39,7 +39,8 @@ message Spec {
   string prefix = 2;
   uint32 prefixLength = 3;
   string network = 4;
-  map<string, string> selector  = 5;
+  string addressFamily = 5;
+  map<string, string> selector  = 6;
 }
 
 message Response {

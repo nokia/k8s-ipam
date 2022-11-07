@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam2
+package ipam
 
 import ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
 

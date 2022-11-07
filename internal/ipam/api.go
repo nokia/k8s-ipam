@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam2
+package ipam
 
 import (
 	"encoding/json"
@@ -23,6 +23,7 @@ import (
 	"github.com/hansthienpondt/goipam/pkg/table"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
 	"github.com/henderiw-nephio/ipam/internal/utils/iputil"
+	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// +k8s:deepcopy-gen=false
 type Allocation struct {
 	NamespacedName  types.NamespacedName       `json:"namespacedName,omitempty"`
 	Origin          ipamv1alpha1.Origin        `json:"origin,omitempty"`
@@ -269,7 +271,7 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation) *Allocation 
 			Name:      cr.GetName(),
 			Namespace: cr.GetNamespace(),
 		},
-		Origin:          ipamv1alpha1.OriginIPPrefix,
+		Origin:          ipamv1alpha1.OriginIPAllocation,
 		NetworkInstance: cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkInstanceKey],
 		PrefixKind:      ipamv1alpha1.PrefixKind(cr.Spec.PrefixKind),
 		AddresFamily:    ipamv1alpha1.AddressFamily(cr.Spec.AddressFamily),
@@ -278,6 +280,24 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation) *Allocation 
 		Network:         cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkNameKey],
 		Labels:          cr.GetLabels(),
 		SelectorLabels:  cr.Spec.Selector.MatchLabels,
+	}
+}
+
+func BuildAllocationFromGRPCAlloc(alloc *allocpb.Request) *Allocation {
+	return &Allocation{
+		NamespacedName: types.NamespacedName{
+			Name:      alloc.Name,
+			Namespace: alloc.Namespace,
+		},
+		Origin:          ipamv1alpha1.OriginIPAllocation,
+		NetworkInstance: alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioNetworkInstanceKey],
+		PrefixKind:      ipamv1alpha1.PrefixKind(alloc.GetSpec().GetPrefixkind()),
+		AddresFamily:    ipamv1alpha1.AddressFamily(alloc.GetSpec().GetAddressFamily()),
+		Prefix:          alloc.GetSpec().GetPrefix(),
+		PrefixLength:    uint8(alloc.GetSpec().GetPrefixLength()),
+		Network:         alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioNetworkNameKey],
+		Labels:          alloc.GetLabels(),
+		SelectorLabels:  alloc.GetSpec().GetSelector(),
 	}
 }
 
