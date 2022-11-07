@@ -30,17 +30,19 @@ message Request {
   string namespace = 1;
   string name = 2;
   string kind = 3; // ipam
-  map<string, string> labels  = 4;
-  Spec spec = 5;
+  map<string, string> labels  = 6;
+  Spec spec = 7;
 }
 
 message Spec {
-  string prefix = 1;
-  uint32 prefixLength = 2;
-  map<string, string> selector  = 3;
+  string prefixkind =1;
+  string prefix = 2;
+  uint32 prefixLength = 3;
+  string network = 4;
+  map<string, string> selector  = 5;
 }
 
 message Response {
-  string prefix = 1;
-  string parentPrefix = 2;
+  string allocatedPrefix = 1;
+  string gateway = 2;
 }

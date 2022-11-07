@@ -1,9 +1,9 @@
 apiVersion: ipam.nephio.org/v1alpha1
 kind: IPAllocation
 metadata:
-  name: pool
+  name: alloc1
 spec:
-  prefixLength: 23
   selector:
     matchLabels:
-      nephio.org/network-instance: network-1
+      nephio.org/network-instance:  vpc-1
+      nephio.org/network-name: net1

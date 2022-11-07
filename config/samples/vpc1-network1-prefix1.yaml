@@ -1,0 +1,10 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: net1-prefix1
+  labels:
+    nephio.org/gateway: "true"
+spec:
+  prefix: 10.0.1.1/24
+  network: net1
+  networkInstance: vpc-1

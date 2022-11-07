@@ -18,9 +18,6 @@ package networkinstance
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,7 +28,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
+	"github.com/henderiw-nephio/ipam/internal/ipam2"
 	"github.com/henderiw-nephio/ipam/internal/meta"
 	"github.com/henderiw-nephio/ipam/internal/resource"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -70,7 +67,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
+	Ipam         ipam2.Ipam
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
@@ -102,7 +99,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if meta.WasDeleted(cr) {
-		// TBD remove finalizer
+		// When the network instance is deleted we can remove the network instance entry
+		// from th IPAM table
 		r.Ipam.Delete(req.NamespacedName.String())
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
@@ -124,25 +122,27 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	_, ok := r.Ipam.Get(req.NamespacedName.String())
-	if !ok {
-		r.Ipam.Initialize(cr)
+	// create and initialize the IPAM with the network instance if it does not exist
+	if err := r.Ipam.Init(ctx, cr); err != nil {
+		r.l.Error(err, "cannot initialize finalizer")
+		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// create the ipam context. it is safe if the ipam context is already initialized
-	r.Ipam.Create(req.NamespacedName.String())
+	/*
+		DEBUG the routing table
+		rt, ok := r.Ipam.Get(req.NamespacedName.String())
+		if ok {
+			fmt.Println(strings.Repeat("#", 64))
+			fmt.Println("Dumping route-table in JSON format:")
+			j, _ := json.MarshalIndent(rt.GetTable(), "", "  ")
+			fmt.Println(string(j))
+			// Printing the Stdout seperator
+			fmt.Println(strings.Repeat("#", 64))
+		}
+	*/
 
-	// debug
-	rt, ok := r.Ipam.Get(req.NamespacedName.String())
-	if ok {
-		fmt.Println(strings.Repeat("#", 64))
-		fmt.Println("Dumping route-table in JSON format:")
-		j, _ := json.MarshalIndent(rt.GetTable(), "", "  ")
-		fmt.Println(string(j))
-		// Printing the Stdout seperator
-		fmt.Println(strings.Repeat("#", 64))
-	}
-
+	// Update the status of the CR and end the reconciliation loop
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

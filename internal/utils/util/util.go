@@ -14,23 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package util
 
-import "k8s.io/apimachinery/pkg/types"
-
-// GetCondition of this resource
-func (x *NetworkInstance) GetCondition(ck ConditionKind) Condition {
-	return x.Status.GetCondition(ck)
-}
-
-// SetConditions of the Network Node.
-func (x *NetworkInstance) SetConditions(c ...Condition) {
-	x.Status.SetConditions(c...)
-}
-
-func (x *NetworkInstance) GetNamespacedName() types.NamespacedName {
-	return types.NamespacedName{
-		Name:      x.Name,
-		Namespace: x.Namespace,
+func RemoveString(slice []string, s string) (result []string) {
+	for _, v := range slice {
+		if v != s {
+			result = append(result, v)
+		}
 	}
+	return result
 }

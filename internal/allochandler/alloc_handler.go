@@ -29,13 +29,13 @@ func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*al
 	s.l = log.FromContext(ctx)
 	s.l.Info("allocate", "alloc", alloc)
 
-	parentPrefix, prefix, err := s.ipam.AllocateIPPrefix(ctx, buildAlloc(alloc))
+	prefix, err := s.ipam.AllocateIPPrefix(ctx, buildAlloc(alloc), false, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &allocpb.Response{
-		Prefix:       *prefix,
-		ParentPrefix: *parentPrefix,
+		AllocatedPrefix: prefix.AllocatedPrefix,
+		Gateway:         prefix.Gateway,
 	}, nil
 }
 
@@ -43,7 +43,9 @@ func (s *subServer) DeAllocation(ctx context.Context, alloc *allocpb.Request) (*
 	s.l = log.FromContext(ctx)
 	s.l.Info("deallocate", "alloc", alloc)
 
-	if err := s.ipam.DeAllocateIPPrefix(ctx, buildAlloc(alloc)); err != nil {
+	//allocs := []*ipamv1alpha1.IPAllocation{}
+	//allocs = append(allocs, buildAlloc(alloc))
+	if err := s.ipam.DeAllocateIPPrefixes(ctx, buildAlloc(alloc)); err != nil {
 		return nil, err
 	}
 	return &allocpb.Response{}, nil

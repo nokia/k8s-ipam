@@ -193,8 +193,7 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 				return errors.Wrap(err, "cannot allocate ip")
 			}
 
-			ipalloc.Spec.ParentPrefix = resp.GetParentPrefix()
-			ipalloc.Spec.Prefix = resp.GetPrefix()
+			ipalloc.Status.AllocatedPrefix = resp.GetAllocatedPrefix()
 			ipalloc.Status.ConditionedStatus.Conditions = append(ipalloc.Status.ConditionedStatus.Conditions, ipamv1alpha1.Condition{
 				Kind:               ipamv1alpha1.ConditionKindReady,
 				Status:             corev1.ConditionTrue,

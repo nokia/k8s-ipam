@@ -27,11 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
+	"github.com/henderiw-nephio/ipam/internal/ipam2"
 	"github.com/henderiw-nephio/ipam/internal/meta"
 	"github.com/henderiw-nephio/ipam/internal/resource"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -61,14 +60,16 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
-	niHandler := &EnqueueRequestForAllNetworkInstances{
-		client: mgr.GetClient(),
-		ctx:    context.Background(),
-	}
+	/*
+		niHandler := &EnqueueRequestForAllNetworkInstances{
+			client: mgr.GetClient(),
+			ctx:    context.Background(),
+		}
+	*/
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ipamv1alpha1.IPAllocation{}).
-		Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
+		//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
 		Complete(r)
 }
 
@@ -76,7 +77,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
+	Ipam         ipam2.Ipam
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
@@ -109,14 +110,22 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if meta.WasDeleted(cr) {
 		// TBD remove finalizer
-
-		if err := r.Ipam.DeAllocateIPPrefix(ctx, cr); err != nil {
+		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPAllocation(cr)); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
 				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
+		/*
+			if err := r.Ipam.DeAllocateIPPrefixes(ctx, alloc); err != nil {
+				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+					r.l.Error(err, "cannot delete resource")
+					alloc.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, alloc), errUpdateStatus)
+				}
+			}
+		*/
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
@@ -167,12 +176,23 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
+	// for prefixKind network validate if the label exists
+	if cr.Spec.PrefixKind == string(ipamv1alpha1.PrefixKindNetwork) {
+		_, ok := cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkNameKey]
+		if !ok {
+			r.l.Info("cannot allocate prefix, matchLabels must contain a network key")
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("cannot allocate prefix, matchLabels must contain a network key"))
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+	}
+
+	// set origin to label allocation
 	if len(cr.Labels) == 0 {
 		cr.Labels = map[string]string{}
 	}
 	cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
 
-	parentPrefix, allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, cr)
+	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPAllocation(cr))
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
@@ -180,23 +200,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	// if the prefix is allocated in the spec, we need to ensure we get the same allocation
 	if cr.Spec.Prefix != "" {
-		if *allocatedPrefix != cr.Spec.Prefix {
+		if allocatedPrefix.AllocatedPrefix != cr.Spec.Prefix {
 			// we got a different prefix than requested
 			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
 			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-	} else {
-		cr.Spec.ParentPrefix = *parentPrefix
-		cr.Spec.Prefix = *allocatedPrefix
-		if err := r.Update(ctx, cr); err != nil {
-			r.l.Error(err, "allocation update failed")
-			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
 	}
-
-	r.l.Info("Successfully reconciled resource")
+	cr.Status.Gateway = allocatedPrefix.Gateway
+	cr.Status.AllocatedPrefix = allocatedPrefix.AllocatedPrefix
+	r.l.Info("Successfully reconciled resource", "allocatedPrefix", *allocatedPrefix)
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

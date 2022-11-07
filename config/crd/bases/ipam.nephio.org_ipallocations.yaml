@@ -25,11 +25,23 @@ spec:
     - jsonPath: .status.conditions[?(@.kind=='Ready')].status
       name: STATUS
       type: string
-    - jsonPath: .spec.prefix
-      name: PREFIX
+    - jsonPath: .spec.kind
+      name: KIND
       type: string
-    - jsonPath: .spec.parentPrefix
-      name: PARENTPREFIX
+    - jsonPath: .spec.addressFamily
+      name: AF
+      type: string
+    - jsonPath: .spec.prefixLength
+      name: PREFIXLENGTH
+      type: string
+    - jsonPath: .spec.prefix
+      name: PREFIX-REQ
+      type: string
+    - jsonPath: .status.prefix
+      name: PREFIX-ALLOC
+      type: string
+    - jsonPath: .status.gateway
+      name: GATEWAY
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
@@ -54,9 +66,18 @@ spec:
           spec:
             description: IPAllocationSpec defines the desired state of IPAllocation
             properties:
-              parentPrefix:
-                description: ParentPrefix is the prefix of the parent object for /32
-                  or /128 based addresses
+              addressFamily:
+                enum:
+                - ipv4
+                - ipv6
+                type: string
+              kind:
+                default: network
+                enum:
+                - network
+                - loopback
+                - pool
+                - aggregate
                 type: string
               prefix:
                 description: Prefix allows the client to indicate the prefix that
@@ -113,6 +134,8 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+            required:
+            - kind
             type: object
           status:
             description: IPAllocationStatus defines the observed state of IPAllocation
@@ -150,6 +173,13 @@ spec:
                   - status
                   type: object
                 type: array
+              gateway:
+                description: Gateway identifies the gatway IP for the network
+                type: string
+              prefix:
+                description: AllocatedPrefix identifies the prefix that was allocated
+                  by the IPAM system
+                type: string
             type: object
         type: object
     served: true
