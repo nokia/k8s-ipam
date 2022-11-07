@@ -63,6 +63,13 @@ Besides the base IPAM block there is also a injector functions which looks at IP
 make run
 ```
 
+### run IPAM using kpt
+
+```
+kpt live init blueprint/ipam
+kpt live apply blueprint/ipam
+```
+
 ### Setup IPAM
 
 To steup the IPAM, one needs to configure a virtual network, implemented through a network-instance

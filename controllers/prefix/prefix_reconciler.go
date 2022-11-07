@@ -50,6 +50,7 @@ const (
 //+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes/finalizers,verbs=update
+//+kubebuilder:rbac:groups=*,resources=networkinstances,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
 func Setup(mgr ctrl.Manager, options *shared.Options) error {

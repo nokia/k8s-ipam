@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
+	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/internal/allochandler"
@@ -44,7 +45,6 @@ import (
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
-	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	//+kubebuilder:scaffold:imports
 )
 
