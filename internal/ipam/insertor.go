@@ -157,6 +157,8 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*
 	route := table.NewRoute(p)
 	prefix := p.String()
 	labels := alloc.GetFullLabels()
+	// since this is a dynamic allocation we dont know the prefix info ahead of time,
+	// we need to augment the labels on the routes with thi info
 	if prefixLength == 32 || prefixLength == 128 {
 		labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(selectedRoute.IPPrefix())
 		n := strings.Split(prefix, "/")
@@ -164,7 +166,6 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*
 	}
 	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(selectedRoute.IPPrefix()))
 	labels[ipamv1alpha1.NephioPrefixLengthKey] = string(iputil.GetAddressPrefixLength(p))
-	//labels[ipamv1alpha1.NephioPrefixKindKey] = alloc.Pref
 	labels[ipamv1alpha1.NephioNetworkKey] = selectedRoute.IPPrefix().Masked().IP().String()
 	route.UpdateLabel(labels)
 

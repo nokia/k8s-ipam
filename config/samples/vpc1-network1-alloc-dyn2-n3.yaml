@@ -1,0 +1,11 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: alloc2-n3
+spec:
+  kind: network
+  selector:
+    matchLabels:
+      nephio.org/network-instance:  vpc-1
+      nephio.org/network-name: net1
+      nephio.org/interface: n3
