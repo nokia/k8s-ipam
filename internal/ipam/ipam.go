@@ -24,8 +24,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/goipam/pkg/table"
-	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/utils/iputil"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
 	"k8s.io/apimachinery/pkg/labels"

@@ -20,8 +20,8 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/internal/ipam"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
 
 type Options struct {

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

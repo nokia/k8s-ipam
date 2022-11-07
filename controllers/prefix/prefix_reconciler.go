@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
-	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
-	"github.com/henderiw-nephio/ipam/internal/meta"
-	"github.com/henderiw-nephio/ipam/internal/resource"
-	"github.com/henderiw-nephio/ipam/internal/shared"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/ipam"
+	"github.com/nokia/k8s-ipam/internal/meta"
+	"github.com/nokia/k8s-ipam/internal/resource"
+	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/pkg/errors"
 )
 

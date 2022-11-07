@@ -19,7 +19,7 @@ package grpcserver
 import (
 	"context"
 
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
 
 func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {

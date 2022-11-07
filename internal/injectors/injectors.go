@@ -20,7 +20,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/henderiw-nephio/ipam/internal/injector"
+	"github.com/nokia/k8s-ipam/internal/injector"
 )
 
 type Injectors interface {

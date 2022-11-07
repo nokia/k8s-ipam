@@ -16,7 +16,7 @@ limitations under the License.
 
 package ipam
 
-import ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
+import ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 
 type ipamUsage struct {
 	PrefixKind ipamv1alpha1.PrefixKind

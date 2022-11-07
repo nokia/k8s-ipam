@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
