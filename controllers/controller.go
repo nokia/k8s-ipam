@@ -20,7 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/henderiw-nephio/ipam/controllers/allocation"
-	"github.com/henderiw-nephio/ipam/controllers/injector"
+	//"github.com/henderiw-nephio/ipam/controllers/injector"
 	"github.com/henderiw-nephio/ipam/controllers/networkinstance"
 	"github.com/henderiw-nephio/ipam/controllers/prefix"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -32,7 +32,7 @@ func Setup(mgr ctrl.Manager, opts *shared.Options) error {
 		networkinstance.Setup,
 		prefix.Setup,
 		allocation.Setup,
-		injector.Setup,
+		//injector.Setup,
 	} {
 		if err := setup(mgr, opts); err != nil {
 			return err

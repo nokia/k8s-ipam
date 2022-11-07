@@ -17,11 +17,14 @@ limitations under the License.
 package v1alpha1
 
 const (
-	NephioNetworkInstanceKey    = "nephio.org/network-instance"
-	NephioPrefixLengthKey       = "nephio.org/prefix-length"
-	NephioAddressFamilyKey      = "nephio.org/address-family"
-	NephioIPPrefixNameKey       = "nephio.org/prefix-name"
-	NephioParentNetKey          = "nephio.org/parent-net"
+	NephioNetworkInstanceKey = "nephio.org/network-instance"
+	NephioPrefixKindKey      = "nephio.org/prefix-kind"
+	NephioPrefixLengthKey    = "nephio.org/prefix-length"
+	NephioAddressFamilyKey   = "nephio.org/address-family"
+	NephioIPPrefixNameKey    = "nephio.org/prefix-name"
+	NephioNetworkNameKey     = "nephio.org/network-name"
+	NephioNetworkKey         = "nephio.org/network"
+	//NephioParentNetKey          = "nephio.org/parent-net"
 	NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
 	NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
 	NephioPoolKey               = "nephio.org/pool"

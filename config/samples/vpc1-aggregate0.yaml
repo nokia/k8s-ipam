@@ -1,0 +1,8 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: aggregate0
+spec:
+  kind: aggregate
+  prefix: 10.0.0.0/8
+  networkInstance: vpc-1

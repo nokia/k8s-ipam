@@ -1,0 +1,8 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: net2-prefix1
+spec:
+  prefix: 10.0.1.1/24
+  network: net2
+  networkInstance: vpc-1

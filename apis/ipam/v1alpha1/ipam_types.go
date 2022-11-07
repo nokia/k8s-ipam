@@ -19,18 +19,19 @@ package v1alpha1
 type AddressFamily string
 
 const (
-	AddressFamilyIpv4 AddressFamily = "ipv4"
-	AddressFamilyIpv6 AddressFamily = "ipv6"
+	AddressFamilyIpv4    AddressFamily = "ipv4"
+	AddressFamilyIpv6    AddressFamily = "ipv6"
+	AddressFamilyUnknown AddressFamily = "unknown"
 )
 
 func (s AddressFamily) String() string {
 	switch s {
 	case AddressFamilyIpv4:
-		return "ipv4"
+		return string(AddressFamilyIpv4)
 	case AddressFamilyIpv6:
-		return "ipv6"
+		return string(AddressFamilyIpv6)
 	}
-	return "unknown"
+	return string(AddressFamilyUnknown)
 }
 
 type Origin string
@@ -38,4 +39,14 @@ type Origin string
 const (
 	OriginIPPrefix     Origin = "prefix"
 	OriginIPAllocation Origin = "allocation"
+	OriginIPSystem     Origin = "system"
+)
+
+type PrefixKind string
+
+const (
+	PrefixKindNetwork   PrefixKind = "network"
+	PrefixKindLoopback  PrefixKind = "loopback"
+	PrefixKindPool      PrefixKind = "pool"
+	PrefixKindAggregate PrefixKind = "aggregate"
 )

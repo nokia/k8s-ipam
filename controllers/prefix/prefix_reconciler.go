@@ -18,25 +18,21 @@ package prefix
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	"inet.af/netaddr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
-	"github.com/hansthienpondt/goipam/pkg/table"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam"
+	"github.com/henderiw-nephio/ipam/internal/allocator"
+	"github.com/henderiw-nephio/ipam/internal/ipam2"
 	"github.com/henderiw-nephio/ipam/internal/meta"
 	"github.com/henderiw-nephio/ipam/internal/resource"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -64,16 +60,20 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 		Ipam:         options.Ipam,
 		pollInterval: options.Poll,
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		//prefixValidators: initializePrefixValidators(options.Ipam),
+		allocator: allocator.New(),
 	}
 
-	niHandler := &EnqueueRequestForAllNetworkInstances{
-		client: mgr.GetClient(),
-		ctx:    context.Background(),
-	}
+	/*
+		niHandler := &EnqueueRequestForAllNetworkInstances{
+			client: mgr.GetClient(),
+			ctx:    context.Background(),
+		}
+	*/
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ipamv1alpha1.IPPrefix{}).
-		Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
+		//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
 		Complete(r)
 }
 
@@ -81,9 +81,11 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
+	Ipam         ipam2.Ipam
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
+	//prefixValidators PrefixValidators
+	allocator allocator.Allocator
 
 	l logr.Logger
 }
@@ -107,27 +109,57 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// requeued implicitly because we return an error.
 		if resource.IgnoreNotFound(err) != nil {
 			r.l.Error(err, "cannot get resource")
-			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get resource")
+			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get resource")
 		}
 		return reconcile.Result{}, nil
 	}
+	niName := types.NamespacedName{
+		Namespace: cr.GetNamespace(),
+		Name:      cr.Spec.NetworkInstance,
+	}
 
 	if meta.WasDeleted(cr) {
-		allocs, err := r.buildIPAllocation(cr)
-		if err != nil {
-			r.l.Error(err, "cannot build alloc")
-			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
-			return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-
-		// since we deallocate based on the allocation-name we can just use the first alloc from allocs
-		// to delete the prefix
-		if err := r.Ipam.DeAllocateIPPrefix(ctx, allocs[0]); err != nil {
-			if !(strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "not found")) {
-				r.l.Error(err, "cannot delete resource")
-				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
-				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		// if the prefix condition is false it means the prefix was not supplied to the network
+		// we can delete it w/o deleting it from the IPAM
+		if cr.GetCondition(ipamv1alpha1.ConditionKindReady).Status == corev1.ConditionTrue {
+			if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPPrefix(cr)); err != nil {
+				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+					r.l.Error(err, "cannot delete resource")
+					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
 			}
+			/*
+				// if rt does not exist we can delete immediately since the ipam table is clean
+				if _, ok := r.Ipam.Get(niName.String()); ok {
+					allocs := r.allocator.Allocate(cr)
+
+					// for a network we need to delete all remaining allocation if this is the latest prefix in the network
+					if cr.Spec.PrefixKind == string(ipamv1alpha1.PrefixKindNetwork) &&
+						r.Ipam.IsLatestPrefixInNetwork(cr) {
+						// delete all prefixes
+						if err := r.Ipam.DeAllocateIPPrefixes(ctx, allocs...); err != nil {
+							if !(strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "not found")) {
+								r.l.Error(err, "cannot delete resource")
+								cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+								return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+							}
+						}
+
+					} else {
+						// since we deallocate based on the allocation-name we can just use the first alloc from allocs
+						// to delete the prefix
+						if err := r.Ipam.DeAllocateIPPrefixes(ctx, allocs[0]); err != nil {
+							if !(strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "not found")) {
+								r.l.Error(err, "cannot delete resource")
+								cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+								return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+							}
+						}
+					}
+
+				}
+			*/
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
@@ -152,10 +184,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// this block is here to deal with network instance deletion
 	// we ensure the condition is set to false if the networkinstance is deleted
 	ni := &ipamv1alpha1.NetworkInstance{}
-	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.NetworkInstance,
-	}, ni); err != nil {
+	if err := r.Get(ctx, niName, ni); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
 		r.l.Info("cannot allocate prefix, network-intance not found")
@@ -170,212 +199,275 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	allocs, err := r.buildIPAllocation(cr)
-	if err != nil {
-		r.l.Error(err, "cannot build alloc")
-		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
-		return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
+	/*
+		msg, err := r.validatePrefix(ctx, cr)
+		if err != nil {
+			r.l.Error(err, "cannot validate prefix")
+			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
 
-	// to deal with change we check the existing prefix against the status
-	// since we deallocate based on the allocation-name we can just use the first alloc from allocs
-	// to delete the prefix
-	if cr.Status.Prefix != cr.Spec.Prefix {
-		if len(allocs) > 0 {
-			if err := r.Ipam.DeAllocateIPPrefix(ctx, allocs[0]); err != nil {
-				r.l.Info("cannot deallocate prefix", "err", err)
-				cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
-				return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		if msg != "" {
+			r.l.Info("prefix validation failed", "msg", msg)
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(msg))
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+	*/
+
+	// The spec got changed we check the existing prefix against the status
+	if (cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix) ||
+		(cr.Status.AllocatedNetwork != "" && cr.Status.AllocatedNetwork != cr.Spec.Network) {
+		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPPrefix(cr)); err != nil {
+			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+				r.l.Error(err, "cannot delete resource")
+				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
+
+		/*
+				if len(allocs) > 0 {
+				// for a network we need to delete all remaining allocation if this is the latest prefix in the network
+				if cr.Spec.PrefixKind == string(ipamv1alpha1.PrefixKindNetwork) &&
+					r.Ipam.IsLatestPrefixInNetwork(cr) {
+					// delete all prefixes
+					if err := r.Ipam.DeAllocateIPPrefixes(ctx, allocs...); err != nil {
+						if !(strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "not found")) {
+							r.l.Error(err, "cannot delete resource")
+							cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+							return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+						}
+					}
+				} else {
+					// since we deallocate based on the allocation-name we can just use the first alloc from allocs
+					// to delete the prefix
+					if err := r.Ipam.DeAllocateIPPrefixes(ctx, allocs[0]); err != nil {
+						if !(strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "not found")) {
+							r.l.Error(err, "cannot delete resource")
+							cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+							return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+						}
+					}
+				}
+			}
+		*/
 	}
 
 	// allocate prefixes
-	if len(allocs) == 0 {
-		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("no parent prefix found"))
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
-	for _, alloc := range allocs {
-		_, allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, alloc)
-		if err != nil {
-			r.l.Info("cannot allocate prefix", "err", err)
-			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
-			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		if *allocatedPrefix != alloc.Spec.Prefix {
-			// we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", alloc.Spec.Prefix, "allocated", *allocatedPrefix)
-			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+	/*
+		if len(allocs) == 0 {
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("no parent prefix found"))
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
+		for _, alloc := range allocs {
+			_, err := r.Ipam.AllocateIPPrefix(ctx, alloc, false, nil)
+			if err != nil {
+				r.l.Info("cannot allocate prefix", "err", err)
+				cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
+				return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+
+			//	if *allocatedPrefix != alloc.Spec.Prefix {
+					// we got a different prefix than requested
+			//		r.l.Error(err, "prefix allocation failed", "requested", alloc.Spec.Prefix, "allocated", *allocatedPrefix)
+			//		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+			//		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			//	}
+		}
+	*/
+	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam2.BuildAllocationFromIPPrefix(cr))
+	if err != nil {
+		r.l.Info("cannot allocate prefix", "err", err)
+		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
+		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	if allocatedPrefix.AllocatedPrefix != cr.Spec.Prefix {
+		//we got a different prefix than requested
+		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
+		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
 	r.l.Info("Successfully reconciled resource")
-	cr.Status.Prefix = cr.Spec.Prefix
+	cr.Status.AllocatedPrefix = cr.Spec.Prefix
+	// only relevant for prefixkind network but does not harm
+	cr.Status.AllocatedNetwork = cr.Spec.Network
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
-func (r *reconciler) buildIPAllocation(cr *ipamv1alpha1.IPPrefix) ([]*ipamv1alpha1.IPAllocation, error) {
+/*
+func (r *reconciler) validatePrefix(ctx context.Context, cr *ipamv1alpha1.IPPrefix) (msg string, err error) {
 	p, err := netaddr.ParseIPPrefix(cr.Spec.Prefix)
 	if err != nil {
-		r.l.Error(err, "cannot parse prefix")
-		return nil, err
+		return "", err
+	}
+	v := r.prefixValidators.Get(ipamv1alpha1.PrefixKind(cr.Spec.PrefixKind))
+	if v == nil {
+		return "", fmt.Errorf("wrong prefix kind: %s", cr.Spec.PrefixKind)
 	}
 
-	var af string
-	if p.IP().Is4() {
-		af = string(ipamv1alpha1.AddressFamilyIpv4)
+	switch cr.Spec.PrefixKind {
+	case string(ipamv1alpha1.PrefixKindNetwork):
+		msg, err = v.Validate(ctx, cr, p.Masked())
+	default:
+		msg, err = v.Validate(ctx, cr, p)
 	}
-	if p.IP().Is6() {
-		af = string(ipamv1alpha1.AddressFamilyIpv6)
+	if err != nil {
+		return "", err
 	}
+	return msg, nil
 
-	prefixSize, _ := p.IPNet().Mask.Size()
-	prefixLength := strconv.Itoa(prefixSize)
+}
+*/
 
-	// augment labels with additional metadata
-	labels := cr.GetLabels()
-	if len(labels) == 0 {
-		labels = map[string]string{}
-	}
-	// add address family to the labels associated to the prefix
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = af
-	// add the prefix length to the labels associated to the prefix
-	labels[ipamv1alpha1.NephioPrefixLengthKey] = prefixLength
-	// add prefix name to the labels associated to the prefix
-	labels[ipamv1alpha1.NephioIPPrefixNameKey] = cr.GetName()
-	// add prefix name to the labels associated to the prefix
-	labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPPrefix)
-	// add ip pool labelKey if present
-	if cr.Spec.Pool {
-		labels[ipamv1alpha1.NephioPoolKey] = strconv.FormatBool(cr.Spec.Pool)
-	}
+/*
+func (r *reconciler) buildIPAllocation(cr *ipamv1alpha1.IPPrefix) ([]*ipamv1alpha1.IPAllocation, error) {
+	// since validation passed we can assume the parsing will succeed
+	p := netaddr.MustParseIPPrefix(cr.Spec.Prefix)
 
+	// labels set in meta data
+	labels := getLabels(cr, p)
 	// labels used to select the prefix context
-	selectorLabels := map[string]string{
-		ipamv1alpha1.NephioNetworkInstanceKey: cr.Spec.NetworkInstance,
-	}
+	selectorLabels := getSelectorLabels(cr)
 
 	allocs := []*ipamv1alpha1.IPAllocation{}
-	// if we have a have an address in the prefix we add an additional prefix (representing the address in the ipam)
-	if p.IPNet().String() != p.Masked().String() {
-		allocs = append(allocs, &ipamv1alpha1.IPAllocation{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: cr.GetNamespace(),
-				Name:      cr.GetName(),
-				Labels:    labels,
-			},
-			Spec: ipamv1alpha1.IPAllocationSpec{
-				Prefix: p.Masked().String(),
-				Selector: &metav1.LabelSelector{
-					MatchLabels: selectorLabels,
-				},
-			},
-		})
 
-		var addressPrefixLength string
-		if af == string(ipamv1alpha1.AddressFamilyIpv4) {
-			addressPrefixLength = "32"
+	if cr.Spec.PrefixKind == string(ipamv1alpha1.PrefixKindNetwork) {
+		// for a network based prefix we have 2 options
+		// a prefix where the address part of the net is equal to the net and another one where it is not
+		if p.IPNet().String() != p.Masked().String() {
+			allocs = append(allocs, buildNetAllocation(cr, p.Masked(), getNetLabels(labels, p), selectorLabels))
+
+			allocs = append(allocs, buildFirstAddressAllocation(cr, p.Masked(), getFirstLabels(labels, p), selectorLabels))
+			// TODO do we also need to create last address
+			allocs = append(allocs, buildAddressAllocation(cr, p, getAddressLabels(labels, p), selectorLabels))
 		} else {
-			addressPrefixLength = "128"
+			allocs = append(allocs, buildNetAllocation(cr, p.Masked(), getNetLabels(labels, p), selectorLabels))
+			allocs = append(allocs, buildAddressAllocation(cr, p, getAddressLabels(labels, p), selectorLabels))
 		}
-		address := strings.Join([]string{p.IP().String(), addressPrefixLength}, "/")
-
-		// copy labels
-		gatewayLabels := map[string]string{}
-		for k, v := range labels {
-			gatewayLabels[k] = v
-		}
-		gatewayLabels[ipamv1alpha1.NephioGatewayKey] = "true"
-		gatewayLabels[ipamv1alpha1.NephioPrefixLengthKey] = prefixLength
-		n := strings.Split(p.Masked().IPNet().String(), "/")
-		gatewayLabels[ipamv1alpha1.NephioParentNetKey] = n[0]
-		gatewayLabels[ipamv1alpha1.NephioParentPrefixLengthKey] = prefixLength
-
-		allocs = append(allocs, &ipamv1alpha1.IPAllocation{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: cr.GetNamespace(),
-				Name:      cr.GetName(),
-				Labels:    gatewayLabels,
-			},
-			Spec: ipamv1alpha1.IPAllocationSpec{
-				Prefix: address,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: selectorLabels,
-				},
-			},
-		})
 	} else {
-		// when the address length is /32 or /128 we want to use the prefix-name of the
-		// higher order prefix
-		if (af == string(ipamv1alpha1.AddressFamilyIpv4) && (prefixLength == "32")) ||
-			(af == string(ipamv1alpha1.AddressFamilyIpv6) && (prefixLength == "128")) {
-			niName := types.NamespacedName{
-				Namespace: cr.GetNamespace(),
-				Name:      cr.Spec.NetworkInstance,
-			}
-			rt, ok := r.Ipam.Get(niName.String())
-			if !ok {
-				return nil, fmt.Errorf("ipam ni not ready or network-instance %s not correct", cr.Spec.NetworkInstance)
-			}
-			psize := 0
-			var adjRoute *table.Route
-			for _, route := range rt.Parents(p) {
-				r.l.Info("address", "route", route)
-				p := route.IPPrefix()
-				ps, _ := p.IPNet().Mask.Size()
-				if ps > psize {
-					psize = ps
-					adjRoute = route
-				}
-			}
-			if adjRoute != nil {
-				r.l.Info("selected adj prefix for address", "route", adjRoute)
-				addressLabels := map[string]string{}
-				for k, v := range labels {
-					addressLabels[k] = v
-				}
-				addressLabels[ipamv1alpha1.NephioIPPrefixNameKey] = adjRoute.GetLabels().Get(ipamv1alpha1.NephioIPPrefixNameKey)
-
-				p := netaddr.MustParseIPPrefix(adjRoute.String())
-				prefixSize, _ := p.IPNet().Mask.Size()
-				prefixLength := strconv.Itoa(prefixSize)
-
-				n := strings.Split(p.Masked().IPNet().String(), "/")
-				addressLabels[ipamv1alpha1.NephioParentNetKey] = n[0]
-				addressLabels[ipamv1alpha1.NephioParentPrefixLengthKey] = prefixLength
-
-				allocs = append(allocs, &ipamv1alpha1.IPAllocation{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: cr.GetNamespace(),
-						Name:      cr.GetName(),
-						Labels:    addressLabels,
-					},
-					Spec: ipamv1alpha1.IPAllocationSpec{
-						Prefix: cr.Spec.Prefix,
-						Selector: &metav1.LabelSelector{
-							MatchLabels: selectorLabels,
-						},
-					},
-				})
-			}
-
-		} else {
-			allocs = append(allocs, &ipamv1alpha1.IPAllocation{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: cr.GetNamespace(),
-					Name:      cr.GetName(),
-					Labels:    labels,
-				},
-				Spec: ipamv1alpha1.IPAllocationSpec{
-					Prefix: cr.Spec.Prefix,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: selectorLabels,
-					},
-				},
-			})
-		}
+		allocs = append(allocs, buildAllocation(cr, p, labels, selectorLabels))
 	}
 
 	return allocs, nil
 }
+*/
+
+/*
+func buildNetAllocation(cr *ipamv1alpha1.IPPrefix, p netaddr.IPPrefix, labels, selectorLabels map[string]string) *ipamv1alpha1.IPAllocation {
+	labels[ipamv1alpha1.NephioIPPrefixNameKey] = cr.GetName()
+	labels[ipamv1alpha1.NephioPrefixKind] = string(ipamv1alpha1.PrefixKindNetwork)
+	return &ipamv1alpha1.IPAllocation{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: cr.GetNamespace(),
+			Name:      strings.Join([]string{p.IP().String(), iputil.GetPrefixLength(p)}, "-"),
+			Labels:    labels,
+		},
+		Spec: ipamv1alpha1.IPAllocationSpec{
+			Prefix: p.String(),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			},
+		},
+	}
+}
+*/
+
+/*
+func buildAllocation(cr *ipamv1alpha1.IPPrefix, p netaddr.IPPrefix, labels, selectorLabels map[string]string) *ipamv1alpha1.IPAllocation {
+	return &ipamv1alpha1.IPAllocation{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: cr.GetNamespace(),
+			Name:      cr.GetName(),
+			Labels:    labels,
+		},
+		Spec: ipamv1alpha1.IPAllocationSpec{
+			Prefix: p.String(),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			},
+		},
+	}
+}
+*/
+
+/*
+func buildAddressAllocation(cr *ipamv1alpha1.IPPrefix, p netaddr.IPPrefix, labels, selectorLabels map[string]string) *ipamv1alpha1.IPAllocation {
+	labels[ipamv1alpha1.NephioPrefixKind] = string(ipamv1alpha1.PrefixKindNetwork)
+	return &ipamv1alpha1.IPAllocation{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: cr.GetNamespace(),
+			Name:      cr.GetName(),
+			Labels:    labels,
+		},
+		Spec: ipamv1alpha1.IPAllocationSpec{
+			Prefix: iputil.GetAddress(p),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			},
+		},
+	}
+}
+*/
+
+/*
+func buildFirstAddressAllocation(cr *ipamv1alpha1.IPPrefix, p netaddr.IPPrefix, labels, selectorLabels map[string]string) *ipamv1alpha1.IPAllocation {
+	labels[ipamv1alpha1.NephioPrefixKind] = string(ipamv1alpha1.PrefixKindNetwork)
+	return &ipamv1alpha1.IPAllocation{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: cr.GetNamespace(),
+			Name:      "first",
+			Labels:    labels,
+		},
+		Spec: ipamv1alpha1.IPAllocationSpec{
+			Prefix: iputil.GetFirstAddress(p),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			},
+		},
+	}
+}
+*/
+
+/*
+func getNetLabels(l map[string]string, p netaddr.IPPrefix) map[string]string {
+	// copy labels
+	labels := map[string]string{}
+	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(p))
+	labels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetPrefixLength(p)
+	labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPSystem)
+	labels[ipamv1alpha1.NephioIPPrefixNameKey] = "net"
+	return labels
+}
+*/
+
+/*
+func getAddressLabels(l map[string]string, p netaddr.IPPrefix) map[string]string {
+	labels := map[string]string{}
+	for k, v := range labels {
+		labels[k] = v
+	}
+	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(p))
+	labels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
+	labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
+	return labels
+}
+*/
+
+/*
+func getFirstLabels(l map[string]string, p netaddr.IPPrefix) map[string]string {
+	// copy labels
+	labels := map[string]string{}
+	for k, v := range l {
+		labels[k] = v
+	}
+	// set gateway to true
+	labels[ipamv1alpha1.NephioIPPrefixNameKey] = "first"
+	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(p))
+	labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPSystem)
+	labels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
+	labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
+	return labels
+}
+*/

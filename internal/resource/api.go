@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/henderiw-nephio/ipam/internal/meta"
-	"github.com/henderiw-nephio/ipam/internal/utils"
+	"github.com/henderiw-nephio/ipam/internal/utils/util"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -80,7 +80,7 @@ func (a *APIFinalizer) RemoveFinalizerString(ctx context.Context, obj Object, fi
 	fmt.Printf("RemoveFinalizerString finalizers start: %v\n", obj.GetFinalizers())
 	for _, ff := range f {
 		if ff == finalizerString {
-			f = utils.RemoveString(f, ff)
+			f = util.RemoveString(f, ff)
 			obj.SetFinalizers(f)
 		}
 	}

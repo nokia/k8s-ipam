@@ -22,9 +22,11 @@ import (
 
 // IPPrefixSpec defines the desired state of IPPrefix
 type IPPrefixSpec struct {
-	// Pool identifies that this prefix can be used as a pool, in which case the first and last
-	// ip in the prefix can be used/consumed.
-	Pool bool `json:"pool,omitempty"`
+	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
+	// +kubebuilder:default=network
+	PrefixKind string `json:"kind"`
+	// Network is only relevant for prefix kind network. it is the unique name to reference all prefixes together within a network
+	Network string `json:"network,omitempty"`
 	// Prefix defines the ip subnet of the ip prefix, it can also be an address if a /32 or /128 is specified
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix"`
@@ -35,8 +37,10 @@ type IPPrefixSpec struct {
 // IPPrefixStatus defines the observed state of IPPrefix
 type IPPrefixStatus struct {
 	ConditionedStatus `json:",inline"`
-	// identifies the used prefix
-	Prefix string `json:"prefix"`
+	// AllocatedPrefix identifies the prefix that was allocated by the IPAM system
+	AllocatedPrefix string `json:"prefix,omitempty"`
+	// AllocatedNetwork identifies the network that was allocated by the IPAM system
+	AllocatedNetwork string `json:"network,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -44,7 +48,10 @@ type IPPrefixStatus struct {
 // +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
 // +kubebuilder:printcolumn:name="NETWORK",type="string",JSONPath=".spec.networkInstance"
-// +kubebuilder:printcolumn:name="PREFIX",type="string",JSONPath=".spec.prefix"
+// +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.kind"
+// +kubebuilder:printcolumn:name="NETWORK",type="string",JSONPath=".spec.network"
+// +kubebuilder:printcolumn:name="PREFIX-REQ",type="string",JSONPath=".spec.prefix"
+// +kubebuilder:printcolumn:name="PREFIX-ALLOC",type="string",JSONPath=".status.prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:categories={nephio,ipam}
 
