@@ -51,9 +51,9 @@ Everything in the IPAM is modelled as an IP Prefix. An IP address is a specific 
   - Children of a loopback IP prefix can be of kind: loopback
   - Parents of a loopback IP prefix can be of kind: aggregate 
 
-## proxy
+## injector
 
-Besides the base IPAM block there is also a proxy functions which looks at IP Allocations within a GitRepo/package revision and allocates/deallocates IP(s) using a GRPC interface. This is a pluggable system which allows to interact with 3rd party IPAM systems.
+Besides the base IPAM block there is also a injector functions which looks at IP Allocations within a GitRepo/package revision and allocates/deallocates IP(s) using a GRPC interface. This is a pluggable system which allows to interact with 3rd party IPAM systems.
 
 ## use cases
 
