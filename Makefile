@@ -1,6 +1,13 @@
+VERSION ?= latest
+REGISTRY ?= yndd
+PROJECT ?= ipam
+
+KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config
+KPT_BLUEPRINT_PKG_DIR ?= blueprint/${PROJECT}
+
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= $(REGISTRY)/${PROJECT}-controller:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.25.0
 
@@ -39,8 +46,20 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: controller-gen kpt kptgen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	mkdir -p ${KPT_BLUEPRINT_CFG_DIR}
+	mkdir -p ${KPT_BLUEPRINT_PKG_DIR}/crd/bases
+	mkdir -p ${KPT_BLUEPRINT_PKG_DIR}/app
+	$(CONTROLLER_GEN) crd paths="./..." output:crd:artifacts:config=${KPT_BLUEPRINT_PKG_DIR}/crd/bases
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR} --description "${PROJECT} controller"
+	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR}/crd --description "${PROJECT} crd"
+	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR}/app --description "${PROJECT} app"
+	kptgen apply config ${KPT_BLUEPRINT_PKG_DIR} --fn-config-dir ${KPT_BLUEPRINT_CFG_DIR}
+	rm ${KPT_BLUEPRINT_PKG_DIR}/package-context.yaml
+	rm ${KPT_BLUEPRINT_PKG_DIR}/crd/package-context.yaml
+	rm ${KPT_BLUEPRINT_PKG_DIR}/app/package-context.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -131,10 +150,14 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+KPT ?= $(LOCALBIN)/kpt
+KPTGEN ?= $(LOCALBIN)/kptgen
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.2
+KPT_VERSION ?= main
+KPTGEN_VERSION ?= v0.0.9
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -151,3 +174,13 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: kpt
+kpt: $(KPT) ## Download kpt locally if necessary.
+$(KPT): $(LOCALBIN)
+	test -s $(LOCALBIN)/kpt || GOBIN=$(LOCALBIN) go install -v github.com/GoogleContainerTools/kpt@$(KPT_VERSION)
+
+.PHONY: kptgen
+kptgen: $(KPTGEN) ## Download kptgen locally if necessary.
+$(KPTGEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/kptgen || GOBIN=$(LOCALBIN) go install -v github.com/henderiw-kpt/kptgen@$(KPTGEN_VERSION)
