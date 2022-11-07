@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/hansthienpondt/goipam/pkg/table"
-	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"inet.af/netaddr"
 )
 

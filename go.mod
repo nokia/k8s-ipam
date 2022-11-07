@@ -1,4 +1,4 @@
-module github.com/henderiw-nephio/ipam
+module github.com/nokia/k8s-ipam
 
 go 1.19
 
