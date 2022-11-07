@@ -29,11 +29,39 @@ IP Address - An individual IP address along with its subnet mask, automatically 
 
 The actual IPPrefix CRD does not distinguish between an address or a prefix, since an address is a special case of a prefix. An address has a /128 or /32 for ipv6, ipv4 resp.
 
+### ipam use cases
+
+Everything in the IPAM is modelled as an IP Prefix. An IP address is a specific implementation of an IP prefix, meaning is is resp /32 or /128 for ipv4 and ipv6. Besides the IP address There are various use cases for an IP Prefix, like interface based IP(s), loopback based IPs and IP pools/ranges. In order to allow for flexibility a prefix kind is introduced and hence an ip prefix can have various kinds:
+
+- Aggregate: 
+  - IP Prefixes are naturally hierarchical and are typically drawn from a specific space that someone operates with. An aggregate prefix-kind can be seen as the top level when nesting IP prefixes. E.g. if an operator got a IP prefix assigned from the RIR it would be implemented as an aggergate. 
+  - An aggregate can be nested. E.g. if someone wants to subdivide an address space they can define multiple aggregates where multiple teams operate with.
+  - Children of an aggregate IP prefix can be of kind: network, pool and loopback
+  - Parents of an aggregate IP prefix can be of kind: aggregate
+- network: 
+  - IP prefixes that are assigned on (virtual/physical) interfaces of a application would be modelled as a prefix kind network. IP prefixes of this kind can have a mesh relationship between them. E.g. a LAN environment can have multiple routers and hosts that all are in the same subnet.
+  - Children of a network IP prefix can be of kind: network
+  - Parents of a network IP prefix can be of kind: aggregate
+- pool:
+  - IP prefixes can also be assigned to pools. E.g. a pool for a DHCP server, a pool for NAT, a pool for allocating IP adddresses to users. The IP prefix of kind pool allows for this use case
+  - Children of a pool IP prefix can be of kind: pool
+  - Parents of a pool IP prefix can be of kind: aggregate or pool
+- loopback
+  - IP prefixes can also be assigned to a loopback interface in the application. E.g. a socket for a RADIUS server, Diameter, HTTP srever. The IP prefix of kind loopback allows for this use case
+  - Children of a loopback IP prefix can be of kind: loopback
+  - Parents of a loopback IP prefix can be of kind: aggregate 
+
 ## proxy
 
 Besides the base IPAM block there is also a proxy functions which looks at IP Allocations within a GitRepo/package revision and allocates/deallocates IP(s) using a GRPC interface. This is a pluggable system which allows to interact with 3rd party IPAM systems.
 
 ## use cases
+
+### run IPAM
+
+```
+make run
+```
 
 ### Setup IPAM
 
