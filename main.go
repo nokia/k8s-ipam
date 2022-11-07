@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+	"strconv"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -36,7 +38,10 @@ import (
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
 	"github.com/henderiw-nephio/ipam/controllers"
-	"github.com/henderiw-nephio/ipam/internal/ipam2"
+	"github.com/henderiw-nephio/ipam/internal/allochandler"
+	"github.com/henderiw-nephio/ipam/internal/grpcserver"
+	"github.com/henderiw-nephio/ipam/internal/healthhandler"
+	"github.com/henderiw-nephio/ipam/internal/ipam"
 	"github.com/henderiw-nephio/ipam/internal/shared"
 	"github.com/henderiw-nephio/ipam/pkg/alloc/alloc"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
@@ -112,18 +117,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	//injectors := injectors.New()
-	//allocator := allocator.New()
-
-	ipam := ipam2.New(mgr.GetClient())
+	ipam := ipam.New(mgr.GetClient())
 	// initialize controllers
 	if err := controllers.Setup(mgr, &shared.Options{
 		PorchClient: porchClient,
 		AllocClient: allocClient,
 		Ipam:        ipam,
-		//Injectors:   injectors,
-		//Allocator:   allocator,
-		Poll: 5 * time.Second,
+		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
@@ -132,29 +132,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	/*
-			ah := allochandler.New(&allochandler.Options{
-				Ipam: ipam,
-			})
-			wh := healthhandler.New()
+	ah := allochandler.New(&allochandler.Options{
+		Ipam: ipam,
+	})
+	wh := healthhandler.New()
 
-			s := grpcserver.New(grpcserver.Config{
-				Address:  ":" + strconv.Itoa(9999),
-				Insecure: true,
-			},
-				grpcserver.WithAllocHandler(ah.Allocation),
-				grpcserver.WithDeAllocHandler(ah.DeAllocation),
-				grpcserver.WithWatchHandler(wh.Watch),
-				grpcserver.WithCheckHandler(wh.Check),
-			)
+	s := grpcserver.New(grpcserver.Config{
+		Address:  ":" + strconv.Itoa(9999),
+		Insecure: true,
+	},
+		grpcserver.WithAllocHandler(ah.Allocation),
+		grpcserver.WithDeAllocHandler(ah.DeAllocation),
+		grpcserver.WithWatchHandler(wh.Watch),
+		grpcserver.WithCheckHandler(wh.Check),
+	)
 
-		go func() {
-			if err := s.Start(context.TODO()); err != nil {
-				setupLog.Error(err, "cannot start grpcserver")
-				os.Exit(1)
-			}
-		}()
-	*/
+	go func() {
+		if err := s.Start(context.TODO()); err != nil {
+			setupLog.Error(err, "cannot start grpcserver")
+			os.Exit(1)
+		}
+	}()
 
 	//+kubebuilder:scaffold:builder
 

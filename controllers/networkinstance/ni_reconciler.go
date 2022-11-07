@@ -28,7 +28,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
-	"github.com/henderiw-nephio/ipam/internal/ipam2"
+	"github.com/henderiw-nephio/ipam/internal/ipam"
 	"github.com/henderiw-nephio/ipam/internal/meta"
 	"github.com/henderiw-nephio/ipam/internal/resource"
 	"github.com/henderiw-nephio/ipam/internal/shared"
@@ -67,22 +67,13 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam2.Ipam
+	Ipam         ipam.Ipam
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
 	l logr.Logger
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the NetworkInstance object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("reconcile", "req", req)

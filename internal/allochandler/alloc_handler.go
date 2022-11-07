@@ -19,9 +19,8 @@ package allochandler
 import (
 	"context"
 
-	ipamv1alpha1 "github.com/henderiw-nephio/ipam/apis/ipam/v1alpha1"
+	"github.com/henderiw-nephio/ipam/internal/ipam"
 	"github.com/henderiw-nephio/ipam/pkg/alloc/allocpb"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -29,7 +28,7 @@ func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*al
 	s.l = log.FromContext(ctx)
 	s.l.Info("allocate", "alloc", alloc)
 
-	prefix, err := s.ipam.AllocateIPPrefix(ctx, buildAlloc(alloc), false, nil)
+	prefix, err := s.ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromGRPCAlloc(alloc))
 	if err != nil {
 		return nil, err
 	}
@@ -45,25 +44,8 @@ func (s *subServer) DeAllocation(ctx context.Context, alloc *allocpb.Request) (*
 
 	//allocs := []*ipamv1alpha1.IPAllocation{}
 	//allocs = append(allocs, buildAlloc(alloc))
-	if err := s.ipam.DeAllocateIPPrefixes(ctx, buildAlloc(alloc)); err != nil {
+	if err := s.ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromGRPCAlloc(alloc)); err != nil {
 		return nil, err
 	}
 	return &allocpb.Response{}, nil
-}
-
-func buildAlloc(alloc *allocpb.Request) *ipamv1alpha1.IPAllocation {
-	return &ipamv1alpha1.IPAllocation{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: alloc.Namespace,
-			Name:      alloc.Name,
-			Labels:    alloc.Labels,
-		},
-		Spec: ipamv1alpha1.IPAllocationSpec{
-			Prefix:       alloc.GetSpec().GetPrefix(),
-			PrefixLength: uint8(alloc.GetSpec().GetPrefixLength()),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: alloc.GetSpec().GetSelector(),
-			},
-		},
-	}
 }
