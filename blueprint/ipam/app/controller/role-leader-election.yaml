@@ -11,6 +11,7 @@ metadata:
     app.kubernetes.io/part-of: ipam
     app.kubernetes.io/version: tbd
   name: ipam-controller-leader-election-role
+  namespace: ipam
 rules:
 - apiGroups:
   - ""

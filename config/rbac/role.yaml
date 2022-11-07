@@ -6,6 +6,14 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - '*'
+  resources:
+  - networkinstances
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ipam.nephio.org
   resources:
   - ipallocations

@@ -15,9 +15,6 @@ spec:
       - apiGroups: ["*"]
         resources: [events]
         verbs: [get, list, watch, update, patch, create, delete]
-      - apiGroups: ["*"]
-        resources: [networkinstances]
-        verbs: [get, list, watch]
     porch:
       scope: cluster
       permissions:
