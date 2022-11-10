@@ -192,10 +192,10 @@ $(KPTGEN): $(LOCALBIN)
 .PHONY: protoc-gen-gofast
 protoc-gen-gofast: $(PROTOC_GO_FAST) ## Download protoc-gen-gofast locally if necessary.
 $(PROTOC_GO_FAST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/gogo/protobuf/protoc-gen-gofast@$(PROTOC_GO_FAST_VERSION)
+	test -s $(LOCALBIN)/protoc-gen-gofast || GOBIN=$(LOCALBIN) go install github.com/gogo/protobuf/protoc-gen-gofast@$(PROTOC_GO_FAST_VERSION)
 
 .PHONY: protoc-gen-go-grpc
 protoc-gen-gogrpc: $(PROTOC_GO_GRPC) ## Download protoc-gen-golang-grpc locally if necessary.
 $(PROTOC_GO_GRPC): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
+	test -s $(LOCALBIN)/protoc-gen-go-grpc || GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
 
