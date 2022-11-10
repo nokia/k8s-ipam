@@ -18,10 +18,12 @@ package injector
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
+	"github.com/henderiw-nephio/nf-injector-controller/pkg/ipam"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/injector"
@@ -30,16 +32,13 @@ import (
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -169,15 +168,37 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 		return err
 	}
 
-	for i, rn := range pkgBuf.Nodes {
+	for _, rn := range pkgBuf.Nodes {
 		if rn.GetApiVersion() == ipamv1alpha1.GroupVersion.String() && rn.GetKind() == ipamv1alpha1.IPAllocationKind {
-			ipalloc := &ipamv1alpha1.IPAllocation{}
-			if err := yaml.Unmarshal([]byte(rn.MustString()), ipalloc); err != nil {
-				return errors.Wrap(err, "cannot unmarchal ip allocation")
-			}
 			namespace := rn.GetNamespace()
 			if namespace == "" {
 				namespace = "default"
+			}
+
+			selectorMatchLabels, err := ipam.GetIPAllocationSelectorMatchLabels(rn)
+			if err != nil {
+				return err
+			}
+
+			var spec *allocpb.Spec
+			switch ipam.GetPrefixKind(rn) {
+			case string(ipamv1alpha1.PrefixKindNetwork):
+				spec = &allocpb.Spec{
+					Prefixkind: string(ipamv1alpha1.PrefixKindNetwork),
+					Selector:   selectorMatchLabels,
+				}
+			case string(ipamv1alpha1.PrefixKindPool):
+				pl, err := ipam.GetPrefixLength(rn)
+				if err != nil {
+					return err
+				}
+				spec = &allocpb.Spec{
+					Prefixkind:   string(ipamv1alpha1.PrefixKindNetwork),
+					PrefixLength: uint32(pl),
+					Selector:     selectorMatchLabels,
+				}
+			default:
+				return fmt.Errorf("unknown prefixkind: %s", ipam.GetPrefixKind(rn))
 			}
 
 			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
@@ -185,32 +206,25 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 				Name:      rn.GetName(),
 				Kind:      "ipam",
 				Labels:    rn.GetLabels(),
-				Spec: &allocpb.Spec{
-					Selector: ipalloc.Spec.Selector.MatchLabels,
-				},
+				Spec:      spec,
 			})
 			if err != nil {
 				return errors.Wrap(err, "cannot allocate ip")
 			}
 
-			ipalloc.Status.AllocatedPrefix = resp.GetAllocatedPrefix()
-			ipalloc.Status.ConditionedStatus.Conditions = append(ipalloc.Status.ConditionedStatus.Conditions, ipamv1alpha1.Condition{
-				Kind:               ipamv1alpha1.ConditionKindReady,
-				Status:             corev1.ConditionTrue,
-				LastTransitionTime: metav1.Now(),
-			})
-
-			b, err := yaml.Marshal(ipalloc)
+			allocatedPrefix := resp.GetAllocatedPrefix()
+			rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
 			if err != nil {
-				return errors.Wrap(err, "cannot marshal ip allocation")
+				return err
 			}
-
-			n, err := kyaml.Parse(string(b))
+			UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
+			gateway := resp.GetGateway()
+			rnGateway, err := kyaml.Parse(gateway)
 			if err != nil {
-				return errors.Wrap(err, "cannot parse kyaml")
+				return err
 			}
-			// replace the node entry
-			pkgBuf.Nodes[i] = n
+			UpdateValue("status.gateway", rn, rnGateway)
+
 		}
 	}
 
