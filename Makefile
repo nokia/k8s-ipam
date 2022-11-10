@@ -64,7 +64,8 @@ manifests: controller-gen kpt kptgen ## Generate WebhookConfiguration, ClusterRo
 .PHONY: generate
 generate: controller-gen protoc-gen-gofast protoc-gen-go-grpc ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	protoc -I . $(shell find ./pkg/ -name '*.proto') --gofast_out=. --gofast_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative
+	go mod vendor
+	protoc -I . -I ./vendor $(shell find ./pkg/ -name '*.proto') --gofast_out=. --gofast_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -72,7 +73,7 @@ fmt: ## Run go fmt against code.
 
 .PHONY: vet
 vet: ## Run go vet against code.
-	go vet ./...
+	go vet ./... | grep -v vendor/ && exit 1 || exit 0
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
