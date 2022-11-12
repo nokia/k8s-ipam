@@ -1,0 +1,10 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: sample-n6-net-prefix1
+  labels:
+    nephio.org/gateway: "true"
+spec:
+  prefix: 172.1.1.1/24
+  network: sample-n6-net
+  networkInstance: sample-vpc
