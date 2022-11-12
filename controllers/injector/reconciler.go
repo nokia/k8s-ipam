@@ -19,30 +19,35 @@ package injector
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
+	kptfile "github.com/GoogleContainerTools/kpt/pkg/api/kptfile/v1"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/henderiw-nephio/nf-injector-controller/pkg/ipam"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/injector"
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 const (
-	finalizer = "ipam.nephio.org/finalizer"
+	finalizer         = "ipam.nephio.org/finalizer"
+	ipamConditionType = "ipam.nephio.org.IPAMAllocation"
 	// errors
 	//errGetCr        = "cannot get resource"
 	//errUpdateStatus = "cannot update status"
@@ -101,32 +106,64 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	crName := types.NamespacedName{
-		Namespace: cr.Namespace,
-		Name:      cr.Name,
-	}
-	i := injector.New(&injector.Config{
-		InjectorHandler: r.injectIPs,
-		NamespacedName:  crName,
-		Client:          r.Client,
-	})
+	ipamConditions := unsatisfiedConditions(cr.Status.Conditions, ipamConditionType)
 
-	hasIpamReadinessGate := hasReadinessGate(cr.Spec.ReadinessGates, r.kind)
-	// if no IPAM readiness gate, delete the injector if it existed or not
-	// we can stop the reconciliation in this case since there is nothing more to do
-	if !hasIpamReadinessGate {
-		r.injectors.Stop(i)
-		r.l.Info("injector stopped", "pr", cr.GetName())
-		return ctrl.Result{}, nil
+	if len(ipamConditions) > 0 {
+		crName := types.NamespacedName{
+			Namespace: cr.Namespace,
+			Name:      cr.Name,
+		}
+
+		r.l.Info("injector running", "pr", cr.GetName())
+		if err := r.injectIPs(ctx, crName); err != nil {
+			r.l.Error(err, "injection error")
+			return ctrl.Result{}, err
+		}
 	}
 
-	// run the injector when the ipam readiness gate is set
-	r.l.Info("injector running", "pr", cr.GetName())
-	r.injectors.Run(i)
+	/*
+		crName := types.NamespacedName{
+			Namespace: cr.Namespace,
+			Name:      cr.Name,
+		}
+		i := injector.New(&injector.Config{
+			InjectorHandler: r.injectIPs,
+			NamespacedName:  crName,
+			Client:          r.Client,
+		})
+
+		hasIpamReadinessGate := hasReadinessGate(cr.Spec.ReadinessGates, r.kind)
+		// if no IPAM readiness gate, delete the injector if it existed or not
+		// we can stop the reconciliation in this case since there is nothing more to do
+		if !hasIpamReadinessGate {
+			r.injectors.Stop(i)
+			r.l.Info("injector stopped", "pr", cr.GetName())
+			return ctrl.Result{}, nil
+		}
+
+		// run the injector when the ipam readiness gate is set
+		r.l.Info("injector running", "pr", cr.GetName())
+		r.injectors.Run(i)
+	*/
 
 	return ctrl.Result{}, nil
 }
 
+func unsatisfiedConditions(conditions []porchv1alpha1.Condition, conditionType string) []porchv1alpha1.Condition {
+	var uc []porchv1alpha1.Condition
+	for _, c := range conditions {
+		// TODO: make this smarter
+		// for now, just check if it is True. It means we won't re-inject if some input changes,
+		// unless someone flips the state
+		if c.Status != porchv1alpha1.ConditionTrue && strings.HasPrefix(c.Type, conditionType+".") {
+			uc = append(uc, c)
+		}
+	}
+
+	return uc
+}
+
+/*
 func hasReadinessGate(gates []porchv1alpha1.ReadinessGate, gate string) bool {
 	for i := range gates {
 		g := gates[i]
@@ -146,6 +183,7 @@ func hasCondition(conditions []porchv1alpha1.Condition, conditionType string) (*
 	}
 	return nil, false
 }
+*/
 
 func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.NamespacedName) error {
 	r.l = log.FromContext(ctx)
@@ -158,73 +196,45 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 
 	pr := origPr.DeepCopy()
 
-	prResources := &porchv1alpha1.PackageRevisionResources{}
-	if err := r.porchClient.Get(ctx, namespacedName, prResources); err != nil {
-		return err
-	}
+	prConditions := convertConditions(pr.Status.Conditions)
 
-	pkgBuf, err := porch.ResourcesToPackageBuffer(prResources.Spec.Resources)
+	prResources, pkgBuf, err := r.injectAllocatedIPs(ctx, namespacedName, prConditions, pr)
 	if err != nil {
-		return err
+		if pkgBuf == nil {
+			return err
+		}
+		// for now just assume the error applies to all IP injections
+		for _, c := range *prConditions {
+			if !strings.HasPrefix(c.Type, ipamConditionType) {
+				continue
+			}
+			if meta.IsStatusConditionTrue(*prConditions, c.Type) {
+				continue
+			}
+			meta.SetStatusCondition(prConditions, metav1.Condition{Type: c.Type, Status: metav1.ConditionFalse,
+				Reason: "ErrorDuringInjection", Message: err.Error()})
+		}
 	}
 
-	for _, rn := range pkgBuf.Nodes {
-		if rn.GetApiVersion() == ipamv1alpha1.GroupVersion.String() && rn.GetKind() == ipamv1alpha1.IPAllocationKind {
-			namespace := rn.GetNamespace()
-			if namespace == "" {
-				namespace = "default"
-			}
+	pr.Status.Conditions = unconvertConditions(prConditions)
 
-			selectorMatchLabels, err := ipam.GetIPAllocationSelectorMatchLabels(rn)
-			if err != nil {
+	// conditions are stored in the Kptfile right now
+	for i, n := range pkgBuf.Nodes {
+		if n.GetKind() == "Kptfile" {
+			// we need to update the status
+			nStr := n.MustString()
+			var kf kptfile.KptFile
+			if err := kyaml.Unmarshal([]byte(nStr), &kf); err != nil {
 				return err
 			}
-
-			var spec *allocpb.Spec
-			switch ipam.GetPrefixKind(rn) {
-			case string(ipamv1alpha1.PrefixKindNetwork):
-				spec = &allocpb.Spec{
-					Prefixkind: string(ipamv1alpha1.PrefixKindNetwork),
-					Selector:   selectorMatchLabels,
-				}
-			case string(ipamv1alpha1.PrefixKindPool):
-				pl, err := ipam.GetPrefixLength(rn)
-				if err != nil {
-					return err
-				}
-				spec = &allocpb.Spec{
-					Prefixkind:   string(ipamv1alpha1.PrefixKindNetwork),
-					PrefixLength: uint32(pl),
-					Selector:     selectorMatchLabels,
-				}
-			default:
-				return fmt.Errorf("unknown prefixkind: %s", ipam.GetPrefixKind(rn))
+			if kf.Status == nil {
+				kf.Status = &kptfile.Status{}
 			}
+			kf.Status.Conditions = conditionsToKptfile(prConditions)
 
-			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
-				Namespace: namespace,
-				Name:      rn.GetName(),
-				Kind:      "ipam",
-				Labels:    rn.GetLabels(),
-				Spec:      spec,
-			})
-			if err != nil {
-				return errors.Wrap(err, "cannot allocate ip")
-			}
-
-			allocatedPrefix := resp.GetAllocatedPrefix()
-			rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
-			if err != nil {
-				return err
-			}
-			UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
-			gateway := resp.GetGateway()
-			rnGateway, err := kyaml.Parse(gateway)
-			if err != nil {
-				return err
-			}
-			UpdateValue("status.gateway", rn, rnGateway)
-
+			kfBytes, _ := kyaml.Marshal(kf)
+			node := kyaml.MustParse(string(kfBytes))
+			pkgBuf.Nodes[i] = node
 		}
 	}
 
@@ -237,36 +247,148 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 		return err
 	}
 
-	hasIpamReadinessGate := hasReadinessGate(pr.Spec.ReadinessGates, r.kind)
-	ipamCondition, found := hasCondition(pr.Status.Conditions, r.kind)
-	if !hasIpamReadinessGate {
-		pr.Spec.ReadinessGates = append(pr.Spec.ReadinessGates, porchv1alpha1.ReadinessGate{
-			ConditionType: "bar",
-		})
-	}
-
-	// If the condition is not already set on the PackageRevision, set it. Otherwise just
-	// make sure that the status is "True".
-	if !found {
-		pr.Status.Conditions = append(pr.Status.Conditions, porchv1alpha1.Condition{
-			Type:   "foo",
-			Status: porchv1alpha1.ConditionTrue,
-		})
-	} else {
-		ipamCondition.Status = porchv1alpha1.ConditionTrue
-	}
-
-	// If nothing changed, then no need to update.
-	// TODO: For some reason using equality.Semantic.DeepEqual and the full PackageRevision always reports a diff.
-	// We should find out why.
-	if equality.Semantic.DeepEqual(origPr.Spec.ReadinessGates, pr.Spec.ReadinessGates) &&
-		equality.Semantic.DeepEqual(origPr.Status, pr.Status) {
-		return nil
-	}
-
-	if err := r.Update(ctx, pr); err != nil {
-		return errors.Wrap(err, "cannot update packagerevision")
-	}
-
 	return nil
+}
+
+func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName types.NamespacedName,
+	prConditions *[]metav1.Condition,
+	pr *porchv1alpha1.PackageRevision) (*porchv1alpha1.PackageRevisionResources, *kio.PackageBuffer, error) {
+
+	prResources := &porchv1alpha1.PackageRevisionResources{}
+	if err := r.porchClient.Get(ctx, namespacedName, prResources); err != nil {
+		return nil, nil, err
+	}
+
+	pkgBuf, err := porch.ResourcesToPackageBuffer(prResources.Spec.Resources)
+	if err != nil {
+		return prResources, nil, err
+	}
+
+	for i, rn := range pkgBuf.Nodes {
+		if rn.GetApiVersion() == ipamv1alpha1.GroupVersion.String() && rn.GetKind() == ipamv1alpha1.IPAllocationKind {
+			namespace := rn.GetNamespace()
+			if namespace == "" {
+				namespace = "default"
+			}
+			var o *fn.KubeObject
+			o, err = fn.ParseKubeObject([]byte(rn.MustString()))
+			if err != nil {
+				return prResources, nil, err
+			}
+
+			ipAlloc := ipam.IpamAllocation{
+				Obj: *o,
+			}
+
+			var err error
+			ipAllocSpec, err := ipAlloc.GetSpec()
+			if err != nil {
+				//fmt.Printf("error: %s\n", err.Error())
+				return prResources, nil, err
+			}
+
+			allocSpec := &allocpb.Spec{
+				Prefixkind: ipAllocSpec.PrefixKind,
+				Selector:   ipAllocSpec.Selector.MatchLabels,
+			}
+			switch ipAllocSpec.PrefixKind {
+			case string(ipamv1alpha1.PrefixKindAggregate):
+			case string(ipamv1alpha1.PrefixKindLoopback):
+			case string(ipamv1alpha1.PrefixKindNetwork):
+			case string(ipamv1alpha1.PrefixKindPool):
+				allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
+			default:
+				return prResources, nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
+			}
+
+			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
+				Namespace: namespace,
+				Name:      rn.GetName(),
+				Kind:      "ipam",
+				Labels:    rn.GetLabels(),
+				Spec:      allocSpec,
+			})
+			if err != nil {
+				return prResources, nil, errors.Wrap(err, "cannot allocate ip")
+			}
+
+			// update prefix status with the allocated prefix
+			o.SetNestedString(resp.GetAllocatedPrefix(), "status", "prefix")
+			switch ipAllocSpec.PrefixKind {
+			case string(ipamv1alpha1.PrefixKindAggregate):
+			case string(ipamv1alpha1.PrefixKindLoopback):
+			case string(ipamv1alpha1.PrefixKindNetwork):
+				// update gateway status with the allocated gateway
+				// only relevant for prefixkind = network
+				o.SetNestedString(resp.GetGateway(), "status", "gateway")
+			case string(ipamv1alpha1.PrefixKindPool):
+			}
+			
+
+			/*
+			allocatedPrefix := resp.GetAllocatedPrefix()
+			rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
+			if err != nil {
+				return prResources, nil, err
+			}
+			UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
+			gateway := resp.GetGateway()
+			rnGateway, err := kyaml.Parse(gateway)
+			if err != nil {
+				return err
+			}
+			UpdateValue("status.gateway", rn, rnGateway)
+			*/
+			n, err := kyaml.Parse(o.String())
+			if err != nil {
+				return prResources, nil, errors.Wrap(err, "cannot update ip allocation")
+			}
+
+			pkgBuf.Nodes[i] = n
+		}
+	}
+
+	return prResources, pkgBuf, nil
+}
+
+// copied from package deployment controller - clearly we need some libraries or
+// to directly use the K8s meta types
+func convertConditions(conditions []porchv1alpha1.Condition) *[]metav1.Condition {
+	var result []metav1.Condition
+	for _, c := range conditions {
+		result = append(result, metav1.Condition{
+			Type:    c.Type,
+			Reason:  c.Reason,
+			Status:  metav1.ConditionStatus(c.Status),
+			Message: c.Message,
+		})
+	}
+	return &result
+}
+
+func conditionsToKptfile(conditions *[]metav1.Condition) []kptfile.Condition {
+	var prConditions []kptfile.Condition
+	for _, c := range *conditions {
+		prConditions = append(prConditions, kptfile.Condition{
+			Type:    c.Type,
+			Reason:  c.Reason,
+			Status:  kptfile.ConditionStatus(c.Status),
+			Message: c.Message,
+		})
+	}
+	return prConditions
+}
+
+func unconvertConditions(conditions *[]metav1.Condition) []porchv1alpha1.Condition {
+	var prConditions []porchv1alpha1.Condition
+	for _, c := range *conditions {
+		prConditions = append(prConditions, porchv1alpha1.Condition{
+			Type:    c.Type,
+			Reason:  c.Reason,
+			Status:  porchv1alpha1.ConditionStatus(c.Status),
+			Message: c.Message,
+		})
+	}
+
+	return prConditions
 }

@@ -53,10 +53,10 @@ manifests: controller-gen kpt kptgen ## Generate WebhookConfiguration, ClusterRo
 	mkdir -p ${KPT_BLUEPRINT_PKG_DIR}/app
 	$(CONTROLLER_GEN) crd paths="./..." output:crd:artifacts:config=${KPT_BLUEPRINT_PKG_DIR}/crd/bases
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR} --description "${PROJECT} controller"
-	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR}/crd --description "${PROJECT} crd"
-	kpt pkg init ${KPT_BLUEPRINT_PKG_DIR}/app --description "${PROJECT} app"
-	kptgen apply config ${KPT_BLUEPRINT_PKG_DIR} --fn-config-dir ${KPT_BLUEPRINT_CFG_DIR}
+	$(KPT) pkg init ${KPT_BLUEPRINT_PKG_DIR} --description "${PROJECT} controller"
+	$(KPT) pkg init ${KPT_BLUEPRINT_PKG_DIR}/crd --description "${PROJECT} crd"
+	$(KPT) pkg init ${KPT_BLUEPRINT_PKG_DIR}/app --description "${PROJECT} app"
+	$(KPTGEN) apply config ${KPT_BLUEPRINT_PKG_DIR} --fn-config-dir ${KPT_BLUEPRINT_CFG_DIR}
 	rm ${KPT_BLUEPRINT_PKG_DIR}/package-context.yaml
 	rm ${KPT_BLUEPRINT_PKG_DIR}/crd/package-context.yaml
 	rm ${KPT_BLUEPRINT_PKG_DIR}/app/package-context.yaml

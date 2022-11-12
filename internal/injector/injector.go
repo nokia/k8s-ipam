@@ -106,10 +106,10 @@ func (r *injector) injector(ctx context.Context) {
 	r.l = log.FromContext(ctx)
 
 	for backoff.Continue(b) {
-		// TODO IF ERR =nil return otherwise continue
 		r.retryAttempts++
 		r.l.Info("inject", "name", r.GetName(), "attempt", r.retryAttempts)
 		if err := r.injectorFn(ctx, r.namespacedName); err != nil {
+			r.l.Error(err, "injection failed")
 			continue
 		}
 		return

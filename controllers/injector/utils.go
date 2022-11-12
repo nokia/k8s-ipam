@@ -22,17 +22,16 @@ import (
 
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/utils"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func UpdateValue(fp string, target, value *kyaml.RNode) error {
 	fieldPath := utils.SmarterPathSplitter(fp, ".")
-	createdField, createErr := target.Pipe(yaml.LookupCreate(value.YNode().Kind, fieldPath...))
+	createdField, createErr := target.Pipe(kyaml.LookupCreate(value.YNode().Kind, fieldPath...))
 	if createErr != nil {
 		return fmt.Errorf("error creating node: %w", createErr)
 	}
-	var targetFields []*yaml.RNode
+	var targetFields []*kyaml.RNode
 	targetFields = append(targetFields, createdField)
 	for _, t := range targetFields {
 		if err := SetFieldValue(&types.FieldOptions{
@@ -44,17 +43,17 @@ func UpdateValue(fp string, target, value *kyaml.RNode) error {
 	return nil
 }
 
-func SetFieldValue(options *types.FieldOptions, targetField *yaml.RNode, value *yaml.RNode) error {
+func SetFieldValue(options *types.FieldOptions, targetField *kyaml.RNode, value *kyaml.RNode) error {
 	//fmt.Printf("setFieldValue options: %v\n", options)
 	//fmt.Printf("setFieldValue targetField: %v\n", targetField.MustString())
 	//fmt.Printf("setFieldValue value: %v\n", value.MustString())
 	value = value.Copy()
 	if options != nil && options.Delimiter != "" {
-		if targetField.YNode().Kind != yaml.ScalarNode {
+		if targetField.YNode().Kind != kyaml.ScalarNode {
 			return fmt.Errorf("delimiter option can only be used with scalar nodes")
 		}
 		tv := strings.Split(targetField.YNode().Value, options.Delimiter)
-		v := yaml.GetValue(value)
+		v := kyaml.GetValue(value)
 		// TODO: Add a way to remove an element
 		switch {
 		case options.Index < 0: // prefix
@@ -66,7 +65,7 @@ func SetFieldValue(options *types.FieldOptions, targetField *yaml.RNode, value *
 		}
 		value.YNode().Value = strings.Join(tv, options.Delimiter)
 	}
-	if targetField.YNode().Kind == yaml.ScalarNode {
+	if targetField.YNode().Kind == kyaml.ScalarNode {
 		// For scalar, only copy the value (leave any type intact to auto-convert int->string or string->int)
 		targetField.YNode().Value = value.YNode().Value
 	} else {
