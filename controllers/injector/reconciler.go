@@ -293,13 +293,13 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			// convert the yaml string to a typed IP allocation
 			ipAllocSpec, err := getIpAllocationSpec(rn)
 			if err != nil {
-				return prResources, nil, fmt.Errorf("cannot convert ip allocation to a typed spec: %s", rn.GetName())
+				return prResources, pkgBuf, fmt.Errorf("cannot convert ip allocation to a typed spec: %s", rn.GetName())
 			}
 
 			// get the grpc format for the allocation
 			grpcAllocSpec, err := getGrpcAllocationSpec(ipAllocSpec)
 			if err != nil {
-				return prResources, nil, err
+				return prResources, pkgBuf, err
 			}
 			r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", grpcAllocSpec)
 
@@ -315,7 +315,7 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			})
 			if err != nil {
 				r.l.Error(err, "grpc ipam allocation request error")
-				return prResources, nil, errors.Wrap(err, "cannot allocate ip")
+				return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
 			}
 
 			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
@@ -323,7 +323,7 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			// update Allocation
 			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAllocSpec.PrefixKind))
 			if err != nil {
-				return prResources, nil, errors.Wrap(err, "cannot get updated allocation status")
+				return prResources, pkgBuf, errors.Wrap(err, "cannot get updated allocation status")
 			}
 
 			// update only the status in the allocation
