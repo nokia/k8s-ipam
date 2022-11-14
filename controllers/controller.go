@@ -20,7 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/nokia/k8s-ipam/controllers/allocation"
-	//"github.com/nokia/k8s-ipam/controllers/injector"
+	"github.com/nokia/k8s-ipam/controllers/injector"
 	"github.com/nokia/k8s-ipam/controllers/networkinstance"
 	"github.com/nokia/k8s-ipam/controllers/prefix"
 	"github.com/nokia/k8s-ipam/internal/shared"
@@ -32,7 +32,7 @@ func Setup(mgr ctrl.Manager, opts *shared.Options) error {
 		networkinstance.Setup,
 		prefix.Setup,
 		allocation.Setup,
-		//injector.Setup,
+		injector.Setup,
 	} {
 		if err := setup(mgr, opts); err != nil {
 			return err
