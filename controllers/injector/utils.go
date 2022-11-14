@@ -18,9 +18,13 @@ package injector
 
 import (
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/utils"
 	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -73,4 +77,61 @@ func SetFieldValue(options *types.FieldOptions, targetField *kyaml.RNode, value 
 	}
 
 	return nil
+}
+
+// Code adapted from Porch internal cmdrpkgpull and cmdrpkgpush
+func ResourcesToPackageBuffer(resources map[string]string) (*kio.PackageBuffer, error) {
+	keys := make([]string, 0, len(resources))
+	//fmt.Printf("ResourcesToPackageBuffer: resources: %v\n", len(resources))
+	for k := range resources {
+		//fmt.Printf("ResourcesToPackageBuffer: resources key %s\n", k)
+		if !includeFile(k) {
+			continue
+		}
+		//fmt.Printf("ResourcesToPackageBuffer: resources key append %s\n", k)
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// Create kio readers
+	inputs := []kio.Reader{}
+	for _, k := range keys {
+		//fmt.Printf("ResourcesToPackageBuffer: key %s\n", k)
+		v := resources[k]
+		inputs = append(inputs, &kio.ByteReader{
+			Reader: strings.NewReader(v),
+			SetAnnotations: map[string]string{
+				kioutil.PathAnnotation: k,
+			},
+			DisableUnwrapping: true,
+		})
+	}
+
+	var pb kio.PackageBuffer
+	err := kio.Pipeline{
+		Inputs:  inputs,
+		Outputs: []kio.Writer{&pb},
+	}.Execute()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb, nil
+}
+
+// import fails with kptfile/v1
+var matchResourceContents = append(kio.MatchAll, "Kptfile")
+
+func includeFile(path string) bool {
+	//fmt.Printf("includeFile matchResourceContents: %v path: %s\n", matchResourceContents, path)
+	for _, m := range matchResourceContents {
+		file := filepath.Base(path)
+		if matched, err := filepath.Match(m, file); err == nil && matched {
+			//fmt.Printf("includeFile match: %v\n", path)
+			return true
+		}
+	}
+	//fmt.Printf("includeFile no match: %v\n", path)
+	return false
 }

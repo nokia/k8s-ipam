@@ -196,10 +196,13 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 
 	pr := origPr.DeepCopy()
 
+	r.l.Info("injector function", "name", namespacedName.String(), "pr spec", pr.Spec)
+
 	prConditions := convertConditions(pr.Status.Conditions)
 
 	prResources, pkgBuf, err := r.injectAllocatedIPs(ctx, namespacedName, prConditions, pr)
 	if err != nil {
+		r.l.Error(err, "error allocating or injecting IP(s)")
 		if pkgBuf == nil {
 			return err
 		}
@@ -259,16 +262,23 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 		return nil, nil, err
 	}
 
-	pkgBuf, err := porch.ResourcesToPackageBuffer(prResources.Spec.Resources)
+	for res, resdata := range prResources.Spec.Resources {
+		r.l.Info("inject and allocate IP(s)", "resource", res, "data", resdata)
+	}
+
+	// need to fix back to when the PR is fixed
+	pkgBuf, err := ResourcesToPackageBuffer(prResources.Spec.Resources)
 	if err != nil {
 		return prResources, nil, err
 	}
 
 	for i, rn := range pkgBuf.Nodes {
-		if rn.GetApiVersion() == ipamv1alpha1.GroupVersion.String() && rn.GetKind() == ipamv1alpha1.IPAllocationKind {
-			namespace := rn.GetNamespace()
-			if namespace == "" {
-				namespace = "default"
+		r.l.Info("resource", "apiVersion", rn.GetApiVersion(), "kind", rn.GetKind())
+		if rn.GetApiVersion() == "ipam.nephio.org/v1alpha1" && rn.GetKind() == "IPAllocation" {
+
+			namespace := "default"
+			if rn.GetNamespace() != "" {
+				namespace = rn.GetNamespace()
 			}
 			var o *fn.KubeObject
 			o, err = fn.ParseKubeObject([]byte(rn.MustString()))
@@ -283,7 +293,8 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			var err error
 			ipAllocSpec, err := ipAlloc.GetSpec()
 			if err != nil {
-				//fmt.Printf("error: %s\n", err.Error())
+				fmt.Printf("error: %s\n", err.Error())
+				r.l.Error(err, "cannot get ip alloc spec")
 				return prResources, nil, err
 			}
 
@@ -301,6 +312,8 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 				return prResources, nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
 			}
 
+			r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", allocSpec)
+
 			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
 				Namespace: namespace,
 				Name:      rn.GetName(),
@@ -309,8 +322,11 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 				Spec:      allocSpec,
 			})
 			if err != nil {
+				r.l.Error(err, "grpc ipam allocation request error")
 				return prResources, nil, errors.Wrap(err, "cannot allocate ip")
 			}
+
+			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
 
 			// update prefix status with the allocated prefix
 			o.SetNestedString(resp.GetAllocatedPrefix(), "status", "prefix")
@@ -323,28 +339,32 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 				o.SetNestedString(resp.GetGateway(), "status", "gateway")
 			case string(ipamv1alpha1.PrefixKindPool):
 			}
-			
 
 			/*
-			allocatedPrefix := resp.GetAllocatedPrefix()
-			rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
-			if err != nil {
-				return prResources, nil, err
-			}
-			UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
-			gateway := resp.GetGateway()
-			rnGateway, err := kyaml.Parse(gateway)
-			if err != nil {
-				return err
-			}
-			UpdateValue("status.gateway", rn, rnGateway)
+				allocatedPrefix := resp.GetAllocatedPrefix()
+				rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
+				if err != nil {
+					return prResources, nil, err
+				}
+				UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
+				gateway := resp.GetGateway()
+				rnGateway, err := kyaml.Parse(gateway)
+				if err != nil {
+					return err
+				}
+				UpdateValue("status.gateway", rn, rnGateway)
 			*/
 			n, err := kyaml.Parse(o.String())
 			if err != nil {
 				return prResources, nil, errors.Wrap(err, "cannot update ip allocation")
 			}
-
+			// update the ipam allocation
 			pkgBuf.Nodes[i] = n
+
+			conditionType := fmt.Sprintf("%s.%s.%s.Injected", ipamConditionType, rn.GetName(), namespace)
+			r.l.Info("setting condition", "conditionType", conditionType)
+			meta.SetStatusCondition(prConditions, metav1.Condition{Type: conditionType, Status: metav1.ConditionTrue,
+				Reason: "ResourceInjected", Message: "Injected IP allocation"})
 		}
 	}
 

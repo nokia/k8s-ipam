@@ -35,3 +35,20 @@ rules:
   - get
   - update
   - patch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - ipallocations
+  - ipallocations/status
+  - ipprefixes
+  - ipprefixes/status
+  - networkinstances
+  - networkinstances/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete

@@ -118,7 +118,8 @@ func (r *Allocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	for k, v := range l {
 		// exclude any key that is not network and networkinstance
 		if k == ipamv1alpha1.NephioNetworkNameKey ||
-			k == ipamv1alpha1.NephioNetworkInstanceKey {
+			k == ipamv1alpha1.NephioNetworkInstanceKey ||
+			k == ipamv1alpha1.NephioGatewayKey {
 			req, err := labels.NewRequirement(k, selection.In, []string{v})
 			if err != nil {
 				return nil, err
