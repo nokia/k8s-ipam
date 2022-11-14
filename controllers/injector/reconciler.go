@@ -106,6 +106,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	// we just check for ipam conditions and we dont care if it is satisfied already
+	// this allows us to refresh the ipam allocation status
 	ipamConditions := unsatisfiedConditions(cr.Status.Conditions, ipamConditionType)
 
 	if len(ipamConditions) > 0 {
@@ -152,10 +154,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func unsatisfiedConditions(conditions []porchv1alpha1.Condition, conditionType string) []porchv1alpha1.Condition {
 	var uc []porchv1alpha1.Condition
 	for _, c := range conditions {
+
 		// TODO: make this smarter
 		// for now, just check if it is True. It means we won't re-inject if some input changes,
 		// unless someone flips the state
-		if c.Status != porchv1alpha1.ConditionTrue && strings.HasPrefix(c.Type, conditionType+".") {
+		/*
+			if c.Status != porchv1alpha1.ConditionTrue && strings.HasPrefix(c.Type, conditionType+".") {
+				uc = append(uc, c)
+			}
+		*/
+		// TBD: for now it is good to refresh the ipam status since it allows to refresh the status of the ipam
+		if strings.HasPrefix(c.Type, conditionType+".") {
 			uc = append(uc, c)
 		}
 	}
@@ -280,46 +289,29 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			if rn.GetNamespace() != "" {
 				namespace = rn.GetNamespace()
 			}
-			var o *fn.KubeObject
-			o, err = fn.ParseKubeObject([]byte(rn.MustString()))
+
+			// convert the yaml string to a typed IP allocation
+			ipAllocSpec, err := getIpAllocationSpec(rn)
+			if err != nil {
+				return prResources, nil, fmt.Errorf("cannot convert ip allocation to a typed spec: %s", rn.GetName())
+			}
+
+			// get the grpc format for the allocation
+			grpcAllocSpec, err := getGrpcAllocationSpec(ipAllocSpec)
 			if err != nil {
 				return prResources, nil, err
 			}
+			r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", grpcAllocSpec)
 
-			ipAlloc := ipam.IpamAllocation{
-				Obj: *o,
-			}
-
-			var err error
-			ipAllocSpec, err := ipAlloc.GetSpec()
-			if err != nil {
-				fmt.Printf("error: %s\n", err.Error())
-				r.l.Error(err, "cannot get ip alloc spec")
-				return prResources, nil, err
-			}
-
-			allocSpec := &allocpb.Spec{
-				Prefixkind: ipAllocSpec.PrefixKind,
-				Selector:   ipAllocSpec.Selector.MatchLabels,
-			}
-			switch ipAllocSpec.PrefixKind {
-			case string(ipamv1alpha1.PrefixKindAggregate):
-			case string(ipamv1alpha1.PrefixKindLoopback):
-			case string(ipamv1alpha1.PrefixKindNetwork):
-			case string(ipamv1alpha1.PrefixKindPool):
-				allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
-			default:
-				return prResources, nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
-			}
-
-			r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", allocSpec)
-
+			// grpc allocation request
+			// we always refresh the ipallocation even if it was already satisfied,
+			//since this allows to refresh the ipam
 			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
 				Namespace: namespace,
 				Name:      rn.GetName(),
 				Kind:      "ipam",
 				Labels:    rn.GetLabels(),
-				Spec:      allocSpec,
+				Spec:      grpcAllocSpec,
 			})
 			if err != nil {
 				r.l.Error(err, "grpc ipam allocation request error")
@@ -328,40 +320,45 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 
 			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
 
-			// update prefix status with the allocated prefix
-			o.SetNestedString(resp.GetAllocatedPrefix(), "status", "prefix")
-			switch ipAllocSpec.PrefixKind {
-			case string(ipamv1alpha1.PrefixKindAggregate):
-			case string(ipamv1alpha1.PrefixKindLoopback):
-			case string(ipamv1alpha1.PrefixKindNetwork):
-				// update gateway status with the allocated gateway
-				// only relevant for prefixkind = network
-				o.SetNestedString(resp.GetGateway(), "status", "gateway")
-			case string(ipamv1alpha1.PrefixKindPool):
+			// update Allocation
+			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAllocSpec.PrefixKind))
+			if err != nil {
+				return prResources, nil, errors.Wrap(err, "cannot get updated allocation status")
 			}
 
 			/*
-				allocatedPrefix := resp.GetAllocatedPrefix()
-				rnAllocatedPrefix, err := kyaml.Parse(allocatedPrefix)
-				if err != nil {
-					return prResources, nil, err
+				// update prefix status with the allocated prefix
+				o.SetNestedString(resp.GetAllocatedPrefix(), "status", "prefix")
+				switch ipAllocSpec.PrefixKind {
+				case string(ipamv1alpha1.PrefixKindAggregate):
+				case string(ipamv1alpha1.PrefixKindLoopback):
+				case string(ipamv1alpha1.PrefixKindNetwork):
+					// update gateway status with the allocated gateway
+					// only relevant for prefixkind = network
+					o.SetNestedString(resp.GetGateway(), "status", "gateway")
+				case string(ipamv1alpha1.PrefixKindPool):
 				}
-				UpdateValue("status.allocatedPrefix", rn, rnAllocatedPrefix)
-				gateway := resp.GetGateway()
-				rnGateway, err := kyaml.Parse(gateway)
+
+				ipAllocation, err := kyaml.Parse(o.String())
 				if err != nil {
-					return err
+					return prResources, nil, errors.Wrap(err, "cannot update ip allocation")
 				}
-				UpdateValue("status.gateway", rn, rnGateway)
 			*/
-			n, err := kyaml.Parse(o.String())
-			if err != nil {
-				return prResources, nil, errors.Wrap(err, "cannot update ip allocation")
+
+			// update only the status in the allocation
+			n := pkgBuf.Nodes[i]
+			conditionType := fmt.Sprintf("%s.%s.%s.Injected", ipamConditionType, rn.GetName(), namespace)
+			field := ipAllocation.Field("status")
+			if err := n.SetMapField(field.Value, "status"); err != nil {
+				r.l.Error(err, "could not set IPAllocation.status")
+				meta.SetStatusCondition(prConditions, metav1.Condition{Type: conditionType, Status: metav1.ConditionFalse,
+					Reason: "ResourceSpecErr", Message: err.Error()})
+				return prResources, pkgBuf, err
 			}
 			// update the ipam allocation
 			pkgBuf.Nodes[i] = n
 
-			conditionType := fmt.Sprintf("%s.%s.%s.Injected", ipamConditionType, rn.GetName(), namespace)
+			// we always update the status to reflect the latest allocations
 			r.l.Info("setting condition", "conditionType", conditionType)
 			meta.SetStatusCondition(prConditions, metav1.Condition{Type: conditionType, Status: metav1.ConditionTrue,
 				Reason: "ResourceInjected", Message: "Injected IP allocation"})
@@ -411,4 +408,70 @@ func unconvertConditions(conditions *[]metav1.Condition) []porchv1alpha1.Conditi
 	}
 
 	return prConditions
+}
+
+/*
+func isConditionSatisfied(conditions []porchv1alpha1.Condition, ct string) bool {
+	for _, c := range conditions {
+		if c.Type == ct {
+			return c.Status == porchv1alpha1.ConditionTrue
+		}
+	}
+	return false
+}
+*/
+
+func getIpAllocationSpec(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocationSpec, error) {
+	o, err := fn.ParseKubeObject([]byte(rn.MustString()))
+	if err != nil {
+		return nil, err
+	}
+
+	ipAlloc := ipam.IpamAllocation{
+		Obj: *o,
+	}
+	return ipAlloc.GetSpec()
+}
+
+func getGrpcAllocationSpec(ipAllocSpec *ipamv1alpha1.IPAllocationSpec) (*allocpb.Spec, error) {
+	allocSpec := &allocpb.Spec{
+		Prefixkind: ipAllocSpec.PrefixKind,
+		Selector:   ipAllocSpec.Selector.MatchLabels,
+	}
+	switch ipAllocSpec.PrefixKind {
+	case string(ipamv1alpha1.PrefixKindAggregate):
+	case string(ipamv1alpha1.PrefixKindLoopback):
+	case string(ipamv1alpha1.PrefixKindNetwork):
+	case string(ipamv1alpha1.PrefixKindPool):
+		allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
+	default:
+		return nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
+	}
+	return allocSpec, nil
+}
+
+func GetUpdatedAllocation(resp *allocpb.Response, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
+	// update prefix status with the allocated prefix
+	ipAlloc := &ipamv1alpha1.IPAllocation{
+		Status: ipamv1alpha1.IPAllocationStatus{
+			AllocatedPrefix: resp.GetAllocatedPrefix(),
+		},
+	}
+
+	switch prefixKind {
+	case ipamv1alpha1.PrefixKindAggregate:
+	case ipamv1alpha1.PrefixKindLoopback:
+	case ipamv1alpha1.PrefixKindNetwork:
+		// update gateway status with the allocated gateway
+		// only relevant for prefixkind = network
+		ipAlloc.Status.Gateway = resp.GetGateway()
+	case ipamv1alpha1.PrefixKindPool:
+	}
+
+	b, err := kyaml.Marshal(ipAlloc)
+	if err != nil {
+		return nil, err
+	}
+
+	return kyaml.Parse(string(b))
 }
