@@ -326,25 +326,6 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 				return prResources, nil, errors.Wrap(err, "cannot get updated allocation status")
 			}
 
-			/*
-				// update prefix status with the allocated prefix
-				o.SetNestedString(resp.GetAllocatedPrefix(), "status", "prefix")
-				switch ipAllocSpec.PrefixKind {
-				case string(ipamv1alpha1.PrefixKindAggregate):
-				case string(ipamv1alpha1.PrefixKindLoopback):
-				case string(ipamv1alpha1.PrefixKindNetwork):
-					// update gateway status with the allocated gateway
-					// only relevant for prefixkind = network
-					o.SetNestedString(resp.GetGateway(), "status", "gateway")
-				case string(ipamv1alpha1.PrefixKindPool):
-				}
-
-				ipAllocation, err := kyaml.Parse(o.String())
-				if err != nil {
-					return prResources, nil, errors.Wrap(err, "cannot update ip allocation")
-				}
-			*/
-
 			// update only the status in the allocation
 			n := pkgBuf.Nodes[i]
 			conditionType := fmt.Sprintf("%s.%s.%s.Injected", ipamConditionType, rn.GetName(), namespace)
