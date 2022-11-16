@@ -372,7 +372,7 @@ func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *Allocatio
 
 	// update allocations based on latest routing table
 	ni := &ipamv1alpha1.NetworkInstance{}
-	if err := r.c.Get(ctx, types.NamespacedName{Name: alloc.GetNetworkInstance()}, ni); err != nil {
+	if err := r.c.Get(ctx, types.NamespacedName{Name: alloc.GetNetworkInstance(), Namespace: "default"}, ni); err != nil {
 		return errors.Wrap(err, "cannot get network instance")
 	}
 
