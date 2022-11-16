@@ -344,7 +344,7 @@ func (r *ipam) get(crName string) (*table.RouteTable, bool) {
 }
 
 func (r *ipam) getRoutingTable(alloc *Allocation, dryrun bool) (*table.RouteTable, error) {
-	rt, ok := r.get(alloc.GetName())
+	rt, ok := r.get(alloc.GetNetworkInstance())
 	if !ok {
 		return nil, fmt.Errorf("ipam ni not ready or network-instance %s not correct", alloc.GetName())
 	}
