@@ -24,7 +24,7 @@ import (
 type IPPrefixSpec struct {
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
-	PrefixKind string `json:"kind"`
+	PrefixKind string `json:"kind,omitempty"` //omitempty is required to be able to insert crs without kind set. Otherwise the default cannot fill in the field.
 	// Network is only relevant for prefix kind network. it is the unique name to reference all prefixes together within a network
 	Network string `json:"network,omitempty"`
 	// Prefix defines the ip subnet of the ip prefix, it can also be an address if a /32 or /128 is specified
