@@ -65,6 +65,19 @@ make run
 
 ### run IPAM using kpt
 
+The default namespace for the k8s-ipam is `ipam`. You need to adjust it or make sure this namespace exits.
+```
+kubectl create namespace ipam
+```
+
+Porch is also a pre-requisit. Install via downloading the lates Porch release from [https://github.com/GoogleContainerTools/kpt/releases]
+
+wget [PORCH-RELEASE-URL]
+mkdir porch-install
+tar xzf deployment-blueprint.tar.gz -C porch-install
+kubectl apply -f porch-install
+
+
 ```
 kpt live init blueprint/ipam
 kpt live apply blueprint/ipam
