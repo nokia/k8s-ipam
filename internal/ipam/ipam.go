@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -162,11 +163,11 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	r.l = log.FromContext(context.Background())
 
 	// if the IPAM is not initialaized initialaize it
-	if _, ok := r.ipam[cr.GetNamespacedName().String()]; !ok {
-		r.l.Info("ipam action", "action", "initialize", "name", cr.GetNamespacedName().String())
+	if _, ok := r.ipam[cr.GetName()]; !ok {
+		r.l.Info("ipam action", "action", "initialize", "name", cr.GetName())
 
 		r.m.Lock()
-		r.ipam[cr.GetNamespacedName().String()] = table.NewRouteTable()
+		r.ipam[cr.GetName()] = table.NewRouteTable()
 		r.m.Unlock()
 
 		prefixList := &ipamv1alpha1.IPPrefixList{}
@@ -343,9 +344,9 @@ func (r *ipam) get(crName string) (*table.RouteTable, bool) {
 }
 
 func (r *ipam) getRoutingTable(alloc *Allocation, dryrun bool) (*table.RouteTable, error) {
-	rt, ok := r.get(alloc.GetNINamespacedName().String())
+	rt, ok := r.get(alloc.GetName())
 	if !ok {
-		return nil, fmt.Errorf("ipam ni not ready or network-instance %s not correct", alloc.GetNINamespacedName().String())
+		return nil, fmt.Errorf("ipam ni not ready or network-instance %s not correct", alloc.GetName())
 	}
 	if dryrun {
 		// copy the routing table for validation
@@ -371,7 +372,7 @@ func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *Allocatio
 
 	// update allocations based on latest routing table
 	ni := &ipamv1alpha1.NetworkInstance{}
-	if err := r.c.Get(ctx, alloc.GetNINamespacedName(), ni); err != nil {
+	if err := r.c.Get(ctx, types.NamespacedName{Name: alloc.GetName()}, ni); err != nil {
 		return errors.Wrap(err, "cannot get network instance")
 	}
 
