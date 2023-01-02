@@ -38,6 +38,8 @@ type IPAllocationSpec struct {
 	// PrefixLength allows to client to indicate the prefixLength he wants for the allocation
 	// used for prefixes, if not supplied we use eother /32 for ipv4 and /128 for ipv6
 	PrefixLength uint8 `json:"prefixLength,omitempty" yaml:"prefixLength,omitempty"`
+	// index is used for deterministic allocation
+	Index uint32 `json:"index,omitempty" yaml:"index,omitempty"`
 	// Label selector for selecting the context from which the IP prefix/address gets allocated
 	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
 	// Labels provide metadata to the prefix. They are part of the spec since the allocation
