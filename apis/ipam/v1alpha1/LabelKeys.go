@@ -35,4 +35,5 @@ const (
 	NephioNetworkNameKey       = "nephio.org/network-name"
 	NephioPurposeKey           = "nephio.org/purpose"
 	NephioApplicationPartOfKey = "app.kubernetes.io/part-of"
+	NephioIndexKey             = "nephio.org/index"
 )
