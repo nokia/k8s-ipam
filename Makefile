@@ -1,6 +1,5 @@
 VERSION ?= latest
 REGISTRY ?= yndd
-#REGISTRY ?= gcr.io/jbelamaric-public
 PROJECT ?= ipam
 
 KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config

@@ -76,14 +76,11 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 
 	for _, alloc := range d.Items {
 		// only enqueue if the network-instance matches
-		niName, ok := alloc.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkInstanceKey]
-		if ok {
-			if ni.GetName() == niName {
-				e.l.Info("event requeue allocation", "name", alloc.GetName())
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-					Namespace: alloc.GetNamespace(),
-					Name:      alloc.GetName()}})
-			}
+		if ni.GetName() == alloc.Spec.NetworkInstance {
+			e.l.Info("event requeue allocation", "name", alloc.GetName())
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: alloc.GetNamespace(),
+				Name:      alloc.GetName()}})
 		}
 	}
 }

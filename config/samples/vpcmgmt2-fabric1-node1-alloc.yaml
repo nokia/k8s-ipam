@@ -1,0 +1,11 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: fabric1.node1
+spec:
+  kind: loopback
+  networkInstance: vpc-mgmt2
+  selector:
+    matchLabels:
+      nephio.org/purpose: mgmt
+      nephio.org/fabric: fabric1

@@ -18,6 +18,7 @@ package networkinstance
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,6 +92,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if meta.WasDeleted(cr) {
+
 		// When the network instance is deleted we can remove the network instance entry
 		// from th IPAM table
 		r.Ipam.Delete(req.NamespacedName.String())
@@ -115,10 +117,50 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// create and initialize the IPAM with the network instance if it does not exist
+	// the prefixes that are within the spec of the network-instance need to be allocated first
+	// since they serve as an aggregate
 	if err := r.Ipam.Init(ctx, cr); err != nil {
-		r.l.Error(err, "cannot initialize finalizer")
+		r.l.Error(err, "cannot initialize ipam")
 		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	// change handling for prefixes
+	for _, allocatedPrefix := range cr.Status.AllocatedPrefixes {
+		found := false
+		for _, prefix := range cr.Spec.Prefixes {
+			if allocatedPrefix.Prefix == prefix.Prefix {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// the prefix was deleted from the network instance, so we need to delete it
+			if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromNetworkInstancePrefix(cr, allocatedPrefix)); err != nil {
+				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+					r.l.Error(err, "cannot delete resource")
+					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
+			}
+		}
+	}
+
+	// if prefixes are provided from the network instance we treat them as
+	// aggregate prefixes.
+	for _, prefix := range cr.Spec.Prefixes {
+		allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromNetworkInstancePrefix(cr, prefix))
+		if err != nil {
+			r.l.Info("cannot allocate prefix", "err", err)
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
+			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		if allocatedPrefix.Prefix != prefix.Prefix {
+			//we got a different prefix than requested
+			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", *allocatedPrefix)
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
 	}
 
 	/*
@@ -133,6 +175,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			fmt.Println(strings.Repeat("#", 64))
 		}
 	*/
+
+	cr.Status.AllocatedPrefixes = cr.Spec.Prefixes
 
 	// Update the status of the CR and end the reconciliation loop
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())

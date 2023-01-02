@@ -25,6 +25,9 @@ spec:
     - jsonPath: .status.conditions[?(@.kind=='Ready')].status
       name: STATUS
       type: string
+    - jsonPath: .spec.networkInstance
+      name: NETWORK-INSTANCE
+      type: string
     - jsonPath: .spec.kind
       name: KIND
       type: string
@@ -79,6 +82,19 @@ spec:
                 - pool
                 - aggregate
                 type: string
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels provide metadata to the prefix. They are part
+                  of the spec since the allocation selector will use these labels
+                  for allocation more specific prefixes/addresses within this prefix
+                  As such we distinguish clearly between the metadata labels and the
+                  labels used in the spec
+                type: object
+              networkInstance:
+                description: NetworkInstance identifies the network instance the IP
+                  allocation is allocated from
+                type: string
               prefix:
                 description: Prefix allows the client to indicate the prefix that
                   was already allocated and validate if the allocation is still consistent
@@ -86,7 +102,8 @@ spec:
                 type: string
               prefixLength:
                 description: PrefixLength allows to client to indicate the prefixLength
-                  he wants for the allocation
+                  he wants for the allocation used for prefixes, if not supplied we
+                  use eother /32 for ipv4 and /128 for ipv6
                 type: integer
               selector:
                 description: Label selector for selecting the context from which the
@@ -136,6 +153,7 @@ spec:
                 x-kubernetes-map-type: atomic
             required:
             - kind
+            - networkInstance
             type: object
           status:
             description: IPAllocationStatus defines the observed state of IPAllocation

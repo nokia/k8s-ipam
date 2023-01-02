@@ -18,6 +18,7 @@ package ipam
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/hansthienpondt/goipam/pkg/table"
@@ -26,6 +27,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,22 +35,22 @@ import (
 
 // +k8s:deepcopy-gen=false
 type Allocation struct {
-	NamespacedName  types.NamespacedName       `json:"namespacedName,omitempty"`
-	Origin          ipamv1alpha1.Origin        `json:"origin,omitempty"`
-	NetworkInstance string                     `json:"networkInstance,omitempty"`
-	PrefixKind      ipamv1alpha1.PrefixKind    `json:"prefixKind,omitempty"`
-	AddresFamily    ipamv1alpha1.AddressFamily `json:"addressFamily,omitempty"` // only used for alloc w/o prefix
-	Prefix          string                     `json:"prefix,omitempty"`
-	PrefixLength    uint8                      `json:"prefixLength,omitempty"` // only used for alloc w/o prefix and prefix kind = pool
-	Network         string                     `json:"network,omitempty"`      // explicitly mentioned for prefixkind network
-	Labels          map[string]string          `json:"labels,omitempty"`
-	SelectorLabels  map[string]string          `json:"selectorLabels,omitempty"`
+	Origin          ipamv1alpha1.Origin        `json:"origin,omitempty" yaml:"origin,omitempty"`
+	NamespacedName  types.NamespacedName       `json:"namespacedName,omitempty" yaml:"namespacedName,omitempty"`
+	PrefixKind      ipamv1alpha1.PrefixKind    `json:"prefixKind,omitempty" yaml:"prefixKind,omitempty"`
+	NetworkInstance string                     `json:"networkInstance,omitempty" yaml:"networkInstance,omitempty"`
+	Prefix          string                     `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+	AddresFamily    ipamv1alpha1.AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"` // used for alloc w/o prefix
+	PrefixLength    uint8                      `json:"prefixLength,omitempty" yaml:"prefixLength,omitempty"`   // used for alloc w/o prefix and prefix kind = pool
+	SpecLabels      map[string]string          `json:"specLabels,omitempty" yaml:"specLabels,omitempty"`       // labels in the spec
+	SelectorLabels  map[string]string          `json:"selectorLabels,omitempty" yaml:"selectorLabels,omitempty"`
+	//SubnetName      string                     `json:"subnetName,omitempty" yaml:"subnetName,omitempty"`     // explicitly mentioned for prefixkind network
 	//specificLabels  map[string]string
 }
 
 type AllocatedPrefix struct {
-	AllocatedPrefix string
-	Gateway         string
+	Prefix  string
+	Gateway string
 }
 
 func (r *Allocation) GetName() string {
@@ -90,13 +92,13 @@ func (r *Allocation) GetIPPrefix() netaddr.IPPrefix {
 	return netaddr.MustParseIPPrefix(r.Prefix)
 }
 
-func (r *Allocation) GetNetwork() string {
-	return r.Network
-}
+//func (r *Allocation) GetSubnetName() string {
+//	return r.SubnetName
+//}
 
 func (r *Allocation) GetLabels() map[string]string {
 	l := map[string]string{}
-	for k, v := range r.Labels {
+	for k, v := range r.SpecLabels {
 		l[k] = v
 	}
 	return l
@@ -117,8 +119,8 @@ func (r *Allocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	fullselector := labels.NewSelector()
 	for k, v := range l {
 		// exclude any key that is not network and networkinstance
-		if k == ipamv1alpha1.NephioNetworkNameKey ||
-			k == ipamv1alpha1.NephioNetworkInstanceKey ||
+		if k == ipamv1alpha1.NephioSubnetKey ||
+			//k == ipamv1alpha1.NephioNetworkInstanceKey ||
 			k == ipamv1alpha1.NephioGatewayKey {
 			req, err := labels.NewRequirement(k, selection.In, []string{v})
 			if err != nil {
@@ -137,13 +139,14 @@ func (r *Allocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	return fullselector, nil
 }
 
-func (r *Allocation) GetNetworkLabelSelector() (labels.Selector, error) {
-	p := netaddr.MustParseIPPrefix(r.Prefix)
-	af := iputil.GetAddressFamily(p)
+func (r *Allocation) GetSubnetLabelSelector() (labels.Selector, error) {
+	//p := netaddr.MustParseIPPrefix(r.Prefix)
+	//af := iputil.GetAddressFamily(p)
 
 	l := map[string]string{
-		ipamv1alpha1.NephioNetworkNameKey:   r.Network,
-		ipamv1alpha1.NephioAddressFamilyKey: string(af),
+		ipamv1alpha1.NephioSubnetKey: iputil.GetSubnetName(r.Prefix),
+		//ipamv1alpha1.NephioSubnetNameKey:    r.SubnetName,
+		//ipamv1alpha1.NephioAddressFamilyKey: string(af),
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
@@ -247,30 +250,52 @@ func BuildAllocationFromIPPrefix(cr *ipamv1alpha1.IPPrefix) *Allocation {
 		},
 		Origin:          ipamv1alpha1.OriginIPPrefix,
 		NetworkInstance: cr.Spec.NetworkInstance,
-		PrefixKind:      ipamv1alpha1.PrefixKind(cr.Spec.PrefixKind),
+		PrefixKind:      cr.Spec.PrefixKind,
 		AddresFamily:    iputil.GetAddressFamily(p),
 		Prefix:          cr.Spec.Prefix,
 		PrefixLength:    uint8(iputil.GetPrefixLengthAsInt(p)),
-		Network:         cr.Spec.Network,
-		Labels:          cr.GetLabels(),
+		//SubnetName:      cr.Spec.SubnetName,
+		SpecLabels: cr.Spec.Labels,
+	}
+}
+
+func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix *ipamv1alpha1.Prefix) *Allocation {
+	p := netaddr.MustParseIPPrefix(prefix.Prefix)
+	return &Allocation{
+		NamespacedName: types.NamespacedName{
+			Name:      GetNameFromNetworkInstancePrefix(cr, prefix.Prefix), // name fro aggregate derived from prefix and crName
+			Namespace: cr.GetNamespace(),
+		},
+		Origin:          ipamv1alpha1.OriginNetworkInstance,
+		NetworkInstance: cr.GetName(),
+		PrefixKind:      ipamv1alpha1.PrefixKindAggregate, // always used as an aggregate
+		AddresFamily:    iputil.GetAddressFamily(p),
+		Prefix:          prefix.Prefix,
+		PrefixLength:    uint8(iputil.GetPrefixLengthAsInt(p)),
+		SpecLabels:      prefix.Labels,
 	}
 }
 
 func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation) *Allocation {
+	if cr.Spec.Selector == nil {
+		cr.Spec.Selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{},
+		}
+	}
 	return &Allocation{
 		NamespacedName: types.NamespacedName{
 			Name:      cr.GetName(),
 			Namespace: cr.GetNamespace(),
 		},
 		Origin:          ipamv1alpha1.OriginIPAllocation,
-		NetworkInstance: cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkInstanceKey],
-		PrefixKind:      ipamv1alpha1.PrefixKind(cr.Spec.PrefixKind),
+		NetworkInstance: cr.Spec.NetworkInstance,
+		PrefixKind:      cr.Spec.PrefixKind,
 		AddresFamily:    ipamv1alpha1.AddressFamily(cr.Spec.AddressFamily),
 		Prefix:          cr.Spec.Prefix,
 		PrefixLength:    cr.Spec.PrefixLength,
-		Network:         cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkNameKey],
-		Labels:          cr.GetLabels(),
-		SelectorLabels:  cr.Spec.Selector.MatchLabels,
+		//SubnetName:      cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioSubnetNameKey],
+		SpecLabels:     cr.Spec.Labels,
+		SelectorLabels: cr.Spec.Selector.MatchLabels,
 	}
 }
 
@@ -281,15 +306,19 @@ func BuildAllocationFromGRPCAlloc(alloc *allocpb.Request) *Allocation {
 			Namespace: alloc.Namespace,
 		},
 		Origin:          ipamv1alpha1.OriginIPAllocation,
-		NetworkInstance: alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioNetworkInstanceKey],
+		NetworkInstance: alloc.GetSpec().GetNetworkInstance(),
 		PrefixKind:      ipamv1alpha1.PrefixKind(alloc.GetSpec().GetPrefixkind()),
 		AddresFamily:    ipamv1alpha1.AddressFamily(alloc.GetSpec().GetAddressFamily()),
 		Prefix:          alloc.GetSpec().GetPrefix(),
 		PrefixLength:    uint8(alloc.GetSpec().GetPrefixLength()),
-		Network:         alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioNetworkNameKey],
-		Labels:          alloc.GetLabels(),
-		SelectorLabels:  alloc.GetSpec().GetSelector(),
+		//	SubnetName:      alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioSubnetNameKey],
+		//Labels:          alloc.GetLabels(),
+		SelectorLabels: alloc.GetSpec().GetSelector(),
 	}
+}
+
+func GetNameFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix string) string {
+	return fmt.Sprintf("%s-%s-%s", cr.GetName(), "aggregate", strings.ReplaceAll(prefix, "/", "-"))
 }
 
 func (in *Allocation) DeepCopy() (*Allocation, error) {

@@ -33,7 +33,7 @@ func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*al
 		return nil, err
 	}
 	return &allocpb.Response{
-		AllocatedPrefix: prefix.AllocatedPrefix,
+		AllocatedPrefix: prefix.Prefix,
 		Gateway:         prefix.Gateway,
 	}, nil
 }

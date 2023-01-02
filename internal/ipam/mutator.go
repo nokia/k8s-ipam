@@ -53,32 +53,36 @@ func (r *ipam) genericMutatorWithoutPrefix(alloc *Allocation) []*Allocation {
 	newalloc, _ := alloc.DeepCopy()
 	//*newalloc = *alloc
 
-	newlabels := newalloc.GetLabels()
-	newlabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
+	//newlabels := newalloc.GetLabels()
+	if len(newalloc.SpecLabels) == 0 {
+		newalloc.SpecLabels = map[string]string{}
+	}
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
 	// Add prefix kind key
-	newlabels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
 	// Add address family key
-	newlabels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
+	newalloc.SpecLabels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
 
 	// add ip pool labelKey if present
 	if newalloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
-		newlabels[ipamv1alpha1.NephioPoolKey] = "true"
+		newalloc.SpecLabels[ipamv1alpha1.NephioPoolKey] = "true"
 	}
 
 	// NO GW allowed here
-	delete(newlabels, ipamv1alpha1.NephioGatewayKey)
+	delete(newalloc.SpecLabels, ipamv1alpha1.NephioGatewayKey)
 
-	newlabels[ipamv1alpha1.NephioIPPrefixNameKey] = alloc.GetName()
-	newlabels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPPrefix)
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPPrefixNameKey] = alloc.GetName()
+	newalloc.SpecLabels[ipamv1alpha1.NephioOriginKey] = string(alloc.GetOrigin())
 	if alloc.PrefixLength != 0 {
-		newlabels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(int(alloc.PrefixLength))
+		newalloc.SpecLabels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(int(alloc.PrefixLength))
 	}
 
-	newalloc.Labels = newlabels
+	//newalloc.SpecLabels = newlabels
 
-	selectorLabels := newalloc.GetSelectorLabels()
-	selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
-	newalloc.SelectorLabels = selectorLabels
+	//selectorLabels :=
+	//newalloc.NetworkInstance = alloc.GetNetworkInstance()
+	//selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
+	//newalloc.SelectorLabels = newalloc.GetSelectorLabels()
 
 	// build the generic allocation
 	newallocs = append(newallocs, newalloc)
@@ -95,30 +99,33 @@ func (r *ipam) genericMutatorWithPrefix(alloc *Allocation) []*Allocation {
 	newalloc, _ := alloc.DeepCopy()
 	//*newalloc = *alloc
 
-	newlabels := newalloc.GetLabels()
-	newlabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
-	newlabels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
-	newlabels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
+	//newlabels := newalloc.GetLabels()
+	if len(newalloc.SpecLabels) == 0 {
+		newalloc.SpecLabels = map[string]string{}
+	}
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
+	newalloc.SpecLabels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
 	// if the AF is unknown we derive it from the prefix
 	if newalloc.GetAddressFamily() == ipamv1alpha1.AddressFamilyUnknown {
-		newlabels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(alloc.GetIPPrefix()))
+		newalloc.SpecLabels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(alloc.GetIPPrefix()))
 	}
 	// add ip pool labelKey if present
 	if newalloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
-		newlabels[ipamv1alpha1.NephioPoolKey] = "true"
+		newalloc.SpecLabels[ipamv1alpha1.NephioPoolKey] = "true"
 	}
 
 	// NO GW allowed here
-	delete(newlabels, ipamv1alpha1.NephioGatewayKey)
+	delete(newalloc.SpecLabels, ipamv1alpha1.NephioGatewayKey)
 
-	newlabels[ipamv1alpha1.NephioIPPrefixNameKey] = alloc.GetName()
-	newlabels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPPrefix)
-	newlabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetPrefixLength(alloc.GetIPPrefix())
-	newalloc.Labels = newlabels
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPPrefixNameKey] = alloc.GetName()
+	newalloc.SpecLabels[ipamv1alpha1.NephioOriginKey] = string(alloc.GetOrigin())
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetPrefixLength(alloc.GetIPPrefix())
+	//newalloc.SpecLabels = newlabels
 
-	selectorLabels := newalloc.GetSelectorLabels()
-	selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
-	newalloc.SelectorLabels = selectorLabels
+	//selectorLabels :=
+	//selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
+	//newalloc.SelectorLabels = newalloc.GetSelectorLabels()
 
 	// build the generic allocation
 	newallocs = append(newallocs, newalloc)
@@ -133,21 +140,24 @@ func (r *ipam) networkMutator(alloc *Allocation) []*Allocation {
 
 	// prepare additional labels generically
 	p := alloc.GetIPPrefix()
-	newlabels := alloc.GetLabels()
-	newlabels[ipamv1alpha1.NephioPrefixKindKey] = string(alloc.GetPrefixKind())
-	newlabels[ipamv1alpha1.NephioOriginKey] = string(alloc.GetOrigin())
-	newlabels[ipamv1alpha1.NephioAddressFamilyKey] = string(alloc.GetAddressFamily())
-	if alloc.GetAddressFamily() == ipamv1alpha1.AddressFamilyUnknown {
-		newlabels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(p))
+	//newlabels := alloc.GetLabels()
+	if len(alloc.SpecLabels) == 0 {
+		alloc.SpecLabels = map[string]string{}
 	}
-	newlabels[ipamv1alpha1.NephioNetworkNameKey] = alloc.GetNetwork()
+	alloc.SpecLabels[ipamv1alpha1.NephioPrefixKindKey] = string(alloc.GetPrefixKind())
+	alloc.SpecLabels[ipamv1alpha1.NephioOriginKey] = string(alloc.GetOrigin())
+	alloc.SpecLabels[ipamv1alpha1.NephioAddressFamilyKey] = string(alloc.GetAddressFamily())
+	if alloc.GetAddressFamily() == ipamv1alpha1.AddressFamilyUnknown {
+		alloc.SpecLabels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(p))
+	}
+	alloc.SpecLabels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(alloc.GetPrefix())
 	// NO POOL allowed here
-	delete(newlabels, ipamv1alpha1.NephioPoolKey)
-	alloc.Labels = newlabels
+	delete(alloc.SpecLabels, ipamv1alpha1.NephioPoolKey)
+	//alloc.SpecLabels = newlabels
 
-	selectorLabels := alloc.GetSelectorLabels()
-	selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
-	alloc.SelectorLabels = selectorLabels
+	//selectorLabels := alloc.GetSelectorLabels()
+	//selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
+	//alloc.SelectorLabels = selectorLabels
 
 	//newalloc, _ := alloc.DeepCopy()
 	if p.IPNet().String() != p.Masked().String() {
@@ -181,13 +191,17 @@ func (r *ipam) networkAddressMutator(alloc *Allocation) *Allocation {
 	newalloc.NamespacedName.Name = alloc.NamespacedName.Name
 	newalloc.Prefix = iputil.GetAddress(p)
 
-	newlabels := newalloc.GetLabels()
-	newlabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
-	newlabels[ipamv1alpha1.NephioIPPrefixNameKey] = newalloc.GetName()
-	newlabels[ipamv1alpha1.NephioNetworkKey] = p.Masked().IP().String()
-	newlabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
-	newlabels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
-	newalloc.Labels = newlabels
+	//newlabels := newalloc.GetLabels()
+	if len(newalloc.SpecLabels) == 0 {
+		newalloc.SpecLabels = map[string]string{}
+	}
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPPrefixNameKey] = newalloc.GetName()
+	//newlabels[ipamv1alpha1.NephioSubnetKey] = p.Masked().IP().String()
+	newalloc.SpecLabels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(alloc.GetPrefix())
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
+	newalloc.SpecLabels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
+	//newalloc.SpecLabels = newlabels
 
 	r.l.Info("networkAddressMutator end", "alloc", newalloc)
 	return newalloc
@@ -202,15 +216,19 @@ func (r *ipam) networkNetMutator(alloc *Allocation) *Allocation {
 	newalloc.NamespacedName.Name = strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-")
 	newalloc.Prefix = p.Masked().String()
 
-	newlabels := newalloc.GetLabels()
+	//newlabels := newalloc.GetLabels()
 	// NO GW allowed here
-	delete(newlabels, ipamv1alpha1.NephioGatewayKey)
-	newlabels[ipamv1alpha1.NephioIPAllocactionNameKey] = strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-")
-	newlabels[ipamv1alpha1.NephioOriginKey] = "system"
-	newlabels[ipamv1alpha1.NephioIPPrefixNameKey] = "net"
-	newlabels[ipamv1alpha1.NephioNetworkKey] = p.Masked().IP().String()
-	newlabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetPrefixLength(p)
-	newalloc.Labels = newlabels
+	if len(newalloc.SpecLabels) == 0 {
+		newalloc.SpecLabels = map[string]string{}
+	}
+	delete(newalloc.SpecLabels, ipamv1alpha1.NephioGatewayKey)
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPAllocactionNameKey] = strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-")
+	newalloc.SpecLabels[ipamv1alpha1.NephioOriginKey] = "system"
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPPrefixNameKey] = "net"
+	//newlabels[ipamv1alpha1.NephioSubnetKey] = p.Masked().IP().String()
+	newalloc.SpecLabels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(alloc.GetPrefix())
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetPrefixLength(p)
+	//newalloc.SpecLabels = newlabels
 
 	return newalloc
 }
@@ -225,16 +243,20 @@ func (r *ipam) networkFirstMutator(alloc *Allocation) *Allocation {
 	newalloc.NamespacedName.Name = p.Masked().IP().String()
 	newalloc.Prefix = iputil.GetFirstAddress(p)
 
-	newlabels := newalloc.GetLabels()
+	//newlabels := newalloc.GetLabels()
+	if len(newalloc.SpecLabels) == 0 {
+		newalloc.SpecLabels = map[string]string{}
+	}
 	// NO GW allowed here
-	delete(newlabels, ipamv1alpha1.NephioGatewayKey)
-	newlabels[ipamv1alpha1.NephioIPAllocactionNameKey] = p.Masked().IP().String()
-	newlabels[ipamv1alpha1.NephioOriginKey] = "system"
-	newlabels[ipamv1alpha1.NephioIPPrefixNameKey] = "net"
-	newlabels[ipamv1alpha1.NephioNetworkKey] = p.Masked().IP().String()
-	newlabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
-	newlabels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
-	newalloc.Labels = newlabels
+	delete(newalloc.SpecLabels, ipamv1alpha1.NephioGatewayKey)
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPAllocactionNameKey] = p.Masked().IP().String()
+	newalloc.SpecLabels[ipamv1alpha1.NephioOriginKey] = "system"
+	newalloc.SpecLabels[ipamv1alpha1.NephioIPPrefixNameKey] = "net"
+	//newlabels[ipamv1alpha1.NephioSubnetKey] = p.Masked().IP().String()
+	newalloc.SpecLabels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(alloc.GetPrefix())
+	newalloc.SpecLabels[ipamv1alpha1.NephioPrefixLengthKey] = iputil.GetAddressPrefixLength(p)
+	newalloc.SpecLabels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(p)
+	//newalloc.SpecLabels = newlabels
 
 	return newalloc
 }

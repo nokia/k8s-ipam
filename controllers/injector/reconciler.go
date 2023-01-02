@@ -26,7 +26,6 @@ import (
 	kptfile "github.com/GoogleContainerTools/kpt/pkg/api/kptfile/v1"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/nf-injector-controller/pkg/ipam"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/injectors"
@@ -402,13 +401,37 @@ func isConditionSatisfied(conditions []porchv1alpha1.Condition, ct string) bool 
 }
 */
 
+type IpamAllocation struct {
+	Obj fn.KubeObject
+}
+
+func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
+	spec := r.Obj.GetMap("spec")
+	selectorLabels, _, err := spec.NestedStringMap("selector", "matchLabels")
+	if err != nil {
+		return nil, err
+	}
+
+	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
+		PrefixKind:    ipamv1alpha1.PrefixKind(spec.GetString("kind")),
+		AddressFamily: spec.GetString("addressFamily"),
+		Prefix:        spec.GetString("prefix"),
+		PrefixLength:  uint8(spec.GetInt("prefixLength")),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: selectorLabels,
+		},
+	}
+
+	return ipAllocSpec, nil
+}
+
 func getIpAllocationSpec(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocationSpec, error) {
 	o, err := fn.ParseKubeObject([]byte(rn.MustString()))
 	if err != nil {
 		return nil, err
 	}
 
-	ipAlloc := ipam.IpamAllocation{
+	ipAlloc := IpamAllocation{
 		Obj: *o,
 	}
 	return ipAlloc.GetSpec()
@@ -416,14 +439,13 @@ func getIpAllocationSpec(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocationSpec, error
 
 func getGrpcAllocationSpec(ipAllocSpec *ipamv1alpha1.IPAllocationSpec) (*allocpb.Spec, error) {
 	allocSpec := &allocpb.Spec{
-		Prefixkind: ipAllocSpec.PrefixKind,
+		Prefixkind: string(ipAllocSpec.PrefixKind),
 		Selector:   ipAllocSpec.Selector.MatchLabels,
 	}
 	switch ipAllocSpec.PrefixKind {
-	case string(ipamv1alpha1.PrefixKindAggregate):
-	case string(ipamv1alpha1.PrefixKindLoopback):
-	case string(ipamv1alpha1.PrefixKindNetwork):
-	case string(ipamv1alpha1.PrefixKindPool):
+	case ipamv1alpha1.PrefixKindAggregate:
+	case ipamv1alpha1.PrefixKindNetwork:
+	case ipamv1alpha1.PrefixKindPool:
 		allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
 	default:
 		return nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
@@ -441,7 +463,7 @@ func GetUpdatedAllocation(resp *allocpb.Response, prefixKind ipamv1alpha1.Prefix
 
 	switch prefixKind {
 	case ipamv1alpha1.PrefixKindAggregate:
-	case ipamv1alpha1.PrefixKindLoopback:
+	//case ipamv1alpha1.PrefixKindLoopback:
 	case ipamv1alpha1.PrefixKindNetwork:
 		// update gateway status with the allocated gateway
 		// only relevant for prefixkind = network

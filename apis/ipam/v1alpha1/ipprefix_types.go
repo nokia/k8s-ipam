@@ -24,32 +24,32 @@ import (
 type IPPrefixSpec struct {
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
-	PrefixKind string `json:"kind"`
-	// Network is only relevant for prefix kind network. it is the unique name to reference all prefixes together within a network
-	Network string `json:"network,omitempty"`
+	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
+	// NetworkInstance identifies the network instance the IP prefix belongs to
+	NetworkInstance string `json:"networkInstance" yaml:"networkInstance"`
 	// Prefix defines the ip subnet of the ip prefix, it can also be an address if a /32 or /128 is specified
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
-	Prefix string `json:"prefix"`
-	// NetworkInstance identifies the network instance the IP prefix belongs to
-	NetworkInstance string `json:"networkInstance"`
+	Prefix string `json:"prefix" yaml:"prefix"`
+	// Labels provide metadata to the prefix. They are part of the spec since the allocation
+	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
+	// As such we distinguish clearly between the metadata labels and the labels used in the spec
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
 // IPPrefixStatus defines the observed state of IPPrefix
 type IPPrefixStatus struct {
-	ConditionedStatus `json:",inline"`
+	ConditionedStatus `json:",inline" yaml:",inline"`
 	// AllocatedPrefix identifies the prefix that was allocated by the IPAM system
-	AllocatedPrefix string `json:"prefix,omitempty"`
-	// AllocatedNetwork identifies the network that was allocated by the IPAM system
-	AllocatedNetwork string `json:"network,omitempty"`
+	AllocatedPrefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
-// +kubebuilder:printcolumn:name="NETWORK",type="string",JSONPath=".spec.networkInstance"
+// +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".spec.networkInstance"
 // +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.kind"
-// +kubebuilder:printcolumn:name="NETWORK",type="string",JSONPath=".spec.network"
+// +kubebuilder:printcolumn:name="SUBNET",type="string",JSONPath=".spec.subnetName"
 // +kubebuilder:printcolumn:name="PREFIX-REQ",type="string",JSONPath=".spec.prefix"
 // +kubebuilder:printcolumn:name="PREFIX-ALLOC",type="string",JSONPath=".status.prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
@@ -57,20 +57,20 @@ type IPPrefixStatus struct {
 
 // IPPrefix is the Schema for the ipprefixes API
 type IPPrefix struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline" yaml:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	Spec   IPPrefixSpec   `json:"spec,omitempty"`
-	Status IPPrefixStatus `json:"status,omitempty"`
+	Spec   IPPrefixSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Status IPPrefixStatus `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
 // IPPrefixList contains a list of IPPrefix
 type IPPrefixList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []IPPrefix `json:"items"`
+	metav1.TypeMeta `json:",inline" yaml:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Items           []IPPrefix `json:"items" yaml:"items"`
 }
 
 func init() {

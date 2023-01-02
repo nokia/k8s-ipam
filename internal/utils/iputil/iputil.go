@@ -17,6 +17,7 @@ limitations under the License.
 package iputil
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -103,4 +104,13 @@ func GetPrefixFromRoute(route *table.Route) *string {
 		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
 	}
 	return &p
+}
+
+func GetSubnetName(prefix string) string {
+	p := netaddr.MustParseIPPrefix(prefix)
+
+	return fmt.Sprintf("%s-%s",
+		p.Masked().IP().String(),
+		strconv.Itoa(GetPrefixLengthAsInt(p)),
+	)
 }

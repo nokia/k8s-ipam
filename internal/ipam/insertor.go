@@ -29,24 +29,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type InsertorFn func(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error)
+type InsertorFn func(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error)
 
-func (r *ipam) applyAllocation(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) applyAllocation(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
 	r.im.Lock()
 	insertFn := r.insertor[ipamUsage{PrefixKind: alloc.PrefixKind, HasPrefix: alloc.Prefix != ""}]
 	r.im.Unlock()
-	return insertFn(ctx, alloc)
+	return insertFn(ctx, alloc, init)
 }
 
-func (r *ipam) NopPrefixInsertor(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) NopPrefixInsertor(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
 	return &AllocatedPrefix{}, nil
 }
 
-func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("insert prefix", "kind", alloc.PrefixKind, "alloc", alloc)
 
-	rt, err := r.getRoutingTable(alloc, false)
+	rt, err := r.getRoutingTable(alloc, false, init)
 	if err != nil {
 		return nil, err
 	}
@@ -79,19 +79,19 @@ func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *Allocation) (*A
 	}
 
 	return &AllocatedPrefix{
-		AllocatedPrefix: alloc.GetPrefixFromNewAlloc(),
+		Prefix: alloc.GetPrefixFromNewAlloc(),
 	}, nil
 }
 
-func (r *ipam) NopPrefixAllocator(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) NopPrefixAllocator(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
 	return &AllocatedPrefix{}, nil
 }
 
-func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("allocate prefix", "kind", alloc.PrefixKind, "alloc", alloc)
 
-	rt, err := r.getRoutingTable(alloc, false)
+	rt, err := r.getRoutingTable(alloc, false, init)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*
 		}
 		p := route.IPPrefix()
 		allocatedPrefix := &AllocatedPrefix{
-			AllocatedPrefix: p.String(),
+			Prefix: p.String(),
 		}
 
 		if alloc.PrefixKind == ipamv1alpha1.PrefixKindNetwork {
@@ -166,7 +166,8 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*
 	}
 	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(selectedRoute.IPPrefix()))
 	labels[ipamv1alpha1.NephioPrefixLengthKey] = string(iputil.GetAddressPrefixLength(p))
-	labels[ipamv1alpha1.NephioNetworkKey] = selectedRoute.IPPrefix().Masked().IP().String()
+	//labels[ipamv1alpha1.NephioSubnetKey] = selectedRoute.IPPrefix().Masked().IP().String()
+	labels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(selectedRoute.IPPrefix().String())
 	route.UpdateLabel(labels)
 
 	if err := rt.Update(route); err != nil {
@@ -176,7 +177,7 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation) (*
 	}
 
 	allocatedPrefix := &AllocatedPrefix{
-		AllocatedPrefix: prefix,
+		Prefix: prefix,
 	}
 
 	if alloc.PrefixKind == ipamv1alpha1.PrefixKindNetwork {

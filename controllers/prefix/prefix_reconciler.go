@@ -106,7 +106,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if meta.WasDeleted(cr) {
-		// if the prefix condition is false it means the prefix was not supplied to the network
+		// if the prefix condition is false it means the prefix was not active in the ipam
 		// we can delete it w/o deleting it from the IPAM
 		if cr.GetCondition(ipamv1alpha1.ConditionKindReady).Status == corev1.ConditionTrue {
 			if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr)); err != nil {
@@ -156,8 +156,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// The spec got changed we check the existing prefix against the status
-	if (cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix) ||
-		(cr.Status.AllocatedNetwork != "" && cr.Status.AllocatedNetwork != cr.Spec.Network) {
+	// if there is a difference, we need to delete the prefix
+	if cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix {
 		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr)); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
@@ -166,13 +166,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
+
+	//
+
 	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr))
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if allocatedPrefix.AllocatedPrefix != cr.Spec.Prefix {
+	if allocatedPrefix.Prefix != cr.Spec.Prefix {
 		//we got a different prefix than requested
 		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
@@ -181,8 +184,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	r.l.Info("Successfully reconciled resource")
 	cr.Status.AllocatedPrefix = cr.Spec.Prefix
-	// only relevant for prefixkind network but does not harm
-	cr.Status.AllocatedNetwork = cr.Spec.Network
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

@@ -17,19 +17,22 @@ limitations under the License.
 package v1alpha1
 
 const (
-	NephioNetworkInstanceKey = "nephio.org/network-instance"
-	NephioPrefixKindKey      = "nephio.org/prefix-kind"
-	NephioPrefixLengthKey    = "nephio.org/prefix-length"
-	NephioAddressFamilyKey   = "nephio.org/address-family"
-	NephioIPPrefixNameKey    = "nephio.org/prefix-name"
-	NephioNetworkNameKey     = "nephio.org/network-name"
-	NephioNetworkKey         = "nephio.org/network"
-	//NephioParentNetKey          = "nephio.org/parent-net"
+	// ipam system defined
+	//NephioNetworkInstanceKey    = "nephio.org/network-instance"
+	NephioPrefixKindKey         = "nephio.org/prefix-kind"
+	NephioPrefixLengthKey       = "nephio.org/prefix-length"
+	NephioAddressFamilyKey      = "nephio.org/address-family"
+	NephioIPPrefixNameKey       = "nephio.org/prefix-name"
+	NephioSubnetKey             = "nephio.org/subnet" // this is the subnet in prefix annotation
 	NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
 	NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
 	NephioPoolKey               = "nephio.org/pool"
 	NephioGatewayKey            = "nephio.org/gateway"
-	NephioInterfaceKey          = "nephio.org/interface"
-	NephioApplicationPartOfKey  = "app.kubernetes.io/part-of"
 	NephioOriginKey             = "nephio.org/origin"
+	//NephioSubnetNameKey         = "nephio.org/subnet-name" // this is the subnet string or name given in the spec/selector
+	//ipam user define
+	NephioInterfaceKey         = "nephio.org/interface"
+	NephioNetworkNameKey       = "nephio.org/network-name"
+	NephioPurposeKey           = "nephio.org/purpose"
+	NephioApplicationPartOfKey = "app.kubernetes.io/part-of"
 )
