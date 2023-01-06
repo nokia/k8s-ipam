@@ -37,6 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
+	"github.com/henderiw-k8s-lcnc/discovery/discovery"
+	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
@@ -138,6 +140,29 @@ func main() {
 		Ipam: ipam,
 	})
 	wh := healthhandler.New()
+
+	ctx := context.Background()
+
+	reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
+		ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
+		ServiceDiscoveryNamespace: "ipam",
+	})
+	if err != nil {
+		setupLog.Error(err, "Cannot create registrator")
+		os.Exit(1)
+	}
+
+	// register the service
+	go func() {
+		reg.Register(ctx, &registrator.Service{
+			Name:    "ipam",
+			ID:      os.Getenv("POD_NAME"),
+			Port:    9999,
+			Address: os.Getenv("POD_IP"),
+			Tags:         []string{discovery.GetPodServiceTag(os.Getenv("POD_NAMESPACE"), os.Getenv("POD_NAME"))},
+			HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
+		})
+	}()
 
 	s := grpcserver.New(grpcserver.Config{
 		Address:  ":" + strconv.Itoa(9999),

@@ -27,11 +27,11 @@ service Allocation {
 }
 
 message Request {
-  string namespace = 1;
-  string name = 2;
-  string kind = 3; // ipam
-  map<string, string> labels  = 6;
-  Spec spec = 7;
+  string kind = 1; // ipam
+  string namespace = 2;
+  string name = 3;
+  map<string, string> labels  = 4;
+  Spec spec = 5;
 }
 
 message Spec {
