@@ -109,7 +109,7 @@ func main() {
 	allocClient, err := alloc.New(&alloc.Config{
 		Address:  "127.0.0.1:9999",
 		Insecure: true,
-	}).Create()
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to create grpc ipam client")
 		os.Exit(1)
@@ -125,7 +125,7 @@ func main() {
 	// initialize controllers
 	if err := controllers.Setup(mgr, &shared.Options{
 		PorchClient: porchClient,
-		AllocClient: allocClient,
+		AllocClient: allocClient.Get(),
 		Ipam:        ipam,
 		Poll:        5 * time.Second,
 		Copts: controller.Options{

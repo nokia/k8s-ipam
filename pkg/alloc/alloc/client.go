@@ -34,24 +34,26 @@ const (
 )
 
 type Client interface {
-	Create() (allocpb.AllocationClient, error)
 	Delete() error
+	Get() allocpb.AllocationClient
 }
 
-func New(cfg *Config) Client {
-	return &client{
+func New(cfg *Config) (Client, error) {
+	c := &client{
 		cfg: cfg,
 	}
+	return c, c.create()
 }
 
 type client struct {
-	cfg  *Config
-	conn *grpc.ClientConn
+	cfg           *Config
+	conn          *grpc.ClientConn
+	allocPbClient allocpb.AllocationClient
 }
 
-func (r *client) Create() (allocpb.AllocationClient, error) {
+func (r *client) create() error {
 	if r.cfg == nil {
-		return nil, fmt.Errorf("must provide non-nil Configw")
+		return fmt.Errorf("must provide non-nil Configw")
 	}
 	var opts []grpc.DialOption
 	fmt.Printf("grpc client config: %v\n", r.cfg)
@@ -61,7 +63,7 @@ func (r *client) Create() (allocpb.AllocationClient, error) {
 	} else {
 		tlsConfig, err := r.newTLS()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
@@ -70,12 +72,16 @@ func (r *client) Create() (allocpb.AllocationClient, error) {
 
 	conn, err := grpc.DialContext(timeoutCtx, r.cfg.Address, opts...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	//defer conn.Close()
-	client := allocpb.NewAllocationClient(conn)
+	r.allocPbClient = allocpb.NewAllocationClient(conn)
 
-	return client, nil
+	return nil
+}
+
+func (r *client) Get() allocpb.AllocationClient {
+	return r.allocPbClient
 }
 
 func (r *client) Delete() error {
