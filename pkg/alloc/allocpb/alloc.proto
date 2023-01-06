@@ -24,28 +24,47 @@ option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
 service Allocation {
   rpc Allocation (Request) returns (Response) {}
   rpc DeAllocation (Request) returns (Response) {}
+  rpc WatchAlloc (WatchRequest) returns (stream Response) {}
 }
+
 
 message Request {
-  string kind = 1; // ipam
-  string namespace = 2;
-  string name = 3;
-  map<string, string> labels  = 4;
-  Spec spec = 5;
-}
-
-message Spec {
-  string prefixkind =1;
-  string networkInstance = 2;
-  string prefix = 3;
-  uint32 prefixLength = 4;
-  string network = 5;
-  string addressFamily = 6;
-  map<string, string> selector  = 7;
-  map<string, string> labels  = 8;
+  Type gvk = 1;
+  Meta meta = 2;
+  Spec spec = 3;
 }
 
 message Response {
-  string allocatedPrefix = 1;
-  string gateway = 2;
+  Type gvk = 1;
+  Meta meta = 2;
+  Spec spec = 3;
+  Status status = 4;
+}
+
+message WatchRequest {
+  Type gvk = 1;
+  Meta meta = 2;
+}
+
+message Type {
+  string group = 1;
+  string version = 2;
+  string kind = 3; 
+}
+
+message Meta {
+  string namespace = 1;
+  string name = 2;
+  map<string, string> labels  = 3;
+}
+
+message Spec {
+  map<string, string> selector  = 1;
+  map<string, string> attributes  = 2;
+}
+
+message Status {
+  string status = 1; // stale; valid; invalid
+  string reason = 2;
+  map<string, string> attributes  = 3;
 }

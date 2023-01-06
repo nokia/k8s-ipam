@@ -18,8 +18,9 @@ package v1alpha1
 
 const (
 	// ipam system defined
-	//NephioNetworkInstanceKey    = "nephio.org/network-instance"
+	NephioNetworkInstanceKey    = "nephio.org/network-instance"
 	NephioPrefixKindKey         = "nephio.org/prefix-kind"
+	NephioPrefixKey             = "nephio.org/prefix"
 	NephioPrefixLengthKey       = "nephio.org/prefix-length"
 	NephioAddressFamilyKey      = "nephio.org/address-family"
 	NephioIPPrefixNameKey       = "nephio.org/prefix-name"
@@ -36,4 +37,7 @@ const (
 	NephioPurposeKey           = "nephio.org/purpose"
 	NephioApplicationPartOfKey = "app.kubernetes.io/part-of"
 	NephioIndexKey             = "nephio.org/index"
+	// ipam status
+	NephioAllocatedPrefix  = "nephio.org/allocated-prefix"
+	NephioAllocatedGateway = "nephio.org/allocated-gateway"
 )

@@ -19,6 +19,7 @@ package allochandler
 import (
 	"context"
 
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,8 +34,17 @@ func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*al
 		return nil, err
 	}
 	return &allocpb.Response{
-		AllocatedPrefix: prefix.Prefix,
-		Gateway:         prefix.Gateway,
+		Gvk:  alloc.Gvk,
+		Meta: alloc.Meta,
+		Spec: alloc.Spec,
+		Status: &allocpb.Status{
+			Status: "ok",
+			Reason: "",
+			Attributes: map[string]string{
+				ipamv1alpha1.NephioAllocatedPrefix:  prefix.Prefix,
+				ipamv1alpha1.NephioAllocatedGateway: prefix.Gateway,
+			},
+		},
 	}, nil
 }
 

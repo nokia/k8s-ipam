@@ -152,14 +152,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		podName = "local-ipam"
+	}
+	address := os.Getenv("POD_IP")
+	if address == "" {
+		address = "127.0.0.1"
+	}
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = "ipam"
+	}
+
+
 	// register the service
 	go func() {
 		reg.Register(ctx, &registrator.Service{
 			Name:         "ipam",
-			ID:           os.Getenv("POD_NAME"),
+			ID:           podName,
 			Port:         9999,
-			Address:      os.Getenv("POD_IP"),
-			Tags:         []string{discovery.GetPodServiceTag(os.Getenv("POD_NAMESPACE"), os.Getenv("POD_NAME"))},
+			Address:      address,
+			Tags:         []string{discovery.GetPodServiceTag(namespace, podName)},
 			HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
 		})
 	}()

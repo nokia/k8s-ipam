@@ -19,6 +19,7 @@ package injector
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -306,11 +307,12 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			// we always refresh the ipallocation even if it was already satisfied,
 			//since this allows to refresh the ipam
 			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
-				Namespace: namespace,
-				Name:      rn.GetName(),
-				Kind:      "ipam",
-				Labels:    rn.GetLabels(),
-				Spec:      grpcAllocSpec,
+				Meta: &allocpb.Meta{
+					Namespace: namespace,
+					Name:      rn.GetName(),
+					Labels:    rn.GetLabels(),
+				},
+				Spec: grpcAllocSpec,
 			})
 			if err != nil {
 				r.l.Error(err, "grpc ipam allocation request error")
@@ -439,14 +441,16 @@ func getIpAllocationSpec(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocationSpec, error
 
 func getGrpcAllocationSpec(ipAllocSpec *ipamv1alpha1.IPAllocationSpec) (*allocpb.Spec, error) {
 	allocSpec := &allocpb.Spec{
-		Prefixkind: string(ipAllocSpec.PrefixKind),
-		Selector:   ipAllocSpec.Selector.MatchLabels,
+		Attributes: map[string]string{
+			ipamv1alpha1.NephioPrefixKindKey: string(ipAllocSpec.PrefixKind),
+		},
+		Selector: ipAllocSpec.Selector.MatchLabels,
 	}
 	switch ipAllocSpec.PrefixKind {
 	case ipamv1alpha1.PrefixKindAggregate:
 	case ipamv1alpha1.PrefixKindNetwork:
 	case ipamv1alpha1.PrefixKindPool:
-		allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
+		allocSpec.Attributes[ipamv1alpha1.NephioPrefixKindKey] = strconv.Itoa(int(ipAllocSpec.PrefixLength))
 	default:
 		return nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
 	}
@@ -457,7 +461,7 @@ func GetUpdatedAllocation(resp *allocpb.Response, prefixKind ipamv1alpha1.Prefix
 	// update prefix status with the allocated prefix
 	ipAlloc := &ipamv1alpha1.IPAllocation{
 		Status: ipamv1alpha1.IPAllocationStatus{
-			AllocatedPrefix: resp.GetAllocatedPrefix(),
+			AllocatedPrefix: resp.GetStatus().GetAttributes()[ipamv1alpha1.NephioAllocatedPrefix],
 		},
 	}
 
@@ -467,7 +471,8 @@ func GetUpdatedAllocation(resp *allocpb.Response, prefixKind ipamv1alpha1.Prefix
 	case ipamv1alpha1.PrefixKindNetwork:
 		// update gateway status with the allocated gateway
 		// only relevant for prefixkind = network
-		ipAlloc.Status.Gateway = resp.GetGateway()
+		ipAlloc.Status.Gateway = resp.GetStatus().GetAttributes()[ipamv1alpha1.NephioAllocatedGateway]
+
 	case ipamv1alpha1.PrefixKindPool:
 	}
 

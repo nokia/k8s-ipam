@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type AllocationClient interface {
 	Allocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	DeAllocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	WatchAlloc(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Allocation_WatchAllocClient, error)
 }
 
 type allocationClient struct {
@@ -52,12 +53,45 @@ func (c *allocationClient) DeAllocation(ctx context.Context, in *Request, opts .
 	return out, nil
 }
 
+func (c *allocationClient) WatchAlloc(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Allocation_WatchAllocClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Allocation_ServiceDesc.Streams[0], "/alloc.Allocation/WatchAlloc", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &allocationWatchAllocClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Allocation_WatchAllocClient interface {
+	Recv() (*Response, error)
+	grpc.ClientStream
+}
+
+type allocationWatchAllocClient struct {
+	grpc.ClientStream
+}
+
+func (x *allocationWatchAllocClient) Recv() (*Response, error) {
+	m := new(Response)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // AllocationServer is the server API for Allocation service.
 // All implementations must embed UnimplementedAllocationServer
 // for forward compatibility
 type AllocationServer interface {
 	Allocation(context.Context, *Request) (*Response, error)
 	DeAllocation(context.Context, *Request) (*Response, error)
+	WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error
 	mustEmbedUnimplementedAllocationServer()
 }
 
@@ -70,6 +104,9 @@ func (UnimplementedAllocationServer) Allocation(context.Context, *Request) (*Res
 }
 func (UnimplementedAllocationServer) DeAllocation(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeAllocation not implemented")
+}
+func (UnimplementedAllocationServer) WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error {
+	return status.Errorf(codes.Unimplemented, "method WatchAlloc not implemented")
 }
 func (UnimplementedAllocationServer) mustEmbedUnimplementedAllocationServer() {}
 
@@ -120,6 +157,27 @@ func _Allocation_DeAllocation_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Allocation_WatchAlloc_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AllocationServer).WatchAlloc(m, &allocationWatchAllocServer{stream})
+}
+
+type Allocation_WatchAllocServer interface {
+	Send(*Response) error
+	grpc.ServerStream
+}
+
+type allocationWatchAllocServer struct {
+	grpc.ServerStream
+}
+
+func (x *allocationWatchAllocServer) Send(m *Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Allocation_ServiceDesc is the grpc.ServiceDesc for Allocation service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -136,6 +194,12 @@ var Allocation_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Allocation_DeAllocation_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WatchAlloc",
+			Handler:       _Allocation_WatchAlloc_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "pkg/alloc/allocpb/alloc.proto",
 }

@@ -19,6 +19,7 @@ package ipam
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hansthienpondt/goipam/pkg/table"
@@ -300,17 +301,18 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation) *Allocation 
 }
 
 func BuildAllocationFromGRPCAlloc(alloc *allocpb.Request) *Allocation {
+	prefixLength, _ := strconv.Atoi(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixLengthKey])
 	return &Allocation{
 		NamespacedName: types.NamespacedName{
-			Name:      alloc.Name,
-			Namespace: alloc.Namespace,
+			Name:      alloc.Meta.Name,
+			Namespace: alloc.Meta.Namespace,
 		},
 		Origin:          ipamv1alpha1.OriginIPAllocation,
-		NetworkInstance: alloc.GetSpec().GetNetworkInstance(),
-		PrefixKind:      ipamv1alpha1.PrefixKind(alloc.GetSpec().GetPrefixkind()),
-		AddresFamily:    ipamv1alpha1.AddressFamily(alloc.GetSpec().GetAddressFamily()),
-		Prefix:          alloc.GetSpec().GetPrefix(),
-		PrefixLength:    uint8(alloc.GetSpec().GetPrefixLength()),
+		NetworkInstance: alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioNetworkInstanceKey],
+		PrefixKind:      ipamv1alpha1.PrefixKind(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixKindKey]),
+		AddresFamily:    ipamv1alpha1.AddressFamily(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioAddressFamilyKey]),
+		Prefix:          alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixKey],
+		PrefixLength:    uint8(prefixLength),
 		//	SubnetName:      alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioSubnetNameKey],
 		//Labels:          alloc.GetLabels(),
 		SelectorLabels: alloc.GetSpec().GetSelector(),
