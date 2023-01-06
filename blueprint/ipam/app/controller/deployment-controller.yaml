@@ -69,7 +69,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
-        image: yndd/ipam-controller:latest
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/ipam-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz

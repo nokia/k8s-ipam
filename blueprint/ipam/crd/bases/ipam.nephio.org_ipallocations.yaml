@@ -69,6 +69,10 @@ spec:
                 - ipv4
                 - ipv6
                 type: string
+              index:
+                description: index is used for deterministic allocation
+                format: int32
+                type: integer
               kind:
                 default: network
                 enum:

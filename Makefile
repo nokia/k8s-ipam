@@ -1,5 +1,5 @@
 VERSION ?= latest
-REGISTRY ?= yndd
+REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
 PROJECT ?= ipam
 
 KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config

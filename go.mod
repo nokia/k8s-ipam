@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/hansthienpondt/goipam v0.0.1
-	github.com/henderiw-k8s-lcnc/discovery v0.0.0-20230106083159-ace1949237ae
+	github.com/henderiw-k8s-lcnc/discovery v0.0.2
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.24.0

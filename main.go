@@ -106,10 +106,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	allocClient, err := alloc.CreateClient(&alloc.Config{
+	allocClient, err := alloc.New(&alloc.Config{
 		Address:  "127.0.0.1:9999",
 		Insecure: true,
-	})
+	}).Create()
 	if err != nil {
 		setupLog.Error(err, "unable to create grpc ipam client")
 		os.Exit(1)
@@ -155,10 +155,10 @@ func main() {
 	// register the service
 	go func() {
 		reg.Register(ctx, &registrator.Service{
-			Name:    "ipam",
-			ID:      os.Getenv("POD_NAME"),
-			Port:    9999,
-			Address: os.Getenv("POD_IP"),
+			Name:         "ipam",
+			ID:           os.Getenv("POD_NAME"),
+			Port:         9999,
+			Address:      os.Getenv("POD_IP"),
 			Tags:         []string{discovery.GetPodServiceTag(os.Getenv("POD_NAMESPACE"), os.Getenv("POD_NAME"))},
 			HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
 		})
