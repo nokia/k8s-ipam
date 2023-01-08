@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AllocationClient interface {
-	Allocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	DeAllocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	Allocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	DeAllocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*EmptyResponse, error)
 	WatchAlloc(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Allocation_WatchAllocClient, error)
 }
 
@@ -35,18 +35,18 @@ func NewAllocationClient(cc grpc.ClientConnInterface) AllocationClient {
 	return &allocationClient{cc}
 }
 
-func (c *allocationClient) Allocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+func (c *allocationClient) Allocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/alloc.Allocation/Allocation", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/alloc.Allocation/Allocate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *allocationClient) DeAllocation(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, "/alloc.Allocation/DeAllocation", in, out, opts...)
+func (c *allocationClient) DeAllocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	out := new(EmptyResponse)
+	err := c.cc.Invoke(ctx, "/alloc.Allocation/DeAllocate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (c *allocationClient) WatchAlloc(ctx context.Context, in *WatchRequest, opt
 }
 
 type Allocation_WatchAllocClient interface {
-	Recv() (*Response, error)
+	Recv() (*WatchResponse, error)
 	grpc.ClientStream
 }
 
@@ -77,8 +77,8 @@ type allocationWatchAllocClient struct {
 	grpc.ClientStream
 }
 
-func (x *allocationWatchAllocClient) Recv() (*Response, error) {
-	m := new(Response)
+func (x *allocationWatchAllocClient) Recv() (*WatchResponse, error) {
+	m := new(WatchResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -89,8 +89,8 @@ func (x *allocationWatchAllocClient) Recv() (*Response, error) {
 // All implementations must embed UnimplementedAllocationServer
 // for forward compatibility
 type AllocationServer interface {
-	Allocation(context.Context, *Request) (*Response, error)
-	DeAllocation(context.Context, *Request) (*Response, error)
+	Allocate(context.Context, *Request) (*Response, error)
+	DeAllocate(context.Context, *Request) (*EmptyResponse, error)
 	WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error
 	mustEmbedUnimplementedAllocationServer()
 }
@@ -99,11 +99,11 @@ type AllocationServer interface {
 type UnimplementedAllocationServer struct {
 }
 
-func (UnimplementedAllocationServer) Allocation(context.Context, *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Allocation not implemented")
+func (UnimplementedAllocationServer) Allocate(context.Context, *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Allocate not implemented")
 }
-func (UnimplementedAllocationServer) DeAllocation(context.Context, *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeAllocation not implemented")
+func (UnimplementedAllocationServer) DeAllocate(context.Context, *Request) (*EmptyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeAllocate not implemented")
 }
 func (UnimplementedAllocationServer) WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error {
 	return status.Errorf(codes.Unimplemented, "method WatchAlloc not implemented")
@@ -121,38 +121,38 @@ func RegisterAllocationServer(s grpc.ServiceRegistrar, srv AllocationServer) {
 	s.RegisterService(&Allocation_ServiceDesc, srv)
 }
 
-func _Allocation_Allocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Allocation_Allocate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AllocationServer).Allocation(ctx, in)
+		return srv.(AllocationServer).Allocate(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/alloc.Allocation/Allocation",
+		FullMethod: "/alloc.Allocation/Allocate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).Allocation(ctx, req.(*Request))
+		return srv.(AllocationServer).Allocate(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Allocation_DeAllocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Allocation_DeAllocate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AllocationServer).DeAllocation(ctx, in)
+		return srv.(AllocationServer).DeAllocate(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/alloc.Allocation/DeAllocation",
+		FullMethod: "/alloc.Allocation/DeAllocate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).DeAllocation(ctx, req.(*Request))
+		return srv.(AllocationServer).DeAllocate(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -166,7 +166,7 @@ func _Allocation_WatchAlloc_Handler(srv interface{}, stream grpc.ServerStream) e
 }
 
 type Allocation_WatchAllocServer interface {
-	Send(*Response) error
+	Send(*WatchResponse) error
 	grpc.ServerStream
 }
 
@@ -174,7 +174,7 @@ type allocationWatchAllocServer struct {
 	grpc.ServerStream
 }
 
-func (x *allocationWatchAllocServer) Send(m *Response) error {
+func (x *allocationWatchAllocServer) Send(m *WatchResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -186,12 +186,12 @@ var Allocation_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AllocationServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Allocation",
-			Handler:    _Allocation_Allocation_Handler,
+			MethodName: "Allocate",
+			Handler:    _Allocation_Allocate_Handler,
 		},
 		{
-			MethodName: "DeAllocation",
-			Handler:    _Allocation_DeAllocation_Handler,
+			MethodName: "DeAllocate",
+			Handler:    _Allocation_DeAllocate_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

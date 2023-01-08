@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -39,7 +39,7 @@ func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*all
 	return resp, nil
 }
 
-func (s *GrpcServer) DeAllocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) DeAllocate(ctx context.Context, req *allocpb.Request) (*allocpb.EmptyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -47,7 +47,7 @@ func (s *GrpcServer) DeAllocation(ctx context.Context, req *allocpb.Request) (*a
 		return nil, err
 	}
 	defer s.sem.Release(1)
-	resp, err := s.allocHandler(ctx, req)
+	resp, err := s.deallocHandler(ctx, req)
 	if err != nil {
 		return nil, err
 	}

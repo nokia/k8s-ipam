@@ -17,7 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // IPPrefixSpec defines the desired state of IPPrefix
@@ -76,3 +80,15 @@ type IPPrefixList struct {
 func init() {
 	SchemeBuilder.Register(&IPPrefix{}, &IPPrefixList{})
 }
+
+var (
+	IPPrefixKind             = reflect.TypeOf(IPPrefix{}).Name()
+	IPPrefixGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: IPPrefixKind}.String()
+	IPPrefixKindAPIVersion   = IPPrefixKind + "." + GroupVersion.String()
+	IPPrefixGroupVersionKind = GroupVersion.WithKind(IPPrefixKind)
+	IPPrefixKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+		Group:   GroupVersion.Group,
+		Version: GroupVersion.Version,
+		Kind:    IPPrefixKind,
+	})
+)

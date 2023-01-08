@@ -60,7 +60,7 @@ type WatchHandler func(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer
 // Alloc Handlers
 type AllocHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
 
-type DeAllocHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
+type DeAllocHandler func(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
 
 type WatchAllocHandler func(*allocpb.WatchRequest, allocpb.Allocation_WatchAllocServer) error
 

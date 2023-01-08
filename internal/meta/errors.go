@@ -14,24 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shared
+package meta
 
 import (
-	"time"
-
-	"github.com/nokia/k8s-ipam/internal/injectors"
-	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-type Options struct {
-	PorchClient client.Client
-	//AllocClient allocpb.AllocationClient
-	IpamClientProxy ipamproxy.IpamClientProxy
-	Poll            time.Duration
-	Copts           controller.Options
-	Ipam            ipam.Ipam
-	Injectors       injectors.Injectors
+const (
+	errUpdateObject = "cannot update k8s resource"
+)
+
+type ErrorIs func(err error) bool
+
+func Ignore(is ErrorIs, err error) error {
+	if is(err) {
+		return nil
+	}
+	return err
+}
+
+// IgnoreNotFound returns the supplied error, or nil if the error indicates a
+// Kubernetes resource was not found.
+func IgnoreNotFound(err error) error {
+	return Ignore(errors.IsNotFound, err)
 }

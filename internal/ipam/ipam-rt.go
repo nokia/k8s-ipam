@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hansthienpondt/goipam/pkg/table"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 )
 
 func newIpamInfo() *ipamInfo {
@@ -56,7 +57,7 @@ func (r *ipam) get(crName string, init bool) (*table.RouteTable, error) {
 	return ii.rt, nil
 }
 
-func (r *ipam) getRoutingTable(alloc *Allocation, dryrun, init bool) (*table.RouteTable, error) {
+func (r *ipam) getRoutingTable(alloc *ipamv1alpha1.IPAllocation, dryrun, init bool) (*table.RouteTable, error) {
 	rt, err := r.get(alloc.GetNetworkInstance(), init)
 	if err != nil {
 		return nil, err

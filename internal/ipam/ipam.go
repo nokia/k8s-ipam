@@ -25,7 +25,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/goipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
 	"k8s.io/apimachinery/pkg/labels"
@@ -39,13 +38,13 @@ type Option func(Ipam)
 
 type Ipam interface {
 	// Init
-	Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
+	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// Delete the ipam instance
-	Delete(string)
+	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance)
 	// AllocateIPPrefix allocates an ip prefix
-	AllocateIPPrefix(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error)
+	AllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
 	// DeAllocateIPPrefix
-	DeAllocateIPPrefix(ctx context.Context, alloc *Allocation) error
+	DeAllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) error
 }
 
 func New(c client.Client, opts ...Option) Ipam {
@@ -168,13 +167,13 @@ type ipamInfo struct {
 }
 
 // Initialize and create the ipam instance with the allocated prefixes
-func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
 	r.l = log.FromContext(context.Background())
 
 	// if the IPAM is not initialaized initialaize it
 	// this happens upon initialization or ipam restart
 	if r.init(cr.GetName()) {
-		r.l.Info("ipam action", "action", "initialize", "name", cr.GetName())
+		r.l.Info("ipam create instance", "name", cr.GetName())
 
 		// List the ip prefixes to restore the in the ipam upon restart
 		prefixList := &ipamv1alpha1.IPPrefixList{}
@@ -192,10 +191,10 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 		// INFO: dynamic allocations which dont come throught the k8s api
 		// are not resstored, we assume the grpc client takes care of that
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOriginKey) == string(ipamv1alpha1.OriginNetworkInstance) {
+			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginNetworkInstance) {
 				for _, ipprefix := range cr.Spec.Prefixes {
 					// the prefix is implicitly check based on the name
-					if labels.Get(ipamv1alpha1.NephioIPAllocactionNameKey) == GetNameFromNetworkInstancePrefix(cr, ipprefix.Prefix) {
+					if labels.Get(ipamv1alpha1.NephioIPAllocactionNameKey) == cr.GetNameFromNetworkInstancePrefix(ipprefix.Prefix) {
 						if prefix != ipprefix.Prefix {
 							r.l.Error(fmt.Errorf("strange that the prefixes dont match: ipam prefix: %s, spec ipprefix: %s", prefix, ipprefix.Prefix),
 								"mismatch prefixes", "kind", "network-instance aggregate")
@@ -205,7 +204,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							PrefixKind: ipamv1alpha1.PrefixKindAggregate,
 							HasPrefix:  true}]
 						r.mm.Unlock()
-						allocs := mutatorFn(BuildAllocationFromNetworkInstancePrefix(cr, ipprefix))
+						allocs := mutatorFn(ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipprefix))
 						for _, alloc := range allocs {
 							_, err := r.applyAllocation(ctx, alloc, true)
 							//	_, err := r.AllocateIPPrefix(ctx, alloc, true)
@@ -214,7 +213,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							}
 							r.l.Info("ipam action",
 								"action", "initialize",
-								"added prefix", alloc.Prefix)
+								"added prefix", alloc.GetPrefix())
 						}
 					}
 				}
@@ -222,7 +221,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 		}
 
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOriginKey) == string(ipamv1alpha1.OriginIPPrefix) {
+			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginIPPrefix) {
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipprefix := range prefixList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipprefix", ipprefix)
@@ -237,7 +236,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							PrefixKind: ipamv1alpha1.PrefixKind(ipprefix.Spec.PrefixKind),
 							HasPrefix:  true}]
 						r.mm.Unlock()
-						allocs := mutatorFn(BuildAllocationFromIPPrefix(&ipprefix))
+						allocs := mutatorFn(ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipprefix))
 
 						for _, alloc := range allocs {
 							_, err := r.applyAllocation(ctx, alloc, true)
@@ -247,7 +246,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							}
 							r.l.Info("ipam action",
 								"action", "initialize",
-								"added prefix", alloc.Prefix)
+								"added prefix", alloc.GetPrefix())
 						}
 					}
 				}
@@ -255,7 +254,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 		}
 
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOriginKey) == string(ipamv1alpha1.OriginIPAllocation) {
+			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginIPAllocation) {
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipalloc := range allocList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipalloc", ipalloc)
@@ -269,7 +268,7 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							PrefixKind: ipamv1alpha1.PrefixKind(ipalloc.Spec.PrefixKind),
 							HasPrefix:  ipalloc.Spec.Prefix != ""}]
 						r.mm.Unlock()
-						allocs := mutatorFn(BuildAllocationFromIPAllocation(&ipalloc))
+						allocs := mutatorFn(&ipalloc)
 
 						for _, alloc := range allocs {
 							_, err := r.applyAllocation(ctx, alloc, true)
@@ -277,14 +276,14 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 							if err != nil {
 								return err
 							}
-							r.l.Info("ipam action", "action", "initialize", "added prefix", alloc.Prefix)
+							r.l.Info("ipam action", "action", "initialize", "added prefix", alloc.GetPrefix())
 						}
 						r.l.Info("ipam action", "action", "initialize", "added alloc", prefix)
 					}
 				}
 			}
 		}
-		r.l.Info("ipam action", "init", "done")
+		r.l.Info("ipam create instance done")
 		return r.initDone(cr.GetName())
 	}
 
@@ -292,29 +291,30 @@ func (r *ipam) Init(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 }
 
 // Delete the ipam instance
-func (r *ipam) Delete(crName string) {
+func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.l = log.FromContext(context.Background())
-	r.l.Info("ipam action", "action", "delete", "name", crName)
-	delete(r.ipam, crName)
+	r.l.Info("ipam action", "action", "delete", "name", cr.GetName())
+	delete(r.ipam, cr.GetName())
 }
 
 // AllocateIPPrefix allocates the prefix
-func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *Allocation) (*AllocatedPrefix, error) {
+func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("allocate prefix ", "alloc", alloc)
 
 	// copy original allocation
-	origAlloc := new(Allocation)
-	*origAlloc = *alloc
+	origAlloc := alloc.DeepCopy()
 
 	// validate alloc
 	msg, err := r.validate(ctx, alloc)
 	if err != nil {
+		r.l.Error(err, "validation failed")
 		return nil, err
 	}
 	if msg != "" {
+		r.l.Error(fmt.Errorf("%s", msg), "validation failed")
 		return nil, fmt.Errorf("validated failed: %s", msg)
 	}
 
@@ -322,24 +322,25 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *Allocation) (*Alloca
 	allocs := r.mutateAllocation(alloc)
 
 	// insert alloc in ipam
-	allocatedPrefix := &AllocatedPrefix{}
+	var updatedAlloc *ipamv1alpha1.IPAllocation
 	for _, alloc := range allocs {
 		r.l.Info("applyAllocation", "alloc", alloc)
 		ap, err := r.applyAllocation(ctx, alloc, false)
 		if err != nil {
+			r.l.Error(err, "applyAllocation failed")
 			return nil, err
 		}
 		if origAlloc.GetName() == alloc.GetName() {
-			allocatedPrefix = ap
+			updatedAlloc = ap
 		}
 	}
-	return allocatedPrefix, r.updateNetworkInstanceStatus(ctx, origAlloc)
+	r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
+	return updatedAlloc, r.updateNetworkInstanceStatus(ctx, origAlloc)
 }
 
-func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *Allocation) error {
+func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
 	// copy original allocation
-	origAlloc := new(Allocation)
-	*origAlloc = *alloc
+	origAlloc := alloc.DeepCopy()
 	r.l.Info("deallocate prefix", "alloc", alloc)
 
 	rt, err := r.getRoutingTable(alloc, false, false)
@@ -349,8 +350,8 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *Allocation) error 
 
 	r.mm.Lock()
 	mutatorFn := r.mutator[ipamUsage{
-		PrefixKind: alloc.PrefixKind,
-		HasPrefix:  alloc.Prefix != ""}]
+		PrefixKind: alloc.GetPrefixKind(),
+		HasPrefix:  alloc.GetPrefix() != ""}]
 	r.mm.Unlock()
 	allocs := mutatorFn(alloc)
 	if !r.IsLatestPrefixInNetwork(alloc) {
@@ -381,7 +382,7 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *Allocation) error 
 	return r.updateNetworkInstanceStatus(ctx, origAlloc)
 }
 
-func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *Allocation) error {
+func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
 	rt, err := r.getRoutingTable(alloc, false, false)
 	if err != nil {
 		return err
@@ -402,17 +403,17 @@ func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *Allocatio
 	return errors.Wrap(r.c.Status().Update(ctx, ni), "cannot update ni status")
 }
 
-func (r *ipam) IsLatestPrefixInNetwork(alloc *Allocation) bool {
+func (r *ipam) IsLatestPrefixInNetwork(alloc *ipamv1alpha1.IPAllocation) bool {
 	// only relevant for prefixkind network and allocations with prefixes
-	if alloc.PrefixKind != ipamv1alpha1.PrefixKindNetwork ||
-		alloc.Prefix == "" {
+	if alloc.GetPrefixKind() != ipamv1alpha1.PrefixKindNetwork ||
+		alloc.GetPrefix() == "" {
 		r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", "true")
 		return true
 	}
 	r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", "tbd", "alloc", alloc)
 	rt, err := r.getRoutingTable(alloc, false, false)
 	if err != nil {
-		// this should never occur, if so the route should no longre be there
+		// this should never occur, if so the route should no longer be there
 		return false
 	}
 
@@ -422,7 +423,7 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *Allocation) bool {
 	r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", "tbd", "labelSelector", l)
 
 	// for each route that belongs to the network
-	p := netaddr.MustParseIPPrefix(alloc.Prefix)
+	p := netaddr.MustParseIPPrefix(alloc.GetPrefix())
 	totalCount := len(routes)
 	validCount := 0
 	for _, route := range routes {
@@ -430,12 +431,12 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *Allocation) bool {
 		switch route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey) {
 		case alloc.GetName(),
 			p.Masked().IP().String(),
-			strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-"):
+			strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"):
 			validCount++
 		}
 		r.l.Info("is latest prefix in network",
 			"allocationName", route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey),
-			"netName", strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-"),
+			"netName", strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"),
 			"totalCount", totalCount,
 			"validCount", validCount,
 		)

@@ -23,28 +23,27 @@ import (
 
 	"github.com/hansthienpondt/goipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	"inet.af/netaddr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type InsertorFn func(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error)
+type InsertorFn func(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error)
 
-func (r *ipam) applyAllocation(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
+func (r *ipam) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error) {
 	r.im.Lock()
-	insertFn := r.insertor[ipamUsage{PrefixKind: alloc.PrefixKind, HasPrefix: alloc.Prefix != ""}]
+	insertFn := r.insertor[ipamUsage{PrefixKind: alloc.Spec.PrefixKind, HasPrefix: alloc.Spec.Prefix != ""}]
 	r.im.Unlock()
 	return insertFn(ctx, alloc, init)
 }
 
-func (r *ipam) NopPrefixInsertor(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
-	return &AllocatedPrefix{}, nil
+func (r *ipam) NopPrefixInsertor(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error) {
+	return alloc, nil
 }
 
-func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
+func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error) {
 	r.l = log.FromContext(ctx)
-	r.l.Info("insert prefix", "kind", alloc.PrefixKind, "alloc", alloc)
+	r.l.Info("insert prefix", "kind", alloc.Spec.PrefixKind, "alloc", alloc)
 
 	rt, err := r.getRoutingTable(alloc, false, init)
 	if err != nil {
@@ -78,18 +77,25 @@ func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *Allocation, ini
 		}
 	}
 
-	return &AllocatedPrefix{
-		Prefix: alloc.GetPrefixFromNewAlloc(),
-	}, nil
+	alloc.Status.AllocatedPrefix = alloc.GetPrefixFromNewAlloc()
+	return alloc, nil
+	/*
+		alloc.Status.AllocatedPrefix = alloc.GetPrefixFromNewAlloc()
+
+		return alloc.Status.AllocatedPrefix, nil
+		return &AllocatedPrefix{
+			Prefix: alloc.GetPrefixFromNewAlloc(),
+		}, nil
+	*/
 }
 
-func (r *ipam) NopPrefixAllocator(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
-	return &AllocatedPrefix{}, nil
+func (r *ipam) NopPrefixAllocator(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error) {
+	return alloc, nil
 }
 
-func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, init bool) (*AllocatedPrefix, error) {
+func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *ipamv1alpha1.IPAllocation, init bool) (*ipamv1alpha1.IPAllocation, error) {
 	r.l = log.FromContext(ctx)
-	r.l.Info("allocate prefix", "kind", alloc.PrefixKind, "alloc", alloc)
+	r.l.Info("allocate prefix", "kind", alloc.GetPrefixKind(), "alloc", alloc)
 
 	rt, err := r.getRoutingTable(alloc, false, init)
 	if err != nil {
@@ -114,11 +120,9 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, in
 			}
 		}
 		p := route.IPPrefix()
-		allocatedPrefix := &AllocatedPrefix{
-			Prefix: p.String(),
-		}
+		alloc.Status.AllocatedPrefix = p.String()
 
-		if alloc.PrefixKind == ipamv1alpha1.PrefixKindNetwork {
+		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 			gatewaySelector, err := alloc.GetGatewayLabelSelector()
 			if err != nil {
 				return nil, err
@@ -127,11 +131,11 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, in
 			routes = rt.GetByLabel(gatewaySelector)
 			if len(routes) > 0 {
 				r.l.Info("gateway", "routes", routes)
-				allocatedPrefix.Gateway = strings.Split(routes[0].IPPrefix().String(), "/")[0]
+				alloc.Status.Gateway = strings.Split(routes[0].IPPrefix().String(), "/")[0]
 			}
 		}
-		r.l.Info("allocatedPrefix", "allocatedPrefix", allocatedPrefix)
-		return allocatedPrefix, nil
+		r.l.Info("allocatedPrefix", "allocatedPrefix", alloc.Status)
+		return alloc, nil
 
 	}
 	// A NEW Allocation is required
@@ -160,14 +164,14 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, in
 	// since this is a dynamic allocation we dont know the prefix info ahead of time,
 	// we need to augment the labels on the routes with thi info
 	if prefixLength == 32 || prefixLength == 128 {
-		labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.GetPrefixLength(selectedRoute.IPPrefix())
+		labels[ipamv1alpha1.NephioParentPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(selectedRoute.IPPrefix())
 		n := strings.Split(prefix, "/")
-		prefix = strings.Join([]string{n[0], iputil.GetPrefixLength(selectedRoute.IPPrefix())}, "/")
+		prefix = strings.Join([]string{n[0], ipamv1alpha1.GetPrefixLength(selectedRoute.IPPrefix())}, "/")
 	}
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(iputil.GetAddressFamily(selectedRoute.IPPrefix()))
-	labels[ipamv1alpha1.NephioPrefixLengthKey] = string(iputil.GetAddressPrefixLength(p))
+	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(ipamv1alpha1.GetAddressFamily(selectedRoute.IPPrefix()))
+	labels[ipamv1alpha1.NephioPrefixLengthKey] = string(ipamv1alpha1.GetAddressPrefixLength(p))
 	//labels[ipamv1alpha1.NephioSubnetKey] = selectedRoute.IPPrefix().Masked().IP().String()
-	labels[ipamv1alpha1.NephioSubnetKey] = iputil.GetSubnetName(selectedRoute.IPPrefix().String())
+	labels[ipamv1alpha1.NephioSubnetKey] = ipamv1alpha1.GetSubnetName(selectedRoute.IPPrefix().String())
 	route.UpdateLabel(labels)
 
 	if err := rt.Update(route); err != nil {
@@ -176,11 +180,9 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, in
 		}
 	}
 
-	allocatedPrefix := &AllocatedPrefix{
-		Prefix: prefix,
-	}
+	alloc.Status.AllocatedPrefix = prefix
 
-	if alloc.PrefixKind == ipamv1alpha1.PrefixKindNetwork {
+	if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		gatewaySelector, err := alloc.GetGatewayLabelSelector()
 		if err != nil {
 			return nil, err
@@ -189,12 +191,12 @@ func (r *ipam) GenericPrefixAllocator(ctx context.Context, alloc *Allocation, in
 		routes = rt.GetByLabel(gatewaySelector)
 		if len(routes) > 0 {
 			r.l.Info("gateway", "routes", routes)
-			allocatedPrefix.Gateway = strings.Split(routes[0].IPPrefix().String(), "/")[0]
+			alloc.Status.Gateway = strings.Split(routes[0].IPPrefix().String(), "/")[0]
 		}
 	}
 
-	r.l.Info("allocatedPrefix", "allocatedPrefix", allocatedPrefix)
-	return allocatedPrefix, nil
+	r.l.Info("allocatedPrefix", "allocatedPrefix", alloc.Status)
+	return alloc, nil
 }
 
 func (r *ipam) GetSelectedRouteWithPrefixLength(routes table.Routes, prefixLength uint8) *table.Route {

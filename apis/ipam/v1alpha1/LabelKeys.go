@@ -29,7 +29,7 @@ const (
 	NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
 	NephioPoolKey               = "nephio.org/pool"
 	NephioGatewayKey            = "nephio.org/gateway"
-	NephioOriginKey             = "nephio.org/origin"
+	NephioOwnerKey              = "nephio.org/owner"
 	//NephioSubnetNameKey         = "nephio.org/subnet-name" // this is the subnet string or name given in the spec/selector
 	//ipam user define
 	NephioInterfaceKey         = "nephio.org/interface"

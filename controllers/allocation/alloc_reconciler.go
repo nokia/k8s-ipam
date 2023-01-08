@@ -23,18 +23,22 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
 	"github.com/pkg/errors"
 )
 
@@ -53,11 +57,13 @@ const (
 //+kubebuilder:rbac:groups=*,resources=networkinstances,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) error {
+func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
+	ge := make(chan event.GenericEvent)
+
 	r := &reconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
-		Ipam:         options.Ipam,
+		IpamClientProxy:    options.IpamClientProxy,
 		pollInterval: options.Poll,
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
@@ -69,9 +75,10 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 		}
 	*/
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ipamv1alpha1.IPAllocationGroupVersionKind, ge, ctrl.NewControllerManagedBy(mgr).
 		For(&ipamv1alpha1.IPAllocation{}).
 		//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
+		Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
@@ -79,7 +86,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
+	IpamClientProxy    ipamproxy.IpamClientProxy
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
@@ -103,7 +110,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if meta.WasDeleted(cr) {
 		if cr.GetCondition(ipamv1alpha1.ConditionKindReady).Status == corev1.ConditionTrue {
-			if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPAllocation(cr)); err != nil {
+			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
 					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
@@ -174,12 +181,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	*/
 
 	// set origin to label allocation
-	if len(cr.Labels) == 0 {
-		cr.Labels = map[string]string{}
-	}
-	cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
+	/*
+		if len(cr.Labels) == 0 {
+			cr.Labels = map[string]string{}
+		}
+		cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
+	*/
 
-	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromIPAllocation(cr))
+	allocatedPrefix, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))

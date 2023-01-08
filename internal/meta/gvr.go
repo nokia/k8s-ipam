@@ -14,24 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shared
+package meta
 
 import (
-	"time"
-
-	"github.com/nokia/k8s-ipam/internal/injectors"
-	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-type Options struct {
-	PorchClient client.Client
-	//AllocClient allocpb.AllocationClient
-	IpamClientProxy ipamproxy.IpamClientProxy
-	Poll            time.Duration
-	Copts           controller.Options
-	Ipam            ipam.Ipam
-	Injectors       injectors.Injectors
+func GetGVKfromGVR(c *rest.Config, gvr schema.GroupVersionResource) (schema.GroupVersionKind, error) {
+	mapper, err := apiutil.NewDynamicRESTMapper(c)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	gvk, err := mapper.KindFor(gvr)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	return gvk, nil
 }

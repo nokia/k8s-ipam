@@ -22,49 +22,61 @@ package alloc;
 option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
 
 service Allocation {
-  rpc Allocation (Request) returns (Response) {}
-  rpc DeAllocation (Request) returns (Response) {}
-  rpc WatchAlloc (WatchRequest) returns (stream Response) {}
+  rpc Allocate (Request) returns (Response) {}
+  rpc DeAllocate (Request) returns (EmptyResponse) {}
+  rpc WatchAlloc (WatchRequest) returns (stream WatchResponse) {}
 }
 
+message Instance {
+  NSN nsn = 1;
+}
 
 message Request {
-  Type gvk = 1;
-  Meta meta = 2;
-  Spec spec = 3;
+  Header header = 1;
+  string spec = 2;
+  string expiryTime = 3;
 }
 
+message EmptyResponse{}
+
 message Response {
-  Type gvk = 1;
-  Meta meta = 2;
-  Spec spec = 3;
-  Status status = 4;
+  Header header = 1;
+  string spec = 2;
+  string status = 3;
+  StatusCode statusCode = 4;
+}
+
+message WatchResponse {
+  Header header = 1;
+  string spec = 2;
+  string status = 3;
+  StatusCode statusCode = 4;
 }
 
 message WatchRequest {
-  Type gvk = 1;
-  Meta meta = 2;
+  GVK ownerGvk = 1;
 }
 
-message Type {
+message Header {
+  GVK gvk = 1;
+  NSN nsn = 2;
+  GVK ownerGvk = 3;
+  NSN ownerNsn = 4;
+}
+
+message GVK {
   string group = 1;
   string version = 2;
   string kind = 3; 
 }
 
-message Meta {
+message NSN {
   string namespace = 1;
   string name = 2;
-  map<string, string> labels  = 3;
 }
 
-message Spec {
-  map<string, string> selector  = 1;
-  map<string, string> attributes  = 2;
-}
-
-message Status {
-  string status = 1; // stale; valid; invalid
-  string reason = 2;
-  map<string, string> attributes  = 3;
+enum StatusCode {
+  Valid = 0; // the status is OK
+  InValid = 1; // the entry is no longer in the system
+  Unknown = 2; // means the client should refresh the status
 }

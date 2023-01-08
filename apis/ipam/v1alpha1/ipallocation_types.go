@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
+	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -31,7 +32,7 @@ type IPAllocationSpec struct {
 	// NetworkInstance identifies the network instance the IP allocation is allocated from
 	NetworkInstance string `json:"networkInstance" yaml:"networkInstance"`
 	// +kubebuilder:validation:Enum=`ipv4`;`ipv6`
-	AddressFamily string `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`
+	AddressFamily AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`
 	// Prefix allows the client to indicate the prefix that was already allocated and validate if the allocation is still consistent
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
@@ -46,6 +47,8 @@ type IPAllocationSpec struct {
 	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
 	// As such we distinguish clearly between the metadata labels and the labels used in the spec
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	// expiryTime indicated when the allocation expires
+	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }
 
 // IPAllocationStatus defines the observed state of IPAllocation
@@ -55,6 +58,8 @@ type IPAllocationStatus struct {
 	AllocatedPrefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
 	// Gateway identifies the gatway IP for the network
 	Gateway string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
+	// expiryTime indicated when the allocation expires
+	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -97,4 +102,9 @@ var (
 	IPAllocationGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: IPAllocationKind}.String()
 	IPAllocationKindAPIVersion   = IPAllocationKind + "." + GroupVersion.String()
 	IPAllocationGroupVersionKind = GroupVersion.WithKind(IPAllocationKind)
+	IPAllocationKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+		Group:   GroupVersion.Group,
+		Version: GroupVersion.Version,
+		Kind:    IPAllocationKind,
+	})
 )

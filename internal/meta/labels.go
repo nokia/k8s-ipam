@@ -14,24 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shared
+package meta
 
-import (
-	"time"
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/nokia/k8s-ipam/internal/injectors"
-	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-)
+func AddLabels(o metav1.Object, labels map[string]string) {
+	l := o.GetLabels()
+	if l == nil {
+		o.SetLabels(labels)
+		return
+	}
+	for k, v := range labels {
+		l[k] = v
+	}
+	o.SetLabels(l)
+}
 
-type Options struct {
-	PorchClient client.Client
-	//AllocClient allocpb.AllocationClient
-	IpamClientProxy ipamproxy.IpamClientProxy
-	Poll            time.Duration
-	Copts           controller.Options
-	Ipam            ipam.Ipam
-	Injectors       injectors.Injectors
+func RemoveLabels(o metav1.Object, labels ...string) {
+	l := o.GetLabels()
+	if l == nil {
+		return
+	}
+	for _, k := range labels {
+		delete(l, k)
+	}
+	o.SetLabels(l)
 }

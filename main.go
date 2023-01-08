@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"strconv"
@@ -47,7 +46,8 @@ import (
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
+	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -106,42 +106,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	allocClient, err := alloc.New(&alloc.Config{
-		Address:  "127.0.0.1:9999",
-		Insecure: true,
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to create grpc ipam client")
-		os.Exit(1)
-	}
-
-	porchClient, err := porch.CreateClient()
-	if err != nil {
-		setupLog.Error(err, "unable to create porch client")
-		os.Exit(1)
-	}
-
-	ipam := ipam.New(mgr.GetClient())
-	// initialize controllers
-	if err := controllers.Setup(mgr, &shared.Options{
-		PorchClient: porchClient,
-		AllocClient: allocClient.Get(),
-		Ipam:        ipam,
-		Poll:        5 * time.Second,
-		Copts: controller.Options{
-			MaxConcurrentReconciles: 1,
-		},
-	}); err != nil {
-		setupLog.Error(err, "Cannot add controllers to manager")
-		os.Exit(1)
-	}
-
-	ah := allochandler.New(&allochandler.Options{
-		Ipam: ipam,
-	})
-	wh := healthhandler.New()
-
-	ctx := context.Background()
+	setupLog.Info("setup controller")
+	ctx := ctrl.SetupSignalHandler()
 
 	reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
 		ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
@@ -165,7 +131,6 @@ func main() {
 		namespace = "ipam"
 	}
 
-
 	// register the service
 	go func() {
 		reg.Register(ctx, &registrator.Service{
@@ -178,18 +143,57 @@ func main() {
 		})
 	}()
 
+	pc := proxycache.New(&proxycache.Config{
+		Registrator: reg,
+	})
+	pc.Start(ctx)
+
+	ipamClientProxy := ipamproxy.NewClientProxy(&ipamproxy.ClientConfig{
+		ProxyCache: pc,
+	})
+	ipamServerProxy := ipamproxy.NewServerProxy(&ipamproxy.ServerConfig{
+		Ipam: ipam.New(mgr.GetClient()),
+	})
+
+	porchClient, err := porch.CreateClient()
+	if err != nil {
+		setupLog.Error(err, "unable to create porch client")
+		os.Exit(1)
+	}
+
+	// initialize controllers
+	eventChs, err := controllers.Setup(mgr, &shared.Options{
+		PorchClient:     porchClient,
+		IpamClientProxy: ipamClientProxy,
+		Poll:            5 * time.Second,
+		Copts: controller.Options{
+			MaxConcurrentReconciles: 1,
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "Cannot add controllers to manager")
+		os.Exit(1)
+	}
+
+	pc.AddEventChs(eventChs)
+
+	ah := allochandler.New(
+		allochandler.WithRoute(ipamv1alpha1.GroupVersion.Group, ipamServerProxy),
+	)
+	wh := healthhandler.New()
+
 	s := grpcserver.New(grpcserver.Config{
 		Address:  ":" + strconv.Itoa(9999),
 		Insecure: true,
 	},
-		grpcserver.WithAllocHandler(ah.Allocation),
-		grpcserver.WithDeAllocHandler(ah.DeAllocation),
+		grpcserver.WithAllocHandler(ah.Allocate),
+		grpcserver.WithDeAllocHandler(ah.DeAllocate),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)
 
 	go func() {
-		if err := s.Start(context.TODO()); err != nil {
+		if err := s.Start(ctx); err != nil {
 			setupLog.Error(err, "cannot start grpcserver")
 			os.Exit(1)
 		}
@@ -207,7 +211,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

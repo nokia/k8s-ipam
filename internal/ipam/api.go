@@ -16,24 +16,7 @@ limitations under the License.
 
 package ipam
 
-import (
-	"encoding/json"
-	"fmt"
-	"strconv"
-	"strings"
-
-	"github.com/hansthienpondt/goipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
-	"github.com/pkg/errors"
-	"inet.af/netaddr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
-)
-
+/*
 // +k8s:deepcopy-gen=false
 type Allocation struct {
 	Origin          ipamv1alpha1.Origin        `json:"origin,omitempty" yaml:"origin,omitempty"`
@@ -53,7 +36,6 @@ type AllocatedPrefix struct {
 	Prefix  string
 	Gateway string
 }
-
 func (r *Allocation) GetName() string {
 	return r.NamespacedName.Name
 }
@@ -241,7 +223,9 @@ func (r *Allocation) GetPrefixLengthFromRoute(route *table.Route) uint8 {
 	}
 	return 128
 }
+*/
 
+/*
 func BuildAllocationFromIPPrefix(cr *ipamv1alpha1.IPPrefix) *Allocation {
 	p := netaddr.MustParseIPPrefix(cr.Spec.Prefix)
 	return &Allocation{
@@ -299,30 +283,9 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation) *Allocation 
 		SelectorLabels: cr.Spec.Selector.MatchLabels,
 	}
 }
+*/
 
-func BuildAllocationFromGRPCAlloc(alloc *allocpb.Request) *Allocation {
-	prefixLength, _ := strconv.Atoi(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixLengthKey])
-	return &Allocation{
-		NamespacedName: types.NamespacedName{
-			Name:      alloc.Meta.Name,
-			Namespace: alloc.Meta.Namespace,
-		},
-		Origin:          ipamv1alpha1.OriginIPAllocation,
-		NetworkInstance: alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioNetworkInstanceKey],
-		PrefixKind:      ipamv1alpha1.PrefixKind(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixKindKey]),
-		AddresFamily:    ipamv1alpha1.AddressFamily(alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioAddressFamilyKey]),
-		Prefix:          alloc.GetSpec().GetAttributes()[ipamv1alpha1.NephioPrefixKey],
-		PrefixLength:    uint8(prefixLength),
-		//	SubnetName:      alloc.GetSpec().GetSelector()[ipamv1alpha1.NephioSubnetNameKey],
-		//Labels:          alloc.GetLabels(),
-		SelectorLabels: alloc.GetSpec().GetSelector(),
-	}
-}
-
-func GetNameFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix string) string {
-	return fmt.Sprintf("%s-%s-%s", cr.GetName(), "aggregate", strings.ReplaceAll(prefix, "/", "-"))
-}
-
+/*
 func (in *Allocation) DeepCopy() (*Allocation, error) {
 	if in == nil {
 		return nil, errors.New("in cannot be nil")
@@ -339,3 +302,4 @@ func (in *Allocation) DeepCopy() (*Allocation, error) {
 	}
 	return out, nil
 }
+*/

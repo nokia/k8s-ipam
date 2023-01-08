@@ -17,8 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NetworkInstanceSpec defines the desired state of NetworkInstance
@@ -78,3 +82,15 @@ type NetworkInstanceList struct {
 func init() {
 	SchemeBuilder.Register(&NetworkInstance{}, &NetworkInstanceList{})
 }
+
+var (
+	NetworkInstanceKind             = reflect.TypeOf(NetworkInstance{}).Name()
+	NetworkInstancegroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: NetworkInstanceKind}.String()
+	NetworkInstanceAPIVersion       = NetworkInstanceKind + "." + GroupVersion.String()
+	NetworkInstanceGroupVersionKind = GroupVersion.WithKind(NetworkInstanceKind)
+	NetworkInstanceGVKString        = meta.GVKToString(&schema.GroupVersionKind{
+		Group:   GroupVersion.Group,
+		Version: GroupVersion.Version,
+		Kind:    NetworkInstanceKind,
+	})
+)

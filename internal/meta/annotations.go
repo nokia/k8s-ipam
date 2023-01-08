@@ -14,24 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shared
+package meta
 
-import (
-	"time"
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/nokia/k8s-ipam/internal/injectors"
-	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-)
+func AddAnnotations(o metav1.Object, annotations map[string]string) {
+	a := o.GetAnnotations()
+	if a == nil {
+		o.SetAnnotations(annotations)
+		return
+	}
+	for k, v := range annotations {
+		a[k] = v
+	}
+	o.SetAnnotations(a)
+}
 
-type Options struct {
-	PorchClient client.Client
-	//AllocClient allocpb.AllocationClient
-	IpamClientProxy ipamproxy.IpamClientProxy
-	Poll            time.Duration
-	Copts           controller.Options
-	Ipam            ipam.Ipam
-	Injectors       injectors.Injectors
+func RemoveAnnotations(o metav1.Object, annotations ...string) {
+	a := o.GetAnnotations()
+	if a == nil {
+		return
+	}
+	for _, k := range annotations {
+		delete(a, k)
+	}
+	o.SetAnnotations(a)
 }

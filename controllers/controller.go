@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/nokia/k8s-ipam/controllers/allocation"
@@ -24,20 +25,24 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/networkinstance"
 	"github.com/nokia/k8s-ipam/controllers/prefix"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 // Setup package controllers.
-func Setup(mgr ctrl.Manager, opts *shared.Options) error {
-	for _, setup := range []func(ctrl.Manager, *shared.Options) error{
+func Setup(mgr ctrl.Manager, opts *shared.Options) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
+	eventChs := map[schema.GroupVersionKind]chan event.GenericEvent{}
+	for _, setup := range []func(ctrl.Manager, *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error){
 		networkinstance.Setup,
 		prefix.Setup,
 		allocation.Setup,
 		injector.Setup,
 	} {
-		if err := setup(mgr, opts); err != nil {
-			return err
+		gvk, geCh, err := setup(mgr, opts)
+		if err != nil {
+			return nil, err
 		}
+		eventChs[gvk] = geCh
 	}
 
-	return nil
+	return eventChs, nil
 }
