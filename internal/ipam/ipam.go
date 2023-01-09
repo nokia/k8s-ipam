@@ -59,6 +59,7 @@ func New(c client.Client, opts ...Option) Ipam {
 			ValidateInputFn:    ValidateInputGenericWithPrefixFn,
 			IsAddressFn:        IsAddressGenericFn,
 			IsAddressInNetFn:   IsAddressInNetNopFn,
+			ExactMatchPrefixFn: ExactMatchPrefixNetworkFn,
 			ExactPrefixMatchFn: ExactPrefixMatchNetworkFn,
 			ChildrenExistFn:    ChildrenExistGenericFn,
 			NoParentExistFn:    NoParentExistGenericFn,
@@ -330,6 +331,7 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 			r.l.Error(err, "applyAllocation failed")
 			return nil, err
 		}
+		r.l.Info("allocate prefix", "name", alloc.GetName(), "prefix", alloc.GetPrefix())
 		if origAlloc.GetName() == alloc.GetName() {
 			updatedAlloc = ap
 		}
@@ -339,6 +341,7 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 }
 
 func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
+	r.l = log.FromContext(ctx)
 	// copy original allocation
 	origAlloc := alloc.DeepCopy()
 	r.l.Info("deallocate prefix", "alloc", alloc)
@@ -355,11 +358,11 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 	r.mm.Unlock()
 	allocs := mutatorFn(alloc)
 	if !r.IsLatestPrefixInNetwork(alloc) {
-		r.l.Info("deallocate prefix ", "latest", "false")
+		r.l.Info("deallocate prefix", "latest", "false")
 		allocs = allocs[:1]
 	}
 	for _, alloc := range allocs {
-		r.l.Info("deallocate individual prefix ", "alloc", alloc)
+		r.l.Info("deallocate individual prefix", "alloc", alloc)
 
 		allocSelector, err := alloc.GetAllocSelector()
 		if err != nil {
@@ -407,7 +410,7 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *ipamv1alpha1.IPAllocation) bool {
 	// only relevant for prefixkind network and allocations with prefixes
 	if alloc.GetPrefixKind() != ipamv1alpha1.PrefixKindNetwork ||
 		alloc.GetPrefix() == "" {
-		r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", "true")
+		r.l.Info("deallocate prefix", "IsLatestPrefixInNetwork", "true")
 		return true
 	}
 	r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", "tbd", "alloc", alloc)
@@ -429,11 +432,17 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *ipamv1alpha1.IPAllocation) bool {
 	for _, route := range routes {
 		// compare against the allocation name -> net routes, first route and real prefix
 		switch route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey) {
-		case alloc.GetName(),
-			p.Masked().IP().String(),
-			strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"):
+		case alloc.GetName():
+			validCount++
+		case p.Masked().IP().String(): // this is the first address in the subnet
+			validCount++
+		case ipamv1alpha1.GetSubnetName(alloc.GetPrefix()): // this is the prefix in the subnet first address +
 			validCount++
 		}
+		if route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey) == ipamv1alpha1.IPAllocationKindGVKString {
+			validCount++
+		}
+
 		r.l.Info("is latest prefix in network",
 			"allocationName", route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey),
 			"netName", strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"),
@@ -441,7 +450,7 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *ipamv1alpha1.IPAllocation) bool {
 			"validCount", validCount,
 		)
 	}
-	r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", totalCount == validCount, "totoal", totalCount, "valid", validCount)
+	r.l.Info("deallocate prefix ", "IsLatestPrefixInNetwork", totalCount == validCount, "total", totalCount, "valid", validCount)
 	return totalCount == validCount
 
 }

@@ -44,6 +44,7 @@ message Response {
   string spec = 2;
   string status = 3;
   StatusCode statusCode = 4;
+  string expiryTime = 5;
 }
 
 message WatchResponse {
@@ -51,6 +52,7 @@ message WatchResponse {
   string spec = 2;
   string status = 3;
   StatusCode statusCode = 4;
+  string expiryTime = 5;
 }
 
 message WatchRequest {

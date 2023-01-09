@@ -77,6 +77,7 @@ func (r *ipam) GenericPrefixInsertor(ctx context.Context, alloc *ipamv1alpha1.IP
 		}
 	}
 
+	r.l.Info("prefix in alloc")
 	alloc.Status.AllocatedPrefix = alloc.GetPrefixFromNewAlloc()
 	return alloc, nil
 	/*

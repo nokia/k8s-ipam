@@ -2,15 +2,15 @@ package proxycache
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
@@ -20,6 +20,9 @@ type ProxyCache interface {
 	Start(context.Context)
 	// add the event channels to the proxy cache
 	AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent)
+	// registers a response validator to validate the content of the response
+	// given the proxy cache is content agnostic it needs a helper to execute this task
+	RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn)
 	// Allocate -> lookup in local cache based on (ipam, etc) gvknsn
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	// DeAllocate removes the cache data
@@ -39,6 +42,7 @@ func New(c *Config) ProxyCache {
 	return &proxycache{
 		//informer:    NewInformer(c.EventChannels),
 		cache:       NewCache(),
+		validator:   NewResponseValidator(),
 		registrator: c.Registrator,
 		l:           l,
 	}
@@ -53,12 +57,18 @@ type proxycache struct {
 	svcInfo     *registrator.Service
 	m           sync.RWMutex
 	allocClient alloc.Client
+	// validator
+	validator ResponseValidator
 	//logger
 	l logr.Logger
 }
 
 func (r *proxycache) AddEventChs(eventChannels map[schema.GroupVersionKind]chan event.GenericEvent) {
 	r.informer = NewInformer(eventChannels)
+}
+
+func (r *proxycache) RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn) {
+	r.validator.Add(key, fn)
 }
 
 func (r *proxycache) Start(ctx context.Context) {
@@ -80,16 +90,6 @@ func (r *proxycache) Start(ctx context.Context) {
 							service.Name == r.svcInfo.Name {
 							r.l.Info("service, no change, keep waiting", "allocClient", r.allocClient.Get())
 
-							/*
-								allocpbReq, _ := ipamalloc.BuildAllocationFromIPAllocation(buildDummyIPAllocation(), time.Now().UTC().Add(time.Minute*60).String())
-								resp, err := r.allocClient.Get().Allocation(context.TODO(), allocpbReq)
-								if err != nil {
-									r.l.Error(err, "cannot get allocation§")
-								} else {
-									r.l.Info("service, no change, keep waiting", "resp", resp)
-								}
-							*/
-
 							continue GeneralWait
 						}
 					}
@@ -97,67 +97,126 @@ func (r *proxycache) Start(ctx context.Context) {
 				if len(svcInfo.ServiceInstances) == 0 {
 					r.l.Info("service, no available service -> delete Client")
 					// delete client
-					r.m.Lock()
-					if r.allocClient != nil {
-						if err := r.allocClient.Delete(); err != nil {
-							r.l.Error(err, "cannot delete client")
-						}
-						continue GeneralWait
+					if err := r.deleteClient(); err != nil {
+						r.l.Error(err, "cannot delete client")
 					}
-					r.allocClient = nil
-					r.m.Unlock()
-
-				} else {
-					r.svcInfo = svcInfo.ServiceInstances[0]
-					r.l.Info("service, info changed-> delete and create Client", "svcInfo", svcInfo.ServiceInstances[0])
-					r.m.Lock()
-					// delete client
-					if r.allocClient != nil {
-						if err := r.allocClient.Delete(); err != nil {
-							r.l.Error(err, "cannot delete client")
-						}
-						continue GeneralWait
-					}
-					// create client
-					ac, err := alloc.New(&alloc.Config{
-						Address:  fmt.Sprintf("%s:%s", r.svcInfo.Address, strconv.Itoa(r.svcInfo.Port)),
-						Insecure: true,
-					})
-					if err != nil {
-						r.l.Error(err, "cannot create client")
-						r.allocClient = nil
-						continue GeneralWait
-					}
-					r.allocClient = ac
-					r.m.Unlock()
+					continue GeneralWait
+				}
+				r.svcInfo = svcInfo.ServiceInstances[0]
+				r.l.Info("service, info changed-> delete and create Client", "svcInfo", svcInfo.ServiceInstances[0])
+				// delete client
+				if err := r.deleteClient(); err != nil {
+					r.l.Error(err, "cannot delete client")
+					continue GeneralWait
+				}
+				// create client
+				if err := r.createClient(); err != nil {
+					r.l.Error(err, "cannot create client")
 				}
 			case <-ctx.Done():
 				// called when the controller gets cancelled
 				return
+			case <-time.After(time.Second * 5):
+				// walk cache and check the expiry time
+				r.l.Info("refresh handler")
+				keysToRefresh := r.cache.ValidateExpiryTime(ctx)
+				var wg sync.WaitGroup
+				for objKey, allocpbResp := range keysToRefresh {
+					r.l.Info("refresh allocation", "gvk", objKey.gvk, "nsn", objKey.nsn)
+					wg.Add(1)
+					t := time.Now().Add(time.Minute * 60)
+					b, err := t.MarshalText()
+					if err != nil {
+						r.l.Error(err, "cannot marshal the time during refresh")
+					}
+					req := &allocpb.Request{
+						Header:     allocpbResp.GetHeader(),
+						Spec:       allocpbResp.GetSpec(),
+						ExpiryTime: string(b)}
+
+					ownerGvk := schema.GroupVersionKind{
+						Group:   allocpbResp.GetHeader().GetOwnerGvk().GetGroup(),
+						Version: allocpbResp.GetHeader().GetOwnerGvk().GetVersion(),
+						Kind:    allocpbResp.GetHeader().GetOwnerGvk().GetKind(),
+					}
+					ownerNsn := types.NamespacedName{
+						Namespace: allocpbResp.GetHeader().GetOwnerNsn().GetNamespace(),
+						Name:      allocpbResp.GetHeader().GetOwnerNsn().GetName(),
+					}
+					group := allocpbResp.GetHeader().GetGvk().GetGroup()
+					origresp := allocpbResp
+					objKey := objKey
+
+					go func() {
+						defer wg.Done()
+
+						// refresh the allocation
+						resp, err := r.refreshAllocate(ctx, req)
+						if err != nil {
+							// if we get an error in the response, log it and inform the client
+							r.l.Error(err, "refresh allocation failed")
+							// remove the cache entry
+							r.cache.Delete(objKey)
+							r.informer.NotifyClient(ownerGvk, ownerNsn)
+						}
+						r.l.Info("refresh resp", "resp", resp.Status)
+						// Validate the response through the client proxy registered validator
+						// if the validator is not happy with the response we notify the client
+						if r.validator.Get(group) != nil {
+							if !r.validator.Get(group)(origresp, resp) {
+								r.l.Error(err, "refresh validtion NOK")
+								// remove the cache entry
+								r.cache.Delete(objKey)
+								r.informer.NotifyClient(ownerGvk, ownerNsn)
+							}
+						}
+					}()
+				}
+				wg.Wait()
 			}
 		}
 	}()
 }
 
 func (r *proxycache) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
-	key := getKey(alloc)
+	return r.allocate(ctx, alloc, false)
+}
 
+func (r *proxycache) refreshAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+	return r.allocate(ctx, alloc, true)
+}
+
+func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.Request, refresh bool) (*allocpb.Response, error) {
 	allocClient, err := r.getClient()
 	if err != nil {
 		return nil, err
 	}
 
-	cacheData := r.cache.Get(key)
-	if cacheData != nil {
-		// check if the data is available and consistent
-		if isCacheDataValid(cacheData, alloc) {
-			r.l.Info("cache hit, response from cache")
-			return cacheData, nil
+	key := getKey(alloc)
+	if !refresh {
+		cacheData := r.cache.Get(key)
+		if cacheData != nil {
+			// check if the data is available and consistent
+			if isCacheDataValid(cacheData, alloc) {
+				r.l.Info("cache hit OK -> response from cache", "keyGVK", key.gvk, "keyNsn", key.nsn)
+				return cacheData, nil
+			}
 		}
 	}
-	// allocate the prefix from the central ipam server
-	r.l.Info("no cache hit, response from central ipam server")
-	return allocClient.Allocate(ctx, alloc)
+	if refresh {
+		r.l.Info("cache hit NOK -> refresh from ipam server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+	} else {
+		// allocate the prefix from the central ipam server
+		r.l.Info("cache hit NOK -> response from ipam server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+	}
+
+	allocResp, err := allocClient.Allocate(ctx, alloc)
+	if err != nil || allocResp.GetStatusCode() != allocpb.StatusCode_Valid {
+		return allocResp, err
+	}
+	// if the allocation is successfull we add the entry in the cache
+	r.cache.Add(key, allocResp)
+	return allocResp, err
 }
 
 func (r *proxycache) DeAllocate(ctx context.Context, alloc *allocpb.Request) error {
@@ -174,37 +233,3 @@ func (r *proxycache) DeAllocate(ctx context.Context, alloc *allocpb.Request) err
 	return nil
 
 }
-
-func (r *proxycache) getClient() (allocpb.AllocationClient, error) {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	if r.allocClient == nil {
-		return nil, fmt.Errorf("ipam server unreachable")
-	}
-	return r.allocClient.Get(), nil
-}
-
-/*
-func buildDummyIPAllocation() *ipamv1alpha1.IPAllocation {
-	return &ipamv1alpha1.IPAllocation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: ipamv1alpha1.IPAllocationKindAPIVersion,
-			Kind:       ipamv1alpha1.IPAllocationKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "dummyAlloc",
-		},
-		Spec: ipamv1alpha1.IPAllocationSpec{
-			PrefixKind:      ipamv1alpha1.PrefixKindLoopback,
-			NetworkInstance: "vpc-mgmt2",
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"nephio.org/fabric":  "fabric1",
-					"nephio.org/purpose": "mgmt",
-				},
-			},
-		},
-	}
-}
-*/

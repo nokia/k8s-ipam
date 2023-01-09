@@ -36,8 +36,7 @@ type serverproxy struct {
 }
 
 func (r *serverproxy) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
-	
-	allocResp := &allocpb.Response{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown}
+	allocResp := &allocpb.Response{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
 	switch alloc.Header.Gvk.Kind {
 	case ipamv1alpha1.NetworkInstanceKind:
 		r.l.Info("create ipam instance", "kind", alloc.Header.Gvk.Kind)
@@ -78,7 +77,6 @@ func (r *serverproxy) Allocate(ctx context.Context, alloc *allocpb.Request) (*al
 }
 
 func (r *serverproxy) DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error) {
-	r.l.Info("allocate", "kind", alloc.Header.Gvk.Kind)
 	switch alloc.Header.Gvk.Kind {
 	case ipamv1alpha1.NetworkInstanceKind:
 		r.l.Info("delete ipam instance", "kind", alloc.Header.Gvk.Kind)

@@ -3,8 +3,11 @@ package proxycache
 import (
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -12,12 +15,14 @@ import (
 type Informer interface {
 	Add(schema.GroupVersionKind, chan event.GenericEvent)
 	Delete(schema.GroupVersionKind)
-	NotifyClient(gvk schema.GroupVersionKind, namespace, name string)
+	NotifyClient(schema.GroupVersionKind, types.NamespacedName)
 }
 
 func NewInformer(EventChannels map[schema.GroupVersionKind]chan event.GenericEvent) Informer {
+	l := ctrl.Log.WithName("informer")
 	return &informer{
 		eventCh: EventChannels,
+		l:       l,
 	}
 }
 
@@ -25,6 +30,8 @@ type informer struct {
 	m sync.RWMutex
 	// gvk key is the origin gvk
 	eventCh map[schema.GroupVersionKind]chan event.GenericEvent
+	// logger
+	l logr.Logger
 }
 
 func (r *informer) Add(gvk schema.GroupVersionKind, ch chan event.GenericEvent) {
@@ -39,17 +46,20 @@ func (r *informer) Delete(gvk schema.GroupVersionKind) {
 	delete(r.eventCh, gvk)
 }
 
-func (r *informer) NotifyClient(gvk schema.GroupVersionKind, namespace, name string) {
+func (r *informer) NotifyClient(ownerGvk schema.GroupVersionKind, ownerNsn types.NamespacedName) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 
-	u := meta.GetUnstructuredFromGVK(&gvk)
-	u.SetName(name)
-	u.SetNamespace(namespace)
+	u := meta.GetUnstructuredFromGVK(&ownerGvk)
+	u.SetName(ownerNsn.Name)
+	u.SetNamespace(ownerNsn.Namespace)
 
-	if eventCh, ok := r.eventCh[gvk]; ok {
+	if eventCh, ok := r.eventCh[ownerGvk]; ok {
+		r.l.Info("notifyClient", "gvk", ownerGvk, "nsn", ownerNsn, "obj", u)
 		eventCh <- event.GenericEvent{
 			Object: u,
 		}
+	} else {
+		r.l.Info("notifyClient gvk not found", "gvk", ownerGvk, "nsn", ownerNsn, "obj", u)
 	}
 }

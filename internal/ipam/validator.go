@@ -23,6 +23,7 @@ import (
 
 	"github.com/hansthienpondt/goipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	"inet.af/netaddr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -40,6 +41,7 @@ func (r *ipam) validate(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (
 type ValidateInputFn func(alloc *ipamv1alpha1.IPAllocation) string
 type IsAddressFn func(alloc *ipamv1alpha1.IPAllocation) string
 type IsAddressInNetFn func(alloc *ipamv1alpha1.IPAllocation) string
+type ExactMatchPrefixFn func(alloc *ipamv1alpha1.IPAllocation) netaddr.IPPrefix
 type ExactPrefixMatchFn func(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string
 type ChildrenExistFn func(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string
 type NoParentExistFn func(alloc *ipamv1alpha1.IPAllocation) string
@@ -50,6 +52,7 @@ type ValidationConfig struct {
 	ValidateInputFn    ValidateInputFn
 	IsAddressFn        IsAddressFn
 	IsAddressInNetFn   IsAddressInNetFn
+	ExactMatchPrefixFn ExactMatchPrefixFn
 	ExactPrefixMatchFn ExactPrefixMatchFn
 	ChildrenExistFn    ChildrenExistFn
 	NoParentExistFn    NoParentExistFn
@@ -75,10 +78,16 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 	if msg := fnc.IsAddressInNetFn(alloc); msg != "" {
 		return msg, nil
 	}
-	route, ok, err := dryrunrt.Get(alloc.GetIPPrefix())
+	exactMatchPrefix := alloc.GetIPPrefix()
+	if fnc.ExactMatchPrefixFn != nil {
+		exactMatchPrefix = fnc.ExactMatchPrefixFn(alloc)
+	}
+	r.l.Info("validate prefix", "cr", alloc.GetName(), "ip prefix", alloc.GetIPPrefix())
+	route, ok, err := dryrunrt.Get(exactMatchPrefix)
 	if err != nil {
 		return "", err
 	}
+	r.l.Info("validate prefix exact route", "cr", alloc.GetName(), "route", route)
 	if ok {
 		return fnc.ExactPrefixMatchFn(alloc, route), nil
 	}
@@ -176,6 +185,12 @@ func IsAddressInNetGenericFn(alloc *ipamv1alpha1.IPAllocation) string {
 		return fmt.Sprintf("a %s prefix cannot have net <> address", alloc.GetPrefixKind())
 	}
 	return ""
+}
+
+func ExactMatchPrefixNetworkFn(alloc *ipamv1alpha1.IPAllocation) netaddr.IPPrefix {
+	p := alloc.GetIPPrefix()
+	address := ipamv1alpha1.GetAddress(p)
+	return netaddr.MustParseIPPrefix(address)
 }
 
 func ExactPrefixMatchNetworkFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {

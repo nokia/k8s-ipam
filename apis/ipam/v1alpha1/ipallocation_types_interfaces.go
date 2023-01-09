@@ -199,7 +199,7 @@ func (r *IPAllocation) GetFullLabels() map[string]string {
 
 func (r *IPAllocation) GetPrefixFromNewAlloc() string {
 	p := r.GetPrefix()
-	parentPrefixLength, ok := r.GetLabels()[NephioParentPrefixLengthKey]
+	parentPrefixLength, ok := r.GetSpecLabels()[NephioParentPrefixLengthKey]
 	if ok {
 		n := strings.Split(p, "/")
 		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
@@ -292,8 +292,7 @@ func GetSubnetName(prefix string) string {
 
 	return fmt.Sprintf("%s-%s",
 		p.Masked().IP().String(),
-		strconv.Itoa(GetPrefixLengthAsInt(p)),
-	)
+		GetPrefixLength(p))
 }
 
 func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {

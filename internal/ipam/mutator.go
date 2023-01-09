@@ -181,9 +181,7 @@ func (r *ipam) networkMutator(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.
 
 func (r *ipam) networkAddressMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
 	// copy allocation
-	r.l.Info("networkAddressMutator before", "alloc", alloc)
 	newalloc := alloc.DeepCopy()
-	r.l.Info("networkAddressMutator after", "alloc", newalloc)
 	//*newalloc = *alloc
 
 	p := alloc.GetIPPrefix()
@@ -202,7 +200,6 @@ func (r *ipam) networkAddressMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1al
 	newalloc.Spec.Labels[ipamv1alpha1.NephioParentPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(p)
 	//newalloc.SpecLabels = newlabels
 
-	r.l.Info("networkAddressMutator end", "alloc", newalloc)
 	return newalloc
 }
 
@@ -214,6 +211,7 @@ func (r *ipam) networkNetMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1
 	p := alloc.GetIPPrefix()
 	//newalloc.NamespacedName.Name = strings.Join([]string{p.Masked().IP().String(), iputil.GetPrefixLength(p)}, "-")
 	newalloc.Spec.Prefix = p.Masked().String()
+	newalloc.Name = strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-")
 
 	//newlabels := newalloc.GetLabels()
 	// NO GW allowed here
@@ -241,6 +239,7 @@ func (r *ipam) networkFirstMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alph
 	p := alloc.GetIPPrefix()
 	//newalloc.NamespacedName.Name = p.Masked().IP().String()
 	newalloc.Spec.Prefix = ipamv1alpha1.GetFirstAddress(p)
+	newalloc.Name= p.Masked().IP().String()
 
 	//newlabels := newalloc.GetLabels()
 	if len(newalloc.Spec.Labels) == 0 {

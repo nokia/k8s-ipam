@@ -1,23 +1,27 @@
 package proxycache
 
 import (
+	"context"
 	"sync"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Cache interface {
 	Get(ObjectKindKey) *allocpb.Response
 	Add(ObjectKindKey, *allocpb.Response)
 	Delete(ObjectKindKey)
-	// TODO timer function
+	ValidateExpiryTime(context.Context) map[ObjectKindKey]*allocpb.Response
 }
 
 func NewCache() Cache {
 	return &cache{
-		c: map[ObjectKindKey]*cacheData{},
+		c: map[ObjectKindKey]*allocpb.Response{},
 	}
 }
 
@@ -29,29 +33,23 @@ type ObjectKindKey struct {
 
 type cache struct {
 	m sync.RWMutex
-	c map[ObjectKindKey]*cacheData
-}
-
-type cacheData struct {
-	data *allocpb.Response
-	// timer per entry ??
+	c map[ObjectKindKey]*allocpb.Response
+	l logr.Logger
 }
 
 func (r *cache) Get(key ObjectKindKey) *allocpb.Response {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if cd, ok := r.c[key]; ok {
-		return cd.data
+	if allocRsp, ok := r.c[key]; ok {
+		return allocRsp
 	}
 	return nil
 }
 
-func (r *cache) Add(key ObjectKindKey, d *allocpb.Response) {
+func (r *cache) Add(key ObjectKindKey, allocRsp *allocpb.Response) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.c[key] = &cacheData{
-		data: d,
-	}
+	r.c[key] = allocRsp
 }
 
 func (r *cache) Delete(key ObjectKindKey) {
@@ -82,4 +80,27 @@ func isCacheDataValid(cacheResp *allocpb.Response, allocReq *allocpb.Request) bo
 		return false
 	}
 	return true
+}
+
+func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*allocpb.Response {
+	r.l = log.FromContext(ctx)
+	r.m.RLock()
+	defer r.m.RUnlock()
+	allocsToRefresh := map[ObjectKindKey]*allocpb.Response{}
+	for key, allocpbResp := range r.c {
+		if allocpbResp.ExpiryTime != "never" && allocpbResp.StatusCode == allocpb.StatusCode_Valid {
+			t, err := time.Parse(time.RFC3339, allocpbResp.ExpiryTime)
+			if err != nil {
+				r.l.Error(err, "cannot unmarshal expirytime", "key", key)
+				continue
+			}
+			minRefreshTime := time.Now().Add(time.Minute * 59)
+			r.l.Info("expiry", "now", time.Now(), "expiryTime", t, "minRefreshTime", minRefreshTime, "delta", t.Sub(minRefreshTime), "key", key.gvk, "nsn", key.nsn)
+			if t.Sub(minRefreshTime) < 0 {
+				// add key to keys to be refreshed
+				allocsToRefresh[key] = allocpbResp
+			}
+		}
+	}
+	return allocsToRefresh
 }

@@ -39,10 +39,13 @@ type ClientConfig struct {
 
 func NewClientProxy(c *ClientConfig) IpamClientProxy {
 	l := ctrl.Log.WithName("ipam-client-proxy")
-	return &clientproxy{
+
+	cp := &clientproxy{
 		pc: c.ProxyCache,
 		l:  l,
 	}
+	c.ProxyCache.RegisterRefreshRespValidator(ipamv1alpha1.GroupVersion.Group, cp.ValidateIpamResponse)
+	return cp
 }
 
 type clientproxy struct {
@@ -121,7 +124,13 @@ func NormalizeKRMToProxyCacheAllocation(o client.Object, d any) (*allocpb.Reques
 		if !ok {
 			return nil, fmt.Errorf("unexpected error casting object to IPAllocation failed")
 		}
-		return BuildAllocationFromIPAllocation(cr, time.Now().UTC().Add(time.Minute*60).String())
+		t := time.Now().Add(time.Minute * 60)
+		b, err := t.MarshalText()
+		if err != nil {
+			return nil, err
+		}
+
+		return BuildAllocationFromIPAllocation(cr, string(b))
 	case ipamv1alpha1.NetworkInstanceKind:
 		cr, ok := o.(*ipamv1alpha1.NetworkInstance)
 		if !ok {
@@ -217,4 +226,21 @@ func buildAllocPb(o client.Object, specBody string, expiryTime string, gvk, owne
 
 func GetNameFromNetworkInstancePrefix(name, prefix string) string {
 	return fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
+}
+
+func (r *clientproxy) ValidateIpamResponse(origResp *allocpb.Response, newResp *allocpb.Response) bool {
+	origAlloc := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), origAlloc); err != nil {
+		return false
+	}
+	newAlloc := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), newAlloc); err != nil {
+		return false
+	}
+	if origAlloc.Status.AllocatedPrefix != newAlloc.Status.AllocatedPrefix ||
+		origAlloc.Status.Gateway != newAlloc.Status.Gateway {
+		return false
+	}
+	return false
+
 }
