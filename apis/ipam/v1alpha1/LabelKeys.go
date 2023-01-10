@@ -18,11 +18,11 @@ package v1alpha1
 
 const (
 	// ipam system defined
-	NephioNetworkInstanceKey    = "nephio.org/network-instance"
-	NephioPrefixKindKey         = "nephio.org/prefix-kind"
-	NephioPrefixKey             = "nephio.org/prefix"
-	NephioPrefixLengthKey       = "nephio.org/prefix-length"
-	NephioAddressFamilyKey      = "nephio.org/address-family"
+	NephioNetworkInstanceKey = "nephio.org/network-instance"
+	NephioPrefixKindKey      = "nephio.org/prefix-kind"
+	NephioPrefixKey          = "nephio.org/prefix"
+	NephioPrefixLengthKey    = "nephio.org/prefix-length"
+	NephioAddressFamilyKey   = "nephio.org/address-family"
 	//NephioIPPrefixNameKey       = "nephio.org/prefix-name"
 	NephioSubnetKey             = "nephio.org/subnet" // this is the subnet in prefix annotation
 	NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
