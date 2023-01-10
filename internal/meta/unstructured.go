@@ -17,9 +17,9 @@ limitations under the License.
 package meta
 
 import (
-	"sigs.k8s.io/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 func GetUnstructuredFromGVK(gvk *schema.GroupVersionKind) *unstructured.Unstructured {

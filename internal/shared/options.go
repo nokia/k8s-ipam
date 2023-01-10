@@ -28,7 +28,7 @@ import (
 )
 
 type Options struct {
-	PorchClient client.Client
+	PorchClient     client.Client
 	Registrator     registrator.Registrator
 	IpamClientProxy ipamproxy.IpamClientProxy
 	Poll            time.Duration

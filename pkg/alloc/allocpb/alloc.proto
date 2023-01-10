@@ -49,10 +49,10 @@ message Response {
 
 message WatchResponse {
   Header header = 1;
-  string spec = 2;
-  string status = 3;
-  StatusCode statusCode = 4;
-  string expiryTime = 5;
+  //string spec = 2;
+  //string status = 3;
+  StatusCode statusCode = 2;
+  //string expiryTime = 3;
 }
 
 message WatchRequest {

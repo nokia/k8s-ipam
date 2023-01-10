@@ -62,11 +62,11 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 	ge := make(chan event.GenericEvent)
 
 	r := &reconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		IpamClientProxy:    options.IpamClientProxy,
-		pollInterval: options.Poll,
-		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		IpamClientProxy: options.IpamClientProxy,
+		pollInterval:    options.Poll,
+		finalizer:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
 	/*
@@ -87,7 +87,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 // reconciler reconciles a IPPrefix object
 type reconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
+	Scheme          *runtime.Scheme
 	IpamClientProxy ipamproxy.IpamClientProxy
 	//Ipam         ipam.Ipam
 	pollInterval time.Duration

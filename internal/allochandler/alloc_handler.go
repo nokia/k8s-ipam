@@ -28,7 +28,7 @@ func (r *subServer) Allocate(ctx context.Context, alloc *allocpb.Request) (*allo
 	r.l = log.FromContext(ctx)
 	r.l.Info("allocate", "alloc", alloc)
 
-	h :=  r.getHandler(alloc.Header.Gvk.Group) 
+	h := r.getHandler(alloc.Header.Gvk.Group)
 	if h == nil {
 		return nil, fmt.Errorf("unregistered route, route error, got %v", alloc.Header)
 	}
@@ -40,7 +40,7 @@ func (r *subServer) DeAllocate(ctx context.Context, alloc *allocpb.Request) (*al
 	r.l = log.FromContext(ctx)
 	r.l.Info("deallocate", "alloc", alloc)
 
-	h := r.getHandler(alloc.Header.Gvk.Group) 
+	h := r.getHandler(alloc.Header.Gvk.Group)
 	if h == nil {
 		return nil, fmt.Errorf("unregistered route, route error, got %v", alloc.Header)
 	}

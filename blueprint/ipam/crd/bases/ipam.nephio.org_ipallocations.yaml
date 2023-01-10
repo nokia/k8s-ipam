@@ -69,6 +69,9 @@ spec:
                 - ipv4
                 - ipv6
                 type: string
+              expiryTime:
+                description: expiryTime indicated when the allocation expires
+                type: string
               index:
                 description: index is used for deterministic allocation
                 format: int32
@@ -162,6 +165,9 @@ spec:
                   - status
                   type: object
                 type: array
+              expiryTime:
+                description: expiryTime indicated when the allocation expires
+                type: string
               gateway:
                 description: Gateway identifies the gatway IP for the network
                 type: string
