@@ -17,15 +17,36 @@ limitations under the License.
 package meta
 
 import (
-	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	emptyGvk  = "empty gvk"
+	emptyKind = "empty kind in gvk"
+)
+
 func GVKToString(gvk *schema.GroupVersionKind) string {
-	return fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group)
+	if gvk == nil {
+		return emptyGvk
+	}
+
+	if gvk.Kind == "" {
+		return emptyKind
+	}
+	var sb strings.Builder
+	sb.WriteString(gvk.Kind)
+	if gvk.Version != "" {
+		sb.WriteString("." + gvk.Version)
+	}
+	if gvk.Group != "" {
+		sb.WriteString("." + gvk.Group)
+	}
+	return sb.String()
+
+	//return fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group)
 }
 
 func StringToGVK(s string) *schema.GroupVersionKind {
@@ -40,7 +61,7 @@ func StringToGVK(s string) *schema.GroupVersionKind {
 func apiVersionToGroupVersion(apiVersion string) (string, string) {
 	split := strings.Split(apiVersion, "/")
 	if len(split) > 1 {
-		return split[0], split[1]
+		return split[0], strings.Join(split[1:], "/")
 	}
 	return "", apiVersion
 }
