@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -82,9 +83,9 @@ func (x *IPAllocation) GetPrefixLengthFromRoute(route *table.Route) uint8 {
 	return 128
 }
 
-func (x *IPAllocation) GetOwner() string {
+func (x *IPAllocation) GetOwnerGvk() string {
 	if len(x.Spec.Labels) != 0 {
-		return x.Spec.Labels[NephioOwnerKey]
+		return x.Spec.Labels[NephioOwnerGvkKey]
 	}
 	return ""
 }
@@ -305,7 +306,11 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		AddressFamily:   GetAddressFamily(p),
 		Prefix:          cr.Spec.Prefix,
 		PrefixLength:    uint8(GetPrefixLengthAsInt(p)),
-		Labels:          GetSpecLabelWithOwnerGVK(ownerGvk, cr.Spec.Labels), // added the owner label in it
+		Labels: AddSpecLabelsWithTypeMeta(
+			ownerGvk,
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			cr.Spec.Labels), // added the owner label in it
 	}
 	return BuildIPAllocation(cr, cr.GetName(), spec)
 }
@@ -320,15 +325,22 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		AddressFamily:   GetAddressFamily(p),
 		Prefix:          prefix.Prefix,
 		PrefixLength:    uint8(GetPrefixLengthAsInt(p)),
-		Labels:          GetSpecLabelWithOwnerGVK(ownerGvk, prefix.Labels), // added the owner label in it
+		Labels: AddSpecLabelsWithTypeMeta(
+			ownerGvk,
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
 	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec)
 }
 
-func GetSpecLabelWithOwnerGVK(gvk *schema.GroupVersionKind, specLabels map[string]string) map[string]string {
+func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn string, specLabels map[string]string) map[string]string {
 	labels := map[string]string{
-		NephioOwnerKey: meta.GVKToString(gvk),
+		NephioOwnerGvkKey: meta.GVKToString(ownerGvk),
+		NephioOwnerNsnKey: ownerNsn,
+		NephioGvkKey:      IPAllocationKindGVKString,
+		NephioNsnKey:      nsn,
 	}
 	for k, v := range specLabels {
 		labels[k] = v

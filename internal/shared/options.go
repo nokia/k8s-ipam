@@ -19,6 +19,7 @@ package shared
 import (
 	"time"
 
+	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
@@ -28,7 +29,7 @@ import (
 
 type Options struct {
 	PorchClient client.Client
-	//AllocClient allocpb.AllocationClient
+	Registrator     registrator.Registrator
 	IpamClientProxy ipamproxy.IpamClientProxy
 	Poll            time.Duration
 	Copts           controller.Options

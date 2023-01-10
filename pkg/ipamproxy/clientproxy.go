@@ -8,16 +8,19 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type IpamClientProxy interface {
+	GetProxyCache() proxycache.ProxyCache
 	// Create creates the network instance in the ipam
 	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// Delete deletes the network instance in the ipam
@@ -34,17 +37,21 @@ type AllocatedPrefix struct {
 }
 
 type ClientConfig struct {
-	ProxyCache proxycache.ProxyCache
+	Registrator registrator.Registrator
 }
 
-func NewClientProxy(c *ClientConfig) IpamClientProxy {
+func NewClientProxy(ctx context.Context, c *ClientConfig) IpamClientProxy {
 	l := ctrl.Log.WithName("ipam-client-proxy")
 
+	pc := proxycache.New(&proxycache.Config{
+		Registrator: c.Registrator,
+	})
 	cp := &clientproxy{
-		pc: c.ProxyCache,
+		pc: pc,
 		l:  l,
 	}
-	c.ProxyCache.RegisterRefreshRespValidator(ipamv1alpha1.GroupVersion.Group, cp.ValidateIpamResponse)
+	pc.RegisterRefreshRespValidator(ipamv1alpha1.GroupVersion.Group, cp.ValidateIpamResponse)
+	pc.Start(ctx)
 	return cp
 }
 
@@ -52,6 +59,10 @@ type clientproxy struct {
 	pc proxycache.ProxyCache
 	//logger
 	l logr.Logger
+}
+
+func (r *clientproxy) GetProxyCache() proxycache.ProxyCache {
+	return r.pc
 }
 
 func (r *clientproxy) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
@@ -129,7 +140,6 @@ func NormalizeKRMToProxyCacheAllocation(o client.Object, d any) (*allocpb.Reques
 		if err != nil {
 			return nil, err
 		}
-
 		return BuildAllocationFromIPAllocation(cr, string(b))
 	case ipamv1alpha1.NetworkInstanceKind:
 		cr, ok := o.(*ipamv1alpha1.NetworkInstance)
@@ -170,15 +180,24 @@ func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, 
 }
 
 func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime string) (*allocpb.Request, error) {
-	// if the ownerGvk is in the labels we use this as ownerGVK
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
-	ownerValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerKey]
+	// if the ownerGvk is in the labels we use this as ownerGVK
+	ownerGVKValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerGvkKey]
 	if ok {
-		ownerGvk = meta.StringToGVK(ownerValue)
+		ownerGvk = meta.StringToGVK(ownerGVKValue)
+	}
+	nsn := types.NamespacedName{
+		Namespace: cr.GetNamespace(), Name: cr.GetName()}.String()
+	// if the ownerNsn is in the labels we use this as ownerNsn
+	ownerNsn := types.NamespacedName{
+		Namespace: cr.GetNamespace(), Name: cr.GetName()}.String()
+	ownerNSNValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnKey]
+	if ok {
+		ownerNsn = ownerNSNValue
 	}
 
 	spec := cr.Spec
-	spec.Labels = ipamv1alpha1.GetSpecLabelWithOwnerGVK(ownerGvk, cr.Spec.Labels)
+	spec.Labels = ipamv1alpha1.AddSpecLabelsWithTypeMeta(ownerGvk, ownerNsn, nsn, cr.Spec.Labels)
 
 	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), spec)
 	b, err := json.Marshal(ipalloc)

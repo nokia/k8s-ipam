@@ -192,7 +192,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 		// INFO: dynamic allocations which dont come throught the k8s api
 		// are not resstored, we assume the grpc client takes care of that
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginNetworkInstance) {
+			if labels.Get(ipamv1alpha1.NephioOwnerGvkKey) == string(ipamv1alpha1.OriginNetworkInstance) {
 				for _, ipprefix := range cr.Spec.Prefixes {
 					// the prefix is implicitly check based on the name
 					if labels.Get(ipamv1alpha1.NephioIPAllocactionNameKey) == cr.GetNameFromNetworkInstancePrefix(ipprefix.Prefix) {
@@ -222,7 +222,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 		}
 
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginIPPrefix) {
+			if labels.Get(ipamv1alpha1.NephioOwnerGvkKey) == string(ipamv1alpha1.OriginIPPrefix) {
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipprefix := range prefixList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipprefix", ipprefix)
@@ -255,7 +255,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 		}
 
 		for prefix, labels := range cr.Status.Allocations {
-			if labels.Get(ipamv1alpha1.NephioOwnerKey) == string(ipamv1alpha1.OriginIPAllocation) {
+			if labels.Get(ipamv1alpha1.NephioOwnerGvkKey) == string(ipamv1alpha1.OriginIPAllocation) {
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipalloc := range allocList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipalloc", ipalloc)
@@ -439,7 +439,7 @@ func (r *ipam) IsLatestPrefixInNetwork(alloc *ipamv1alpha1.IPAllocation) bool {
 		case ipamv1alpha1.GetSubnetName(alloc.GetPrefix()): // this is the prefix in the subnet first address +
 			validCount++
 		}
-		if route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey) == ipamv1alpha1.IPAllocationKindGVKString {
+		if route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey) == ipamv1alpha1.IPAllocationKindGVKString {
 			validCount++
 		}
 

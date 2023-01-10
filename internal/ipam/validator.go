@@ -95,7 +95,7 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 	p := alloc.GetIPPrefix()
 	route = table.NewRoute(p)
 	route.UpdateLabel(map[string]string{
-		ipamv1alpha1.NephioOwnerKey:             "dummy",
+		ipamv1alpha1.NephioOwnerGvkKey:          "dummy",
 		ipamv1alpha1.NephioPrefixKindKey:        string(alloc.GetPrefixKind()),
 		ipamv1alpha1.NephioIPPrefixNameKey:      alloc.GetName(),
 		ipamv1alpha1.NephioIPAllocactionNameKey: strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"),
@@ -194,10 +194,10 @@ func ExactMatchPrefixNetworkFn(alloc *ipamv1alpha1.IPAllocation) netaddr.IPPrefi
 }
 
 func ExactPrefixMatchNetworkFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey) != alloc.GetOwner() {
+	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
 		return fmt.Sprintf("route was already allocated from a different origin, new origin %s, ipam origin %s",
-			alloc.GetOwner(),
-			route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey))
+			alloc.GetOwnerGvk(),
+			route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey))
 	}
 	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindNetwork) {
 		return fmt.Sprintf("%s prefix in use by %s",
@@ -233,10 +233,10 @@ func ExactPrefixMatchNetworkFn(alloc *ipamv1alpha1.IPAllocation, route *table.Ro
 }
 
 func ExactPrefixMatchGenericFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey) != alloc.GetOwner() {
+	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
 		return fmt.Sprintf("route was already allocated from a different origin, new origin %s, ipam origin %s",
-			alloc.GetOwner(),
-			route.GetLabels().Get(ipamv1alpha1.NephioOwnerKey))
+			alloc.GetOwnerGvk(),
+			route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey))
 	}
 	if route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey) != alloc.GetName() {
 		return fmt.Sprintf("%s prefix in use by %s",
@@ -271,7 +271,7 @@ func NoParentExistGenericFn(alloc *ipamv1alpha1.IPAllocation) string {
 }
 
 func NoParentExistAggregateFn(alloc *ipamv1alpha1.IPAllocation) string {
-	if alloc.GetOwner() == ipamv1alpha1.NetworkInstanceGVKString {
+	if alloc.GetOwnerGvk() == ipamv1alpha1.NetworkInstanceGVKString {
 		// aggregates from a network instance dont need a parent since they
 		// are the parent for the network instance
 		return ""

@@ -47,7 +47,6 @@ import (
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
-	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -143,18 +142,6 @@ func main() {
 		})
 	}()
 
-	pc := proxycache.New(&proxycache.Config{
-		Registrator: reg,
-	})
-	pc.Start(ctx)
-
-	ipamClientProxy := ipamproxy.NewClientProxy(&ipamproxy.ClientConfig{
-		ProxyCache: pc,
-	})
-	ipamServerProxy := ipamproxy.NewServerProxy(&ipamproxy.ServerConfig{
-		Ipam: ipam.New(mgr.GetClient()),
-	})
-
 	porchClient, err := porch.CreateClient()
 	if err != nil {
 		setupLog.Error(err, "unable to create porch client")
@@ -162,21 +149,21 @@ func main() {
 	}
 
 	// initialize controllers
-	eventChs, err := controllers.Setup(mgr, &shared.Options{
-		PorchClient:     porchClient,
-		IpamClientProxy: ipamClientProxy,
-		Poll:            5 * time.Second,
+	if err := controllers.Setup(ctx, mgr, &shared.Options{
+		Registrator: reg,
+		PorchClient: porchClient,
+		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		setupLog.Error(err, "Cannot add controllers to manager")
 		os.Exit(1)
 	}
 
-	pc.AddEventChs(eventChs)
-
+	ipamServerProxy := ipamproxy.NewServerProxy(&ipamproxy.ServerConfig{
+		Ipam: ipam.New(mgr.GetClient()),
+	})
 	ah := allochandler.New(
 		allochandler.WithRoute(ipamv1alpha1.GroupVersion.Group, ipamServerProxy),
 	)
