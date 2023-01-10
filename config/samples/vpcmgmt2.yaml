@@ -1,0 +1,13 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: NetworkInstance
+metadata:
+  name: vpc-mgmt2
+spec:
+  prefixes:
+  - prefix: 10.0.0.0/16
+    labels:
+      nephio.org/purpose: mgmt
+  - prefix: 10.10.0.0/16
+    labels:
+      nephio.org/purpose: mgmt
+      nephio.org/fabric: fabric2

@@ -16,12 +16,12 @@ The IPAM is a kubernetes native IP address management, which supports:
 ![ipam architecture](ipam-architecture.jpg)
 
 ## ipam logic and terminology
-
+◊
 The IPAM has multiple network contexts (implemented as network-instances) that can have multiple prefixes that can be nested. The top prefix of a nested hierarchy is called an aggregated prefix. At the bottom layer we can have IP ranges or IP addresses that are allocated from within a prefix.
 
 ![ipam hierarchy](ipam-hierarchy.jpg)
 
-Prefix - A subnet defined within an aggregate prefix. Prefixes extend the hierarchy by nesting within one another. (For example, 2000:1:1::/64 will appear within 2000:1::/48.) 
+Prefix - A subnet defined within an aggregate prefix. Prefixes extend the hierarchy by nesting within one another. (For example, 2000:1:1::/64 will appear within 2000:1::/48.)
 
 IP Range - An arbitrary range of individual IP addresses within a prefix, all sharing the same mask. (out of scope for now)
 

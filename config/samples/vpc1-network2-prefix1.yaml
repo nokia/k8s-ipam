@@ -4,5 +4,5 @@ metadata:
   name: net2-prefix1
 spec:
   prefix: 10.0.1.1/24
-  network: net2
-  networkInstance: vpc-1
+  subnetName: net2
+  networkInstance: vpc1

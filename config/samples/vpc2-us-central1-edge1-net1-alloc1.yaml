@@ -1,0 +1,12 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: us-central1.edge1.net1.alloc1
+spec:
+  kind: network
+  networkInstance: vpc2
+  selector:
+    matchLabels:
+      nephio.org/region: us-central1
+      nephio.org/site: edge1
+      nephio.org/network-name: net1

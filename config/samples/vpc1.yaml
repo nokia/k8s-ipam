@@ -1,5 +1,8 @@
 apiVersion: ipam.nephio.org/v1alpha1
 kind: NetworkInstance
 metadata:
-  name: vpc-1
+  name: vpc1
 spec:
+  prefixes:
+  - prefix: 10.0.0.0/8
+  - prefix: 10.0.0.0/16

@@ -37,9 +37,10 @@ func (s AddressFamily) String() string {
 type Origin string
 
 const (
-	OriginIPPrefix     Origin = "prefix"
-	OriginIPAllocation Origin = "allocation"
-	OriginIPSystem     Origin = "system"
+	OriginIPPrefix        Origin = "prefix"
+	OriginIPAllocation    Origin = "allocation"
+	OriginIPSystem        Origin = "system"
+	OriginNetworkInstance Origin = "networkInstance" // used to check if an aggregate exists, not relevant for aggregate prefixes from network instances
 )
 
 type PrefixKind string
