@@ -7,6 +7,9 @@ import (
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 )
 
+// newIpamInfo holds the routing table/patricia tree context
+// with a status if it is initialized or not
+// init false: means it is NOT initializing, init true means it is initializing
 func newIpamInfo() *ipamInfo {
 	return &ipamInfo{
 		init: true,
