@@ -97,7 +97,7 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 	route.UpdateLabel(map[string]string{
 		ipamv1alpha1.NephioOwnerGvkKey:          "dummy",
 		ipamv1alpha1.NephioPrefixKindKey:        string(alloc.GetPrefixKind()),
-		ipamv1alpha1.NephioIPPrefixNameKey:      alloc.GetName(),
+		ipamv1alpha1.NephioNsnKey:               alloc.GetName(),
 		ipamv1alpha1.NephioIPAllocactionNameKey: strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"),
 		ipamv1alpha1.NephioPrefixLengthKey:      ipamv1alpha1.GetPrefixLength(p),
 		ipamv1alpha1.NephioSubnetKey:            ipamv1alpha1.GetSubnetName(alloc.GetPrefix()),
