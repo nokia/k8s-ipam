@@ -60,9 +60,9 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 			data := route.GetData()
 			labels, data = UpdateLabelsAndDataWithContributingRoutes(labels, data)
 
-			route.SetData(data)
+			route = route.SetData(data)
 		}
-		route.UpdateLabel(labels)
+		route = route.UpdateLabel(labels)
 		r.l.Info("route exists", "update route", route, "labels", labels)
 		if err := r.rib.Set(route); err != nil {
 			r.l.Error(err, "cannot update prefix")

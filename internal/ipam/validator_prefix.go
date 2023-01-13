@@ -125,12 +125,10 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	)
 	// if the prefix already exists we need to set it otherwise add it
 	if _, ok := dryrunRib.Get(route.Prefix()); ok {
-		/*
-			if err := dryrunRib.Set(route); err != nil {
-				r.l.Error(err, "cannot set route", "route", route)
-				return "", err
-			}
-		*/
+		if err := dryrunRib.Set(route); err != nil {
+			r.l.Error(err, "cannot set route", "route", route)
+			return "", err
+		}
 	} else {
 		if err := dryrunRib.Add(route); err != nil {
 			r.l.Error(err, "cannot add route", "route", route)

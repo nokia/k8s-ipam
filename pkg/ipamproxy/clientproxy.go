@@ -14,7 +14,6 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -186,11 +185,9 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}
-	nsn := types.NamespacedName{
-		Namespace: cr.GetNamespace(), Name: cr.GetName()}.String()
+	nsn := cr.GetGenericNamespacedName()
 	// if the ownerNsn is in the labels we use this as ownerNsn
-	ownerNsn := types.NamespacedName{
-		Namespace: cr.GetNamespace(), Name: cr.GetName()}.String()
+	ownerNsn := cr.GetGenericNamespacedName()
 	ownerNSNValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnKey]
 	if ok {
 		ownerNsn = ownerNSNValue

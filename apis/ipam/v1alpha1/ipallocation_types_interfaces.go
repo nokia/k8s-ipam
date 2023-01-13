@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -268,8 +267,8 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
-			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
+			cr.GetGenericNamespacedName(),
+			cr.GetGenericNamespacedName(),
 			cr.Spec.Labels), // added the owner label in it
 	}
 	return BuildIPAllocation(cr, cr.GetName(), spec)
@@ -290,8 +289,8 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
-			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
+			cr.GetGenericNamespacedName(),
+			cr.GetGenericNamespacedName(),
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix

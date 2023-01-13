@@ -7,7 +7,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -16,6 +15,7 @@ func NewAllocOperator(cfg any) (IPAMOperation, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config expecting IPAMAllocOperatorConfig")
 	}
+	fmt.Printf("NewAllocOperator: %v\n", *c.fnc)
 	return &allocOperator{
 		alloc: c.alloc,
 		rib:   c.rib,
@@ -48,15 +48,9 @@ func (r *allocOperator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, 
 	allocs := r.getMutatedAllocs(ctx)
 	var updatedAlloc *ipamv1alpha1.IPAllocation
 	for _, alloc := range allocs {
-		r.l.Info("allocate individual prefix", "alloc", alloc)
-		pi, err := iputil.New(alloc.GetPrefix())
-		if err != nil {
-			return nil, err
-		}
 		a := NewAllocApplicator(&ApplicatorConfig{
 			alloc: alloc,
 			rib:   r.rib,
-			pi:    pi,
 		})
 		ap, err := a.Apply(ctx)
 		if err != nil {

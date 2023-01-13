@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1alpha1
 
+import "fmt"
+
 // GetCondition of this resource
 func (x *IPPrefix) GetCondition(ck ConditionKind) Condition {
 	return x.Status.GetCondition(ck)
@@ -24,4 +26,8 @@ func (x *IPPrefix) GetCondition(ck ConditionKind) Condition {
 // SetConditions of the Network Node.
 func (x *IPPrefix) SetConditions(c ...Condition) {
 	x.Status.SetConditions(c...)
+}
+
+func (x *IPPrefix) GetGenericNamespacedName() string {
+	return fmt.Sprintf("%s-%s", x.GetNamespace(), x.GetName())
 }

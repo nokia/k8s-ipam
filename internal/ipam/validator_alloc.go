@@ -2,6 +2,7 @@ package ipam
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
@@ -27,6 +28,7 @@ func NewAllocValidator(c *AllocValidatorConfig) Validator {
 	return &allocvalidator{
 		alloc: c.alloc,
 		rib:   c.rib,
+		fnc:   c.fnc,
 	}
 }
 
@@ -38,10 +40,12 @@ type allocvalidator struct {
 }
 
 func (r *allocvalidator) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "cr", r.alloc.GetName())
+	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "cr", r.alloc.GetGenericNamespacedName())
 	r.l.Info("validate alloc without prefix")
 
 	// validate input
+	fmt.Printf("validate fnc: %v\n", r.fnc)
+	r.l.Info("validate", "fnc", r.fnc)
 	if msg := r.fnc.validateInputFn(r.alloc); msg != "" {
 		return msg, nil
 	}

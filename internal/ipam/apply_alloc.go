@@ -44,7 +44,7 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 		}
 		// there should only be 1 route with this name in the route table
 		route := routes[0]
-		route.UpdateLabel(r.alloc.GetFullLabels())
+		route = route.UpdateLabel(r.alloc.GetFullLabels())
 		// update the route with the latest labels
 		if err := r.rib.Add(route); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {

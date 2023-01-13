@@ -43,3 +43,7 @@ func (x *NetworkInstance) GetNamespacedName() types.NamespacedName {
 func (c *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string {
 	return fmt.Sprintf("%s-%s-%s", c.GetName(), "aggregate", strings.ReplaceAll(prefix, "/", "-"))
 }
+
+func (x *NetworkInstance) GetGenericNamespacedName() string {
+	return fmt.Sprintf("%s-%s", x.GetNamespace(), x.GetName())
+}

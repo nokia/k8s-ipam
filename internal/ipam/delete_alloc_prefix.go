@@ -51,7 +51,7 @@ func (r *applicator) Delete(ctx context.Context) error {
 				r.l.Info("deallocate individual prefix", "remaining data", data)
 				if len(data) != 0 {
 					// update the route
-					route.SetData(data)
+					route = route.SetData(data)
 					if err := r.rib.Set(route); err != nil {
 						r.l.Error(err, "cannot update prefix")
 						if !strings.Contains(err.Error(), "already exists") {

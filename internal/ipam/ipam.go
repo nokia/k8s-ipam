@@ -54,98 +54,8 @@ func New(c client.Client, opts ...Option) Ipam {
 		ipamRib:       ipamRib,
 		ipamOperation: NewIPamOperation(&IPAMOperationMapConfig{ipamRib: ipamRib}),
 		c:             c,
-		//ipam:             make(map[string]*ribContext),
 		watches: make(map[string]*watchContext),
 	}
-
-	/*
-		i.validator = map[ipamUsage]*ValidationConfig{
-			// Allocation has a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: true}: {
-				ValidateInputFn:    ValidateInputGenericWithPrefixFn,
-				IsAddressFn:        IsAddressGenericFn,
-				IsAddressInNetFn:   IsAddressInNetNopFn,
-				ExactMatchPrefixFn: ExactMatchPrefixNetworkFn,
-				ExactPrefixMatchFn: ExactPrefixMatchNetworkFn,
-				ChildrenExistFn:    ChildrenExistGenericFn,
-				NoParentExistFn:    NoParentExistGenericFn,
-				ParentExistFn:      ParentExistNetworkFn,
-				FinalValidationFn:  FinalValidationNetworkFn,
-			},
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: true}: {
-				ValidateInputFn:    ValidateInputGenericWithPrefixFn,
-				IsAddressFn:        IsAddressNopFn,
-				IsAddressInNetFn:   IsAddressInNetGenericFn,
-				ExactPrefixMatchFn: ExactPrefixMatchGenericFn,
-				ChildrenExistFn:    ChildrenExistLoopbackFn,
-				NoParentExistFn:    NoParentExistGenericFn,
-				ParentExistFn:      ParentExistLoopbackFn,
-				FinalValidationFn:  FinalValidationNopFn,
-			},
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: true}: {
-				ValidateInputFn:    ValidateInputNopFn,
-				IsAddressFn:        IsAddressNopFn,
-				IsAddressInNetFn:   IsAddressInNetGenericFn,
-				ExactPrefixMatchFn: ExactPrefixMatchGenericFn,
-				ChildrenExistFn:    ChildrenExistGenericFn,
-				NoParentExistFn:    NoParentExistGenericFn,
-				ParentExistFn:      ParentExistPoolFn,
-				FinalValidationFn:  FinalValidationNopFn,
-			},
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: true}: {
-				ValidateInputFn:    ValidateInputNopFn,
-				IsAddressFn:        IsAddressGenericFn,
-				IsAddressInNetFn:   IsAddressInNetGenericFn,
-				ExactPrefixMatchFn: ExactPrefixMatchGenericFn,
-				ChildrenExistFn:    ChildrenExistNopFn,
-				NoParentExistFn:    NoParentExistAggregateFn,
-				ParentExistFn:      ParentExistAggregateFn,
-				FinalValidationFn:  FinalValidationNopFn,
-			},
-			// Allocation has no prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: false}: {
-				ValidateInputFn: ValidateInputGenericWithoutPrefixFn,
-			},
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: false}: {
-				ValidateInputFn: ValidateInputGenericWithoutPrefixFn,
-			},
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: false}: {
-				ValidateInputFn: ValidateInputNopFn,
-			},
-			// aggregate prefixes should always have a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: false}: {
-				ValidateInputFn: ValidateInputNopFn,
-			},
-		}
-
-		i.mutator = map[ipamUsage]MutatorFn{
-			// Allocation has a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: true}:   i.networkMutator,
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: true}:  i.genericMutatorWithPrefix,
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: true}:      i.genericMutatorWithPrefix,
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: true}: i.genericMutatorWithPrefix,
-			// Allocation has no prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: false}:  i.genericMutatorWithoutPrefix,
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: false}: i.genericMutatorWithoutPrefix,
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: false}:     i.genericMutatorWithoutPrefix,
-			// aggregate prefixes should always have a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: false}: i.nopMutator,
-		}
-
-		i.insertor = map[ipamUsage]InsertorFn{
-			// Allocation has a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: true}:   i.GenericPrefixInsertor,
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: true}:  i.GenericPrefixInsertor,
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: true}:      i.GenericPrefixInsertor,
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: true}: i.GenericPrefixInsertor,
-			// Allocation has no prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindNetwork, HasPrefix: false}:  i.GenericPrefixAllocator,
-			{PrefixKind: ipamv1alpha1.PrefixKindLoopback, HasPrefix: false}: i.GenericPrefixAllocator,
-			{PrefixKind: ipamv1alpha1.PrefixKindPool, HasPrefix: false}:     i.GenericPrefixAllocator,
-			// aggregate prefixes should always have a prefix
-			{PrefixKind: ipamv1alpha1.PrefixKindAggregate, HasPrefix: false}: i.NopPrefixAllocator,
-		}
-	*/
 
 	for _, opt := range opts {
 		opt(i)
@@ -157,18 +67,7 @@ func New(c client.Client, opts ...Option) Ipam {
 type ipam struct {
 	c client.Client
 	m sync.RWMutex
-	//ipam    map[string]*ribContext
 	watches map[string]*watchContext
-
-	/*
-		vm        sync.RWMutex
-		validator map[ipamUsage]*ValidationConfig
-		mm        sync.RWMutex
-		mutator   map[ipamUsage]MutatorFn
-		im        sync.RWMutex
-		insertor  map[ipamUsage]InsertorFn
-	*/
-
 	ipamRib       ipamRib
 	ipamOperation IPAMOperations
 
@@ -386,42 +285,6 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 	}
 	r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
 	return updatedAlloc, r.updateNetworkInstanceStatus(ctx, alloc)
-
-	/*
-		// copy original allocation
-		origAlloc := alloc.DeepCopy()
-
-		// validate alloc
-		msg, err := r.validate(ctx, alloc)
-		if err != nil {
-			r.l.Error(err, "validation failed")
-			return nil, err
-		}
-		if msg != "" {
-			r.l.Error(fmt.Errorf("%s", msg), "validation failed")
-			return nil, fmt.Errorf("validated failed: %s", msg)
-		}
-
-		// mutate alloc from Allocation to []IpamAllocation
-		allocs := r.mutateAllocation(alloc)
-
-		// insert alloc in ipam
-		var updatedAlloc *ipamv1alpha1.IPAllocation
-		for _, alloc := range allocs {
-			r.l.Info("applyAllocation", "alloc", alloc)
-			ap, err := r.applyAllocation(ctx, alloc, false)
-			if err != nil {
-				r.l.Error(err, "applyAllocation failed")
-				return nil, err
-			}
-			r.l.Info("allocate prefix", "name", alloc.GetName(), "prefix", alloc.GetPrefix())
-			if origAlloc.GetName() == alloc.GetName() {
-				updatedAlloc = ap
-			}
-		}
-		r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
-		return updatedAlloc, r.updateNetworkInstanceStatus(ctx, origAlloc)
-	*/
 }
 
 func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
@@ -442,60 +305,6 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 		return err
 	}
 	return r.updateNetworkInstanceStatus(ctx, alloc)
-
-	/*
-			// copy original allocation
-		origAlloc := alloc.DeepCopy()
-			r.l = log.FromContext(ctx)
-			// copy original allocation
-			origAlloc := alloc.DeepCopy()
-			r.l.Info("deallocate prefix", "alloc", alloc)
-
-			rib, err := r.getRIB(alloc.GetNetworkInstance(), false, false)
-			if err != nil {
-				return err
-			}
-
-			r.mm.Lock()
-			mutatorFn := r.mutator[ipamUsage{
-				PrefixKind: alloc.GetPrefixKind(),
-				HasPrefix:  alloc.GetPrefix() != ""}]
-			r.mm.Unlock()
-			allocs := mutatorFn(alloc)
-			for _, alloc := range allocs {
-				r.l.Info("deallocate individual prefix", "alloc", alloc)
-
-				allocSelector, err := alloc.GetAllocSelector()
-				if err != nil {
-					return err
-				}
-				r.l.Info("deallocate individual prefix", "allocSelector", allocSelector)
-
-				routes := rib.GetByLabel(allocSelector)
-				for _, route := range routes {
-					if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork &&
-						alloc.GetFullLabels()[ipamv1alpha1.NephioGvkKey] == ipamv1alpha1.OriginSystem {
-
-						data := route.GetData()
-						if data != nil {
-							delete(data, alloc.GetFullLabels()[ipamv1alpha1.NephioIPContributingRouteKey])
-							// if the data is not nil we update the route with the new data as there are still
-							// contributing routes
-							r.l.Info("deallocate individual prefix", "remaining data", data)
-							if len(data) != 0 {
-								route.SetData(data)
-								return r.updateNetworkInstanceStatus(ctx, origAlloc)
-							}
-						}
-					}
-					if err := rib.Delete(route); err != nil {
-						return err
-					}
-				}
-			}
-	*/
-
-	//return r.updateNetworkInstanceStatus(ctx, origAlloc)
 }
 
 func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
