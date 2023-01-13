@@ -21,9 +21,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hansthienpondt/goipam/pkg/table"
+	//"github.com/hansthienpondt/goipam/pkg/table"
+	"github.com/hansthienpondt/nipam/pkg/table"
 	"github.com/nokia/k8s-ipam/internal/meta"
-	"inet.af/netaddr"
+	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -54,33 +56,30 @@ func (r *IPAllocation) GetPrefix() string {
 	return r.Spec.Prefix
 }
 
-func (r *IPAllocation) GetIPPrefix() netaddr.IPPrefix {
-	return netaddr.MustParseIPPrefix(r.Spec.Prefix)
-}
-
-func (r *IPAllocation) GetAddressFamily() AddressFamily {
+func (r *IPAllocation) GetAddressFamily() iputil.AddressFamily {
 	switch r.Spec.AddressFamily {
 	case "ipv4":
-		return AddressFamilyIpv4
+		return iputil.AddressFamilyIpv4
 	case "ipv6":
-		return AddressFamilyIpv6
+		return iputil.AddressFamilyIpv6
 	default:
-		return AddressFamilyUnknown
+		return iputil.AddressFamilyUnknown
 	}
 }
 
-func (x *IPAllocation) GetPrefixLength() uint8 {
-	return x.Spec.PrefixLength
+func (x *IPAllocation) GetPrefixLengthFromSpec() iputil.PrefixLength {
+	return iputil.PrefixLength(x.Spec.PrefixLength)
 }
 
-func (x *IPAllocation) GetPrefixLengthFromRoute(route *table.Route) uint8 {
-	if x.GetPrefixLength() != 0 {
-		return x.Spec.PrefixLength
+func (x *IPAllocation) GetPrefixLengthFromRoute(route table.Route) iputil.PrefixLength {
+	if x.GetPrefixLengthFromSpec() != 0 {
+		return x.GetPrefixLengthFromSpec()
 	}
-	if route.IPPrefix().IP().Is4() {
-		return 32
-	}
-	return 128
+	return iputil.PrefixLength(route.Prefix().Addr().BitLen())
+}
+
+func (x *IPAllocation) GetGenericNamespacedName() string {
+	return fmt.Sprintf("%s-%s", x.GetNamespace(), x.GetName())
 }
 
 func (x *IPAllocation) GetOwnerGvk() string {
@@ -109,13 +108,12 @@ func (r *IPAllocation) GetSpecLabels() map[string]string {
 }
 
 func (x *IPAllocation) GetSubnetLabelSelector() (labels.Selector, error) {
-	//p := netaddr.MustParseIPPrefix(r.Prefix)
-	//af := iputil.GetAddressFamily(p)
-
+	pi, err := iputil.New(x.GetPrefix())
+	if err != nil {
+		return nil, err
+	}
 	l := map[string]string{
-		NephioSubnetKey: GetSubnetName(x.GetPrefix()),
-		//ipamv1alpha1.NephioSubnetNameKey:    r.SubnetName,
-		//ipamv1alpha1.NephioAddressFamilyKey: string(af),
+		NephioSubnetKey: pi.GetSubnetName(),
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
@@ -174,8 +172,18 @@ func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 
 func (r *IPAllocation) GetAllocSelector() (labels.Selector, error) {
 	l := map[string]string{
-		NephioIPAllocactionNameKey: r.GetName(),
+		NephioNsnKey: r.Spec.Labels[NephioNsnKey],
 	}
+	/*
+		if r.Spec.Labels[NephioGvkKey] == OriginSystem {
+			l[NephioNsnKey] = r.Spec.Labels[NephioNsnKey]
+		} else {
+			l[NephioNsnKey] = strings.ReplaceAll(
+				types.NamespacedName{Name: r.GetName(), Namespace: r.GetNamespace()}.String(), "/", "-",
+			)
+		}
+	*/
+
 	fullselector := labels.NewSelector()
 	for k, v := range l {
 		req, err := labels.NewRequirement(k, selection.In, []string{v})
@@ -208,29 +216,11 @@ func (r *IPAllocation) GetPrefixFromNewAlloc() string {
 	return p
 }
 
-// GetAddressFamily returns an address family
-func GetAddressFamily(p netaddr.IPPrefix) AddressFamily {
-	if p.IP().Is6() {
-		return AddressFamilyIpv6
-	}
-	if p.IP().Is4() {
-		return AddressFamilyIpv4
-	}
-	return AddressFamilyUnknown
-}
-
-func IsAddress(p netaddr.IPPrefix) bool {
-	af := GetAddressFamily(p)
-	prefixLength := GetPrefixLength(p)
-	return (af == AddressFamilyIpv4 && (prefixLength == "32")) ||
-		(af == AddressFamilyIpv6) && (prefixLength == "128")
-}
-
-func GetPrefixLengthFromAlloc(route *table.Route, alloc IPAllocation) uint8 {
+func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
 	if alloc.Spec.PrefixLength != 0 {
 		return alloc.Spec.PrefixLength
 	}
-	if route.IPPrefix().IP().Is4() {
+	if route.Prefix().Addr().Is4() {
 		return 32
 	}
 	return 128
@@ -239,77 +229,47 @@ func GetPrefixLengthFromAlloc(route *table.Route, alloc IPAllocation) uint8 {
 func GetPrefixFromAlloc(p string, alloc *IPAllocation) string {
 	parentPrefixLength, ok := alloc.GetSpecLabels()[NephioParentPrefixLengthKey]
 	if ok {
-		n := strings.Split(p, "/")
-		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
+		pl, _ := strconv.Atoi(parentPrefixLength)
+		pi, err := iputil.New(p)
+		if err != nil {
+			return ""
+		}
+		p = pi.GetIPPrefixWithPrefixLength(pl).String()
 	}
 	return p
 }
 
-func GetPrefixFromRoute(route *table.Route) *string {
-	parentPrefixLength := route.GetLabels().Get(NephioParentPrefixLengthKey)
-	p := route.IPPrefix().String()
+func GetPrefixFromRoute(route table.Route) string {
+	parentPrefixLength := route.Labels().Get(NephioParentPrefixLengthKey)
+	p := route.Prefix().String()
 	if parentPrefixLength != "" {
-		n := strings.Split(p, "/")
-		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
+		pl, _ := strconv.Atoi(parentPrefixLength)
+		pi, err := iputil.New(p)
+		if err != nil {
+			return ""
+		}
+		p = pi.GetIPPrefixWithPrefixLength(pl).String()
 	}
-	return &p
-}
-
-// GetPrefixLength returns a prefix length in string format
-func GetPrefixLength(p netaddr.IPPrefix) string {
-	prefixSize, _ := p.IPNet().Mask.Size()
-	return strconv.Itoa(prefixSize)
-}
-
-// GetPrefixLength returns a prefix length in int format
-func GetPrefixLengthAsInt(p netaddr.IPPrefix) int {
-	prefixSize, _ := p.IPNet().Mask.Size()
-	return prefixSize
-}
-
-// GetAddressPrefixLength return the prefix lenght of the address in the prefix
-// used only for IP addresses
-func GetAddressPrefixLength(p netaddr.IPPrefix) string {
-	if p.IP().Is6() {
-		return "128"
-	}
-	return "32"
-}
-
-// GetAddress return a string prefix notation for an address
-func GetAddress(p netaddr.IPPrefix) string {
-	addressPrefixLength := GetAddressPrefixLength(p)
-	return strings.Join([]string{p.IP().String(), addressPrefixLength}, "/")
-}
-
-// GetAddress return a string prefix notation for an address
-func GetFirstAddress(p netaddr.IPPrefix) string {
-	addressPrefixLength := GetAddressPrefixLength(p)
-	return strings.Join([]string{p.Masked().IP().String(), addressPrefixLength}, "/")
-}
-
-func GetSubnetName(prefix string) string {
-	p := netaddr.MustParseIPPrefix(prefix)
-
-	return fmt.Sprintf("%s-%s",
-		p.Masked().IP().String(),
-		GetPrefixLength(p))
+	return p
 }
 
 func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 
-	p := netaddr.MustParseIPPrefix(cr.Spec.Prefix)
+	pi, err := iputil.New(cr.Spec.Prefix)
+	if err != nil {
+		return nil
+	}
 	spec := IPAllocationSpec{
 		PrefixKind:      cr.Spec.PrefixKind,
 		NetworkInstance: cr.Spec.NetworkInstance,
-		AddressFamily:   GetAddressFamily(p),
+		AddressFamily:   pi.GetAddressFamily(),
 		Prefix:          cr.Spec.Prefix,
-		PrefixLength:    uint8(GetPrefixLengthAsInt(p)),
+		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
+			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
 			cr.Spec.Labels), // added the owner label in it
 	}
 	return BuildIPAllocation(cr, cr.GetName(), spec)
@@ -318,17 +278,20 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Prefix) *IPAllocation {
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 
-	p := netaddr.MustParseIPPrefix(prefix.Prefix)
+	pi, err := iputil.New(prefix.Prefix)
+	if err != nil {
+		return nil
+	}
 	spec := IPAllocationSpec{
 		PrefixKind:      PrefixKindAggregate,
 		NetworkInstance: cr.GetName(),
-		AddressFamily:   GetAddressFamily(p),
+		AddressFamily:   pi.GetAddressFamily(),
 		Prefix:          prefix.Prefix,
-		PrefixLength:    uint8(GetPrefixLengthAsInt(p)),
+		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(),
+			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
+			strings.ReplaceAll(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}.String(), "/", "-"),
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
@@ -360,5 +323,18 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec) *I
 			Labels:    o.GetLabels(),
 		},
 		Spec: spec,
+	}
+}
+
+// GetDummyLabelsFromPrefix used in validation
+func (x *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
+	return map[string]string{
+		NephioOwnerGvkKey:     "dummy",
+		NephioOwnerNsnKey:     "dummy",
+		NephioGvkKey:          IPAllocationKindGVKString,
+		NephioNsnKey:          x.GetGenericNamespacedName(),
+		NephioPrefixKindKey:   string(x.GetPrefixKind()),
+		NephioPrefixLengthKey: pi.GetPrefixLength().String(),
+		NephioSubnetKey:       pi.GetSubnetName(),
 	}
 }

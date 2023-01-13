@@ -18,23 +18,24 @@ package v1alpha1
 
 const (
 	// ipam system defined
-	NephioNetworkInstanceKey = "nephio.org/network-instance"
-	NephioPrefixKindKey      = "nephio.org/prefix-kind"
-	NephioPrefixKey          = "nephio.org/prefix"
-	NephioPrefixLengthKey    = "nephio.org/prefix-length"
-	NephioAddressFamilyKey   = "nephio.org/address-family"
-	//NephioIPPrefixNameKey       = "nephio.org/prefix-name"
+	NephioNetworkInstanceKey    = "nephio.org/network-instance"
+	NephioPrefixKindKey         = "nephio.org/prefix-kind"
+	NephioPrefixKey             = "nephio.org/prefix"
+	NephioPrefixLengthKey       = "nephio.org/prefix-length"
+	NephioAddressFamilyKey      = "nephio.org/address-family"
 	NephioSubnetKey             = "nephio.org/subnet" // this is the subnet in prefix annotation
 	NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
-	NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
 	NephioPoolKey               = "nephio.org/pool"
 	NephioGatewayKey            = "nephio.org/gateway"
 	NephioOwnerGvkKey           = "nephio.org/owner-gvk"
 	NephioOwnerNsnKey           = "nephio.org/owner-nsn"
 	NephioGvkKey                = "nephio.org/gvk"
 	NephioNsnKey                = "nephio.org/nsn"
+	//NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
+	NephioIPContributingRouteKey  = "nephio.org/contributing-route"
+	NephioReplacementNameKey    = "nephio.org/replacement-name"
 	//NephioSubnetNameKey         = "nephio.org/subnet-name" // this is the subnet string or name given in the spec/selector
-	//ipam user define
+	//ipam user defined
 	NephioInterfaceKey         = "nephio.org/interface"
 	NephioNetworkNameKey       = "nephio.org/network-name"
 	NephioPurposeKey           = "nephio.org/purpose"

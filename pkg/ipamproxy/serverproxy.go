@@ -8,13 +8,16 @@ import (
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/ipam"
+	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"google.golang.org/grpc/peer"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type IpamServerProxy interface {
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
+	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
 }
 
 type ServerConfig struct {
@@ -24,13 +27,15 @@ type ServerConfig struct {
 func NewServerProxy(c *ServerConfig) IpamServerProxy {
 	l := ctrl.Log.WithName("ipam-server-proxy")
 	return &serverproxy{
-		ipam: c.Ipam,
-		l:    l,
+		ipam:       c.Ipam,
+		proxyState: NewProxyState(&ProxyStateConfig{Ipam: c.Ipam}),
+		l:          l,
 	}
 }
 
 type serverproxy struct {
-	ipam ipam.Ipam
+	ipam       ipam.Ipam
+	proxyState *ProxyState
 	//logger
 	l logr.Logger
 }
@@ -100,4 +105,17 @@ func (r *serverproxy) DeAllocate(ctx context.Context, alloc *allocpb.Request) (*
 		r.l.Info("unexpected kind in allocate", "kind", alloc.Header.Gvk.Kind)
 		return nil, fmt.Errorf("unexpected kind in ipam server proxy, got: %s", alloc.Header.Gvk.Kind)
 	}
+}
+
+func (r *serverproxy) Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error {
+	ctx := stream.Context()
+	p, _ := peer.FromContext(ctx)
+	addr := "unknown"
+	if p != nil {
+		addr = p.Addr.String()
+	}
+	r.l.Info("watch started", "client", addr, "ownerGvk", in.Header.OwnerGvk)
+
+	r.proxyState.AddCallBackFn(meta.AllocPbGVKTostring(in.Header.OwnerGvk), stream)
+	return nil
 }

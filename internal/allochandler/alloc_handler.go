@@ -52,3 +52,19 @@ func (r *subServer) getHandler(group string) AlloHandler {
 	defer r.m.RUnlock()
 	return r.h[group]
 }
+
+func (r *subServer) Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error {
+	r.l = log.FromContext(stream.Context())
+	r.l.Info("watch", "watch", in)
+
+	if in.Header == nil && in.Header.Gvk == nil {
+		return fmt.Errorf("watch invalid header, %v", in)
+	}
+
+	h := r.getHandler(in.Header.Gvk.Group)
+	if h == nil {
+		return fmt.Errorf("watch unregistered route, route error, got %v", in.Header)
+	}
+	return h.Watch(in, stream)
+
+}

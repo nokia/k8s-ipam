@@ -31,12 +31,12 @@ import (
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,7 +62,7 @@ const (
 //+kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
+func Setup(mgr ctrl.Manager, options *shared.Options) error {
 	ge := make(chan event.GenericEvent)
 	r := &reconciler{
 		kind:            "ipam",
@@ -77,19 +77,17 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 	}
 
 	// TBD how does the proxy cache work with the injector for updates
-	return schema.GroupVersionKind{}, ge,
-		ctrl.NewControllerManagedBy(mgr).
-			For(&porchv1alpha1.PackageRevision{}).
-			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
-			Complete(r)
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&porchv1alpha1.PackageRevision{}).
+		Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+		Complete(r)
 }
 
 // reconciler reconciles a NetworkInstance object
 type reconciler struct {
 	kind string
 	client.Client
-	porchClient client.Client
-	//allocCLient  allocpb.AllocationClient
+	porchClient     client.Client
 	IpamClientProxy ipamproxy.IpamClientProxy
 	Scheme          *runtime.Scheme
 	injectors       injectors.Injectors
@@ -455,7 +453,7 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
 		PrefixKind:    ipamv1alpha1.PrefixKind(spec.GetString("kind")),
-		AddressFamily: ipamv1alpha1.AddressFamily(spec.GetString("addressFamily")),
+		AddressFamily: iputil.AddressFamily(spec.GetString("addressFamily")),
 		Prefix:        spec.GetString("prefix"),
 		PrefixLength:  uint8(spec.GetInt("prefixLength")),
 		Selector: &metav1.LabelSelector{

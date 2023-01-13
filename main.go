@@ -175,6 +175,7 @@ func main() {
 	},
 		grpcserver.WithAllocHandler(ah.Allocate),
 		grpcserver.WithDeAllocHandler(ah.DeAllocate),
+		grpcserver.WithWatchAllocHandler(ah.Watch),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)

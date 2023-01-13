@@ -16,14 +16,18 @@ limitations under the License.
 
 package ipam
 
+/*
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strings"
 
-	"github.com/hansthienpondt/goipam/pkg/table"
+	//"github.com/hansthienpondt/goipam/pkg/table"
+	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"inet.af/netaddr"
+	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -41,12 +45,12 @@ func (r *ipam) validate(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (
 type ValidateInputFn func(alloc *ipamv1alpha1.IPAllocation) string
 type IsAddressFn func(alloc *ipamv1alpha1.IPAllocation) string
 type IsAddressInNetFn func(alloc *ipamv1alpha1.IPAllocation) string
-type ExactMatchPrefixFn func(alloc *ipamv1alpha1.IPAllocation) netaddr.IPPrefix
-type ExactPrefixMatchFn func(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string
-type ChildrenExistFn func(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string
+type ExactMatchPrefixFn func(alloc *ipamv1alpha1.IPAllocation) netip.Prefix
+type ExactPrefixMatchFn func(alloc *ipamv1alpha1.IPAllocation, route table.Route) string
+type ChildrenExistFn func(alloc *ipamv1alpha1.IPAllocation, route table.Route) string
 type NoParentExistFn func(alloc *ipamv1alpha1.IPAllocation) string
-type ParentExistFn func(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string
-type FinalValidationFn func(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RouteTable) string
+type ParentExistFn func(alloc *ipamv1alpha1.IPAllocation, route table.Route) string
+type FinalValidationFn func(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RIB) string
 
 type ValidationConfig struct {
 	ValidateInputFn    ValidateInputFn
@@ -64,7 +68,7 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 	r.l = log.FromContext(ctx)
 	r.l.Info("validate prefix", "cr", alloc.GetName(), "prefix", alloc.GetPrefix())
 
-	dryrunrt, err := r.getRoutingTable(alloc, true, false)
+	dryrunRib, err := r.getRIB(alloc.GetNetworkInstance(), true, false)
 	if err != nil {
 		return "", err
 	}
@@ -78,39 +82,42 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 	if msg := fnc.IsAddressInNetFn(alloc); msg != "" {
 		return msg, nil
 	}
-	exactMatchPrefix := alloc.GetIPPrefix()
+	exactMatchPrefix := iputil.New(alloc.GetPrefix()).GetIPSubnet()
 	if fnc.ExactMatchPrefixFn != nil {
 		exactMatchPrefix = fnc.ExactMatchPrefixFn(alloc)
 	}
-	r.l.Info("validate prefix", "cr", alloc.GetName(), "ip prefix", alloc.GetIPPrefix())
-	route, ok, err := dryrunrt.Get(exactMatchPrefix)
-	if err != nil {
-		return "", err
-	}
+	r.l.Info("validate prefix", "cr", alloc.GetName(), "ip prefix", iputil.New(alloc.GetPrefix()).GetIPPrefix())
+	route, ok := dryrunRib.Get(exactMatchPrefix)
 	r.l.Info("validate prefix exact route", "cr", alloc.GetName(), "route", route)
 	if ok {
 		return fnc.ExactPrefixMatchFn(alloc, route), nil
 	}
 	// exact prefix does not exist, create it for validation
-	p := alloc.GetIPPrefix()
-	route = table.NewRoute(p)
-	route.UpdateLabel(map[string]string{
-		ipamv1alpha1.NephioOwnerGvkKey:          "dummy",
-		ipamv1alpha1.NephioPrefixKindKey:        string(alloc.GetPrefixKind()),
-		ipamv1alpha1.NephioNsnKey:               alloc.GetName(),
-		ipamv1alpha1.NephioIPAllocactionNameKey: strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-"),
-		ipamv1alpha1.NephioPrefixLengthKey:      ipamv1alpha1.GetPrefixLength(p),
-		ipamv1alpha1.NephioSubnetKey:            ipamv1alpha1.GetSubnetName(alloc.GetPrefix()),
-	})
-	if err := dryrunrt.Add(route); err != nil {
+	pi := iputil.New(alloc.GetPrefix())
+	route = table.NewRoute(pi.GetIPSubnet(), map[string]string{
+		ipamv1alpha1.NephioOwnerGvkKey:   "dummy",
+		ipamv1alpha1.NephioOwnerNsnKey:   "dummy",
+		ipamv1alpha1.NephioGvkKey:        ipamv1alpha1.IPAllocationKindGVKString,
+		ipamv1alpha1.NephioNsnKey:        strings.ReplaceAll(types.NamespacedName{Name: alloc.GetName(), Namespace: alloc.GetNamespace()}.String(), "/", "-"),
+		ipamv1alpha1.NephioPrefixKindKey: string(alloc.GetPrefixKind()),
+		//ipamv1alpha1.NephioIPAllocactionNameKey: pi.GetSubnetName(),
+		ipamv1alpha1.NephioPrefixLengthKey: pi.GetPrefixLength().String(),
+		ipamv1alpha1.NephioSubnetKey:       pi.GetSubnetName(),
+	}, map[string]any{})
+
+	if err := dryrunRib.Add(route); err != nil {
 		return "", err
+	}
+
+	for _, route := range dryrunRib.GetTable() {
+		r.l.Info("got routes", "route", route)
 	}
 	// get the route again and check for children
-	route, _, err = dryrunrt.Get(p)
-	if err != nil {
-		return "", err
+	route, ok = dryrunRib.Get(pi.GetIPSubnet())
+	if !ok {
+		return "", fmt.Errorf("route just added, but a new get does not find it")
 	}
-	routes := route.GetChildren(dryrunrt)
+	routes := route.Children(dryrunRib)
 	if len(routes) > 0 {
 		r.l.Info("got children", "routes", routes)
 
@@ -118,7 +125,7 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 			return msg, nil
 		}
 	}
-	routes = route.GetParents(dryrunrt)
+	routes = route.Parents(dryrunRib)
 	if len(routes) == 0 {
 		if msg := fnc.NoParentExistFn(alloc); msg != "" {
 			return msg, nil
@@ -130,7 +137,7 @@ func (r *ipam) validatePrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocat
 		}
 	}
 	r.l.Info("validate prefix", "cr", alloc.GetName(), "prefix", alloc.GetPrefix(), "routes", routes)
-	if msg := fnc.FinalValidationFn(alloc, dryrunrt); msg != "" {
+	if msg := fnc.FinalValidationFn(alloc, dryrunRib); msg != "" {
 		return msg, nil
 	}
 	return "", nil
@@ -161,7 +168,7 @@ func ValidateInputGenericWithoutPrefixFn(alloc *ipamv1alpha1.IPAllocation) strin
 	// we expect some label metadata in the spec for prefixes that
 	// are either statically provisioned (we dont expect /32 or /128 in a network prefix)
 	// for dynamically allocated prefixes we expecte labels, exception is interface specific allocations(which have prefixlength undefined)
-	if alloc.GetPrefixLength() != 0 && len(alloc.GetSpecLabels()) == 0 {
+	if alloc.GetPrefixLengthFromSpec().Int() != 0 && len(alloc.GetSpecLabels()) == 0 {
 		return "prefix cannot have empty labels, otherwise specific selection is not possible"
 	}
 	return ""
@@ -170,9 +177,9 @@ func ValidateInputGenericWithoutPrefixFn(alloc *ipamv1alpha1.IPAllocation) strin
 func IsAddressNopFn(alloc *ipamv1alpha1.IPAllocation) string { return "" }
 
 func IsAddressGenericFn(alloc *ipamv1alpha1.IPAllocation) string {
-	p := alloc.GetIPPrefix()
-	if ipamv1alpha1.IsAddress(p) {
-		return fmt.Sprintf("a %s cannot be created with address (/32, /128) based prefixes, got %s", alloc.GetPrefixKind(), p.String())
+	pi := iputil.New(alloc.GetPrefix())
+	if pi.IsAddressPrefix() {
+		return fmt.Sprintf("a %s cannot be created with address (/32, /128) based prefixes, got %s", alloc.GetPrefixKind(), alloc.GetPrefix())
 	}
 	return ""
 }
@@ -180,68 +187,59 @@ func IsAddressGenericFn(alloc *ipamv1alpha1.IPAllocation) string {
 func IsAddressInNetNopFn(alloc *ipamv1alpha1.IPAllocation) string { return "" }
 
 func IsAddressInNetGenericFn(alloc *ipamv1alpha1.IPAllocation) string {
-	p := alloc.GetIPPrefix()
-	if p.IPNet().String() != p.Masked().String() {
+	pi := iputil.New(alloc.GetPrefix())
+	if pi.GetIPSubnet().String() != pi.GetIPPrefix().String() {
 		return fmt.Sprintf("a %s prefix cannot have net <> address", alloc.GetPrefixKind())
 	}
 	return ""
 }
 
-func ExactMatchPrefixNetworkFn(alloc *ipamv1alpha1.IPAllocation) netaddr.IPPrefix {
-	p := alloc.GetIPPrefix()
-	address := ipamv1alpha1.GetAddress(p)
-	return netaddr.MustParseIPPrefix(address)
+func ExactMatchPrefixNetworkFn(alloc *ipamv1alpha1.IPAllocation) netip.Prefix {
+	return iputil.New(alloc.GetPrefix()).GetIPSubnet()
 }
 
-func ExactPrefixMatchNetworkFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
+func ExactPrefixMatchNetworkFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
+	// validate the owner key
+	if route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
 		return fmt.Sprintf("route was already allocated from a different origin, new origin %s, ipam origin %s",
 			alloc.GetOwnerGvk(),
-			route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey))
+			route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey))
 	}
-	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindNetwork) {
+	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindNetwork) {
 		return fmt.Sprintf("%s prefix in use by %s",
 			alloc.GetPrefixKind(),
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 	}
 	for k, specValue := range alloc.GetSpecLabels() {
-		if !route.GetLabels().Has(k) {
+		if !route.Labels().Has(k) {
 			// key in spec does not exist in the ipam route table
 			// newly added in spec -> we allow this
 			continue
 		}
 		// value exists in spec
-		if route.GetLabels().Get(k) != specValue {
+		if route.Labels().Get(k) != specValue {
 			// value from the spec does not match the one in the ipam route table
 			// change happened
 			return fmt.Sprintf("%s prefix in use by %s",
 				alloc.GetPrefixKind(),
-				route.GetLabels().String())
+				route.Labels().String())
 		}
 		// what to do if a label entry is deleted from the spec -> we allow this
 	}
-	/*
-		if route.GetLabels().Get(ipamv1alpha1.NephioSubnetNameKey) != alloc.GetSubnet() {
-			return fmt.Sprintf("%s prefix is matching the wrong network got %s, requested %s",
-				alloc.GetPrefixKind(),
-				route.GetLabels().Get(ipamv1alpha1.NephioSubnetNameKey),
-				alloc.GetSubnet())
-		}
-	*/
 	// all good, net exists already
 	return ""
 }
 
-func ExactPrefixMatchGenericFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	if route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
+func ExactPrefixMatchGenericFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
+	if route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
 		return fmt.Sprintf("route was already allocated from a different origin, new origin %s, ipam origin %s",
 			alloc.GetOwnerGvk(),
-			route.GetLabels().Get(ipamv1alpha1.NephioOwnerGvkKey))
+			route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey))
 	}
-	if route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey) != alloc.GetName() {
+	if route.Labels().Get(ipamv1alpha1.NephioNsnKey) != alloc.GetName() {
 		return fmt.Sprintf("%s prefix in use by %s",
 			alloc.GetPrefixKind(),
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 	}
 	// TBD what do we do if there are changes
 	// -> change prefixKind
@@ -252,16 +250,16 @@ func ExactPrefixMatchGenericFn(alloc *ipamv1alpha1.IPAllocation, route *table.Ro
 	return ""
 }
 
-func ChildrenExistNopFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string { return "" }
+func ChildrenExistNopFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string { return "" }
 
-func ChildrenExistLoopbackFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
+func ChildrenExistLoopbackFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
 	return fmt.Sprintf("a more specific prefix was already allocated %s, loopbacks need to be created in hierarchy",
-		route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+		route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 }
 
-func ChildrenExistGenericFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
+func ChildrenExistGenericFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
 	return fmt.Sprintf("a more specific prefix was already allocated %s, nesting not allowed for %s",
-		route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey),
+		route.Labels().Get(ipamv1alpha1.NephioNsnKey),
 		alloc.GetPrefixKind(),
 	)
 }
@@ -279,38 +277,38 @@ func NoParentExistAggregateFn(alloc *ipamv1alpha1.IPAllocation) string {
 	return fmt.Sprintf("an aggregate prefix is required for: %s", alloc.GetPrefix())
 }
 
-func ParentExistNetworkFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	fmt.Printf("ParentExistNetworkFn route: %s\n", route.String())
+func ParentExistNetworkFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
+	//fmt.Printf("ParentExistNetworkFn route: %s\n", route.String())
 	// if the parent is not an aggregate we dont allow the prefix to be created
-	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
+	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
 		return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s of kind %s",
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey),
-			route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey),
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey),
+			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
 		)
 	}
 	return ""
 }
 
-func ParentExistLoopbackFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
-	p := alloc.GetIPPrefix()
+func ParentExistLoopbackFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
+	pi := iputil.New(alloc.GetPrefix())
 	// if the parent is not an aggregate we dont allow the prefix to eb create
-	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
-		route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindLoopback) {
+	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
+		route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindLoopback) {
 		return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/loopback prefix is not allowed, prefix nested with %s",
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 	}
-	if ipamv1alpha1.IsAddress(p) {
+	if pi.IsAddressPrefix() {
 		// address (/32 or /128) can parant with aggregate or loopback
-		switch route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) {
+		switch route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) {
 		case string(ipamv1alpha1.PrefixKindAggregate), string(ipamv1alpha1.PrefixKindLoopback):
 			// /32 or /128 can be parented with aggregates or loopbacks
 		default:
-			return fmt.Sprintf("nesting loopback prefixes only possible with address (/32, /128) based prefixes, got %s", p.String())
+			return fmt.Sprintf("nesting loopback prefixes only possible with address (/32, /128) based prefixes, got %s", pi.GetIPPrefix().String())
 		}
 	}
 
-	if !ipamv1alpha1.IsAddress(p) {
-		switch route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) {
+	if !pi.IsAddressPrefix() {
+		switch route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) {
 		case string(ipamv1alpha1.PrefixKindAggregate):
 			// none /32 or /128 can only be parented with aggregates
 		default:
@@ -320,49 +318,39 @@ func ParentExistLoopbackFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route)
 	return ""
 }
 
-func ParentExistPoolFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
+func ParentExistPoolFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
 	//p := alloc.GetIPPrefix()
 	// if the parent is not an aggregate we dont allow the prefix to be created
-	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
-		route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindPool) {
+	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
+		route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindPool) {
 		return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/pool prefix is not allowed, prefix nested with %s",
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 	}
 	return ""
 }
 
-func ParentExistAggregateFn(alloc *ipamv1alpha1.IPAllocation, route *table.Route) string {
+func ParentExistAggregateFn(alloc *ipamv1alpha1.IPAllocation, route table.Route) string {
 	// if the parent is not an aggregate we dont allow the prefix to eb create
-	if route.GetLabels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
+	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
 		return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s",
-			route.GetLabels().Get(ipamv1alpha1.NephioIPAllocactionNameKey))
+			route.Labels().Get(ipamv1alpha1.NephioNsnKey))
 	}
 	return ""
 }
 
-func FinalValidationNopFn(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RouteTable) string {
+func FinalValidationNopFn(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RIB) string {
 	return ""
 }
 
-func FinalValidationNetworkFn(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RouteTable) string {
+func FinalValidationNetworkFn(alloc *ipamv1alpha1.IPAllocation, dryrunrt *table.RIB) string {
 	l, err := alloc.GetSubnetLabelSelector()
 	if err != nil {
 		return err.Error()
 	}
 	routes := dryrunrt.GetByLabel(l)
 	for _, route := range routes {
-		fmt.Printf("final validation network: %s, labels: %v\n", route.String(), route.GetLabels())
-		/*
-			net := route.GetLabels().Get(ipamv1alpha1.NephioSubnetKey)
-			prefixLength := route.GetLabels().Get(ipamv1alpha1.NephioPrefixLengthKey)
-			if route.GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey) != "" {
-				prefixLength = route.GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey)
-			}
-			if strings.Join([]string{alloc.GetIPPrefix().IP().String(), iputil.GetPrefixLength(alloc.GetIPPrefix())}, "-") !=
-				strings.Join([]string{net, prefixLength}, "-") {
-				return fmt.Sprintf("network is not unique, network already exist on prefix %s, \n", route.String())
-			}
-		*/
+		fmt.Printf("final validation network: %s, labels: %v\n", route.String(), route.Labels()
 	}
 	return ""
 }
+*/

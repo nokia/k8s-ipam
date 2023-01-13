@@ -1,6 +1,7 @@
 package proxycache
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -17,10 +18,12 @@ func (r *proxycache) getClient() (allocpb.AllocationClient, error) {
 	return r.allocClient.Get(), nil
 }
 
-func (r *proxycache) deleteClient() error {
+func (r *proxycache) deleteClient(ctx context.Context) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if r.allocClient != nil {
+		// cancel the watch
+		r.stopWatches()
 		if err := r.allocClient.Delete(); err != nil {
 			r.l.Error(err, "cannot delete client")
 			return err
@@ -30,7 +33,7 @@ func (r *proxycache) deleteClient() error {
 	return nil
 }
 
-func (r *proxycache) createClient() error {
+func (r *proxycache) createClient(ctx context.Context) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ac, err := alloc.New(&alloc.Config{
@@ -42,6 +45,9 @@ func (r *proxycache) createClient() error {
 		r.allocClient = nil
 		return err
 	}
+
+	r.startWatches(ctx)
+
 	r.allocClient = ac
 	return nil
 }

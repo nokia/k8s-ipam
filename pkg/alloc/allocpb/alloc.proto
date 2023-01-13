@@ -56,7 +56,7 @@ message WatchResponse {
 }
 
 message WatchRequest {
-  GVK ownerGvk = 1;
+  Header header = 1;
 }
 
 message Header {

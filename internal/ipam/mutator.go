@@ -1,246 +1,203 @@
-/*
-Copyright 2022 Nokia.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package ipam
 
 import (
+	"context"
+	"fmt"
 	"strconv"
-	"strings"
 
+	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type MutatorFn func(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation
-
-func (r *ipam) mutateAllocation(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation {
-	r.mm.Lock()
-	mutatFn := r.mutator[ipamUsage{PrefixKind: alloc.GetPrefixKind(), HasPrefix: alloc.GetPrefix() != ""}]
-	r.mm.Unlock()
-
-	//ipamallocs := []*Allocation{}
-
-	//allocs :=  mutatFn(alloc)
-	/*
-		for _, alloc := range allocs {
-			ipamallocs = append(ipamallocs, alloc.buildNewAllocation())
-		}
-	*/
-	return mutatFn(alloc)
+type Mutator interface {
+	MutateAllocWithoutPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation
+	MutateAllocWithPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation
+	MutateAllocNetworkWithPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation
 }
 
-func (r *ipam) nopMutator(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation {
-	return []*ipamv1alpha1.IPAllocation{}
+type MutatorConfig struct {
+	alloc *ipamv1alpha1.IPAllocation
+	pi    iputil.PrefixInfo
 }
 
-func (r *ipam) genericMutatorWithoutPrefix(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation {
+func NewMutator(c *MutatorConfig) Mutator {
+	return &mutator{
+		alloc: c.alloc,
+		pi:    c.pi,
+	}
+}
+
+type mutator struct {
+	alloc *ipamv1alpha1.IPAllocation
+	pi    iputil.PrefixInfo
+	l     logr.Logger
+}
+
+func (r *mutator) MutateAllocWithoutPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation {
+	r.l = log.FromContext(ctx)
+	if r.alloc.GetPrefix() != "" {
+		r.l.Error(fmt.Errorf("mutating alloc without prefix, but prefix exists: %s", r.alloc.GetPrefix()), "unexpected fn call")
+	}
+
 	newallocs := []*ipamv1alpha1.IPAllocation{}
-
 	// copy allocation
-	newalloc := alloc.DeepCopy()
-	//*newalloc = *alloc
-
-	//newlabels := newalloc.GetLabels()
+	newalloc := r.alloc.DeepCopy()
 	if len(newalloc.Spec.Labels) == 0 {
 		newalloc.Spec.Labels = map[string]string{}
 	}
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
 	// Add prefix kind key
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
 	// Add address family key
 	newalloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
-
 	// add ip pool labelKey if present
 	if newalloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
 		newalloc.Spec.Labels[ipamv1alpha1.NephioPoolKey] = "true"
 	}
-
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = alloc.GetName()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioOwnerGvkKey] = alloc.GetOwnerGvk()
-	if alloc.GetPrefixLength() != 0 {
-		newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(int(alloc.GetPrefixLength()))
+	if r.alloc.GetPrefixLengthFromSpec() != 0 {
+		newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(int(r.alloc.GetPrefixLengthFromSpec()))
 	}
-
-	//newalloc.SpecLabels = newlabels
-
-	//selectorLabels :=
-	//newalloc.NetworkInstance = alloc.GetNetworkInstance()
-	//selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
-	//newalloc.SelectorLabels = newalloc.GetSelectorLabels()
-
 	// build the generic allocation
 	newallocs = append(newallocs, newalloc)
-
 	return newallocs
 }
 
-// genericMutator mutates the allocation
-// removes gateway key in the label
-func (r *ipam) genericMutatorWithPrefix(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation {
+func (r *mutator) MutateAllocWithPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation {
+	r.l = log.FromContext(ctx)
+	if r.alloc.GetPrefix() == "" {
+		r.l.Error(fmt.Errorf("mutating alloc with prefix, but no prefix exists: %s", r.alloc.GetPrefix()), "unexpected fn call")
+	}
+
 	newallocs := []*ipamv1alpha1.IPAllocation{}
-
 	// copy allocation
-	newalloc := alloc.DeepCopy()
-	//*newalloc = *alloc
-
+	newalloc := r.alloc.DeepCopy()
 	//newlabels := newalloc.GetLabels()
 	if len(newalloc.Spec.Labels) == 0 {
 		newalloc.Spec.Labels = map[string]string{}
 	}
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixKindKey] = string(newalloc.GetPrefixKind())
 	newalloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(newalloc.GetAddressFamily())
 	// if the AF is unknown we derive it from the prefix
-	if newalloc.GetAddressFamily() == ipamv1alpha1.AddressFamilyUnknown {
-		newalloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(ipamv1alpha1.GetAddressFamily(alloc.GetIPPrefix()))
+	if newalloc.GetAddressFamily() == iputil.AddressFamilyUnknown {
+		newalloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(r.pi.GetAddressFamily())
 	}
 	// add ip pool labelKey if present
 	if newalloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
 		newalloc.Spec.Labels[ipamv1alpha1.NephioPoolKey] = "true"
 	}
-
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = alloc.GetName()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioOwnerGvkKey] = alloc.GetOwnerGvk()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(alloc.GetIPPrefix())
-	//newalloc.SpecLabels = newlabels
-
-	//selectorLabels :=
-	//selectorLabels[ipamv1alpha1.NephioNetworkInstanceKey] = alloc.GetNetworkInstance()
-	//newalloc.SelectorLabels = newalloc.GetSelectorLabels()
-
+	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
 	// build the generic allocation
 	newallocs = append(newallocs, newalloc)
 
 	return newallocs
 }
 
-func (r *ipam) networkMutator(alloc *ipamv1alpha1.IPAllocation) []*ipamv1alpha1.IPAllocation {
+func (r *mutator) MutateAllocNetworkWithPrefix(ctx context.Context) []*ipamv1alpha1.IPAllocation {
+	r.l = log.FromContext(ctx)
+	if r.alloc.GetPrefix() == "" && r.alloc.GetPrefixKind() != ipamv1alpha1.PrefixKindNetwork {
+		r.l.Error(fmt.Errorf("mutating alloc with prefix and prefixkind network, got prefix: %s, prefixKinf: %s", r.alloc.GetPrefix(), r.alloc.GetPrefixKind()), "unexpected fn call")
+	}
 	newallocs := []*ipamv1alpha1.IPAllocation{}
-
-	r.l.Info("networkMutator", "alloc", alloc)
-
 	// prepare additional labels generically
-	p := alloc.GetIPPrefix()
-	//newlabels := alloc.GetLabels()
-	if len(alloc.Spec.Labels) == 0 {
-		alloc.Spec.Labels = map[string]string{}
+	if len(r.alloc.Spec.Labels) == 0 {
+		r.alloc.Spec.Labels = map[string]string{}
 	}
-	alloc.Spec.Labels[ipamv1alpha1.NephioPrefixKindKey] = string(alloc.GetPrefixKind())
-	alloc.Spec.Labels[ipamv1alpha1.NephioOwnerGvkKey] = alloc.GetOwnerGvk()
-	alloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(alloc.GetAddressFamily())
-	if alloc.GetAddressFamily() == ipamv1alpha1.AddressFamilyUnknown {
-		alloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(ipamv1alpha1.GetAddressFamily(p))
+	r.alloc.Spec.Labels[ipamv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
+	r.alloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(r.alloc.GetAddressFamily())
+	if r.pi.GetAddressFamily() == iputil.AddressFamilyUnknown {
+		r.alloc.Spec.Labels[ipamv1alpha1.NephioAddressFamilyKey] = string(r.pi.GetAddressFamily())
 	}
-	alloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = ipamv1alpha1.GetSubnetName(alloc.GetPrefix())
-	// NO POOL allowed here
-	delete(alloc.Spec.Labels, ipamv1alpha1.NephioPoolKey)	
+	r.alloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+	r.alloc.Spec.Labels[ipamv1alpha1.NephioParentPrefixLengthKey] = r.pi.GetPrefixLength().String()
+	// NO POOL allowed here	delete(alloc.Spec.Labels, ipamv1alpha1.NephioPoolKey)
 
-	//newalloc, _ := alloc.DeepCopy()
-	if p.IPNet().String() != p.Masked().String() {
+	if r.pi.IsNorLastNorFirst() {
 		// allocate the address
-		newallocs = append(newallocs, r.networkAddressMutator(alloc))
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the network
-		newallocs = append(newallocs, r.networkNetMutator(alloc))
+		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
 		// allocate the first address)
-		newallocs = append(newallocs, r.networkFirstMutator(alloc))
+		newallocs = append(newallocs, r.mutateNetworkFirstAddressInNet(r.alloc))
 		// allocate the last address
-		// TODO
-
-	} else {
-		// allocate the address part
-		newallocs = append(newallocs, r.networkAddressMutator(alloc))
+		newallocs = append(newallocs, r.mutateNetworkLastAddressInNet(r.alloc))
+	}
+	if r.pi.IsFirst() {
+		// allocate the address part, which is the first address in this scenario
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the network part
-		newallocs = append(newallocs, r.networkNetMutator(alloc))
+		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
+		// allocate the last address
+		newallocs = append(newallocs, r.mutateNetworkLastAddressInNet(r.alloc))
+	}
+
+	if r.pi.IsLast() {
+		// allocate the address part, which is the last address in this scenario
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
+		// allocate the network part
+		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
+		// allocate the last address
+		newallocs = append(newallocs, r.mutateNetworkFirstAddressInNet(r.alloc))
 	}
 
 	return newallocs
 }
 
-func (r *ipam) networkAddressMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
+func (r *mutator) mutateNetworkIPAddress(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
 	// copy allocation
 	newalloc := alloc.DeepCopy()
-	//*newalloc = *alloc
-
-	p := alloc.GetIPPrefix()
-	//newalloc.NamespacedName.Name = alloc.NamespacedName.Name
-	newalloc.Spec.Prefix = ipamv1alpha1.GetAddress(p)
-
-	//newlabels := newalloc.GetLabels()
-	if len(newalloc.Spec.Labels) == 0 {
-		newalloc.Spec.Labels = map[string]string{}
-	}
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = alloc.GetName()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = newalloc.GetName()
-	//newlabels[ipamv1alpha1.NephioSubnetKey] = p.Masked().IP().String()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = ipamv1alpha1.GetSubnetName(alloc.GetPrefix())
-	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = ipamv1alpha1.GetAddressPrefixLength(p)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioParentPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(p)
-	//newalloc.SpecLabels = newlabels
-
+	// set address
+	newalloc.Spec.Prefix = r.pi.GetIPAddressPrefix().String()
+	// set address prefix length
+	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 	return newalloc
 }
 
-func (r *ipam) networkNetMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
+func (r *mutator) mutateNetworkNet(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
 	// copy allocation
 	newalloc := alloc.DeepCopy()
-
-	p := alloc.GetIPPrefix()
-	newalloc.Spec.Prefix = p.Masked().String()
-	newalloc.Name = strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-")
-
+	newalloc.Spec.Prefix = r.pi.GetIPSubnet().String()
+	newalloc.Name = r.pi.GetSubnetName()
 	// NO GW allowed here
-	if len(newalloc.Spec.Labels) == 0 {
-		newalloc.Spec.Labels = map[string]string{}
-	}
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = strings.Join([]string{p.Masked().IP().String(), ipamv1alpha1.GetPrefixLength(p)}, "-")
-	newalloc.Spec.Labels[ipamv1alpha1.NephioOwnerGvkKey] = "system"
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = "net"
-	newalloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = ipamv1alpha1.GetSubnetName(alloc.GetPrefix())
-	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(p)
-
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetPrefix
+	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
 	return newalloc
 }
 
-func (r *ipam) networkFirstMutator(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
+func (r *mutator) mutateNetworkFirstAddressInNet(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
 	// copy allocation
-
 	newalloc := alloc.DeepCopy()
-	//*newalloc = *alloc
-
-	p := alloc.GetIPPrefix()
-	newalloc.Spec.Prefix = ipamv1alpha1.GetFirstAddress(p)
-	newalloc.Name = p.Masked().IP().String()
-
-	if len(newalloc.Spec.Labels) == 0 {
-		newalloc.Spec.Labels = map[string]string{}
-	}
+	newalloc.Spec.Prefix = r.pi.GetFirstIPPrefix().String()
+	newalloc.Name = r.pi.GetFirstIPAddress().String()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPAllocactionNameKey] = p.Masked().IP().String()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioOwnerGvkKey] = "system"
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = "net"
-	newalloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = ipamv1alpha1.GetSubnetName(alloc.GetPrefix())
-	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = ipamv1alpha1.GetAddressPrefixLength(p)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioParentPrefixLengthKey] = ipamv1alpha1.GetPrefixLength(p)
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = pi.GetFirstIPAddress().String()
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetFirstAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
+	return newalloc
+}
+
+func (r *mutator) mutateNetworkLastAddressInNet(alloc *ipamv1alpha1.IPAllocation) *ipamv1alpha1.IPAllocation {
+	// copy allocation
+	newalloc := alloc.DeepCopy()
+	newalloc.Spec.Prefix = r.pi.GetLastIPPrefix().String()
+	newalloc.Name = r.pi.GetLastIPAddress().String()
+	// NO GW allowed here
+	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetLastAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 
 	return newalloc
 }

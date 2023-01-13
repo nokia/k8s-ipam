@@ -33,6 +33,7 @@ func WithRoute(group string, handler AlloHandler) func(SubServer) {
 type AlloHandler interface {
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
+	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
 }
 
 type Option func(SubServer)
@@ -41,6 +42,7 @@ type SubServer interface {
 	WithRoute(group string, handler AlloHandler)
 	Allocate(context.Context, *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
+	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
 }
 
 func New(opts ...Option) SubServer {

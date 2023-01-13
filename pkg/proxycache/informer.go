@@ -16,6 +16,7 @@ type Informer interface {
 	Add(schema.GroupVersionKind, chan event.GenericEvent)
 	Delete(schema.GroupVersionKind)
 	NotifyClient(schema.GroupVersionKind, types.NamespacedName)
+	GetGVK() []schema.GroupVersionKind
 }
 
 func NewInformer(EventChannels map[schema.GroupVersionKind]chan event.GenericEvent) Informer {
@@ -62,4 +63,14 @@ func (r *informer) NotifyClient(ownerGvk schema.GroupVersionKind, ownerNsn types
 	} else {
 		r.l.Info("notifyClient gvk not found", "gvk", ownerGvk, "nsn", ownerNsn, "obj", u)
 	}
+}
+
+func (r *informer) GetGVK() []schema.GroupVersionKind {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	gvks := make([]schema.GroupVersionKind, 0, len(r.eventCh))
+	for gvk := range r.eventCh {
+		gvks = append(gvks, gvk)
+	}
+	return gvks
 }

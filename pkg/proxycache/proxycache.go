@@ -57,14 +57,17 @@ type proxycache struct {
 	svcInfo     *registrator.Service
 	m           sync.RWMutex
 	allocClient alloc.Client
+	watchCancel context.CancelFunc
 	// validator
 	validator ResponseValidator
 	//logger
 	l logr.Logger
 }
 
+// AddEventChs add the ownerGvk's event channels to the informaer
 func (r *proxycache) AddEventChs(eventChannels map[schema.GroupVersionKind]chan event.GenericEvent) {
 	r.informer = NewInformer(eventChannels)
+
 }
 
 func (r *proxycache) RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn) {
@@ -74,6 +77,9 @@ func (r *proxycache) RegisterRefreshRespValidator(key string, fn RefreshRespVali
 func (r *proxycache) Start(ctx context.Context) {
 	r.l.Info("starting proxy cache")
 	ch := r.registrator.Watch(ctx, "ipam", []string{}, registrator.WatchOptions{RetriveServices: true})
+	// this is used to control the watch go routine
+	watchCtx, cancel := context.WithCancel(ctx)
+	r.watchCancel = cancel
 
 	go func() {
 	GeneralWait:
@@ -97,7 +103,7 @@ func (r *proxycache) Start(ctx context.Context) {
 				if len(svcInfo.ServiceInstances) == 0 {
 					r.l.Info("service, no available service -> delete Client")
 					// delete client
-					if err := r.deleteClient(); err != nil {
+					if err := r.deleteClient(watchCtx); err != nil {
 						r.l.Error(err, "cannot delete client")
 					}
 					continue GeneralWait
@@ -105,12 +111,12 @@ func (r *proxycache) Start(ctx context.Context) {
 				r.svcInfo = svcInfo.ServiceInstances[0]
 				r.l.Info("service, info changed-> delete and create Client", "svcInfo", svcInfo.ServiceInstances[0])
 				// delete client
-				if err := r.deleteClient(); err != nil {
+				if err := r.deleteClient(watchCtx); err != nil {
 					r.l.Error(err, "cannot delete client")
 					continue GeneralWait
 				}
 				// create client
-				if err := r.createClient(); err != nil {
+				if err := r.createClient(watchCtx); err != nil {
 					r.l.Error(err, "cannot create client")
 				}
 			case <-ctx.Done():

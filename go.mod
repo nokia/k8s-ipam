@@ -9,14 +9,14 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
-	github.com/hansthienpondt/goipam v0.0.1
+	github.com/hansthienpondt/nipam v0.0.4-0.20230113053432-a3fc33454f7f
 	github.com/henderiw-k8s-lcnc/discovery v0.0.5
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.24.0
+	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/grpc v1.49.0
-	inet.af/netaddr v0.0.0-20220811202034-502d2d690317
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v0.26.0
@@ -47,7 +47,7 @@ require (
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/k-sone/critbitgo v1.4.0 // indirect
+	github.com/kentik/patricia v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -62,11 +62,9 @@ require (
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
 	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 // indirect
 	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92 // indirect
-	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.3.0 // indirect

@@ -43,13 +43,19 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 		networkinstance.Setup,
 		prefix.Setup,
 		allocation.Setup,
-		injector.Setup,
 	} {
 		gvk, geCh, err := setup(mgr, opts)
 		if err != nil {
 			return err
 		}
 		eventChs[gvk] = geCh
+	}
+	for _, setup := range []func(ctrl.Manager, *shared.Options) error{
+		injector.Setup,
+	} {
+		if err := setup(mgr, opts); err != nil {
+			return err
+		}
 	}
 
 	ipamproxyClient.GetProxyCache().AddEventChs(eventChs)

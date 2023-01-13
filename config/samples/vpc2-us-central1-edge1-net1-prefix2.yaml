@@ -1,0 +1,13 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: us-central1.edge1.net1.prefix2
+spec:
+  kind: network
+  networkInstance: vpc2
+  prefix: 10.0.0.2/24
+  labels:
+    nephio.org/gateway: "true"
+    nephio.org/region: us-central1
+    nephio.org/site: edge1
+    nephio.org/network-name: net30

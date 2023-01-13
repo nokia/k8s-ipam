@@ -141,6 +141,12 @@ func WithDeAllocHandler(h DeAllocHandler) func(*GrpcServer) {
 	}
 }
 
+func WithWatchAllocHandler(h WatchAllocHandler) func(*GrpcServer) {
+	return func(s *GrpcServer) {
+		s.watchAllocHandler = h
+	}
+}
+
 func (s *GrpcServer) acquireSem(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
