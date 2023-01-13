@@ -78,10 +78,16 @@ func (r *ProxyState) CreateCallBackFn(stream allocpb.Allocation_WatchAllocServer
 		for _, route := range routes {
 			if err := stream.Send(&allocpb.WatchResponse{
 				Header: &allocpb.Header{
-					Gvk:      meta.StringToAllocPbGVK(route.Labels()[ipamv1alpha1.NephioGvkKey]),
-					Nsn:      meta.StringToAllocPbNsn(route.Labels()[ipamv1alpha1.NephioNsnKey]),
+					Gvk: meta.StringToAllocPbGVK(route.Labels()[ipamv1alpha1.NephioGvkKey]),
+					Nsn: &allocpb.NSN{
+						Namespace: route.Labels()[ipamv1alpha1.NephioNsnNamespaceKey],
+						Name:      route.Labels()[ipamv1alpha1.NephioNsnNameKey],
+					},
 					OwnerGvk: meta.StringToAllocPbGVK(route.Labels()[ipamv1alpha1.NephioOwnerGvkKey]),
-					OwnerNsn: meta.StringToAllocPbNsn(route.Labels()[ipamv1alpha1.NephioOwnerNsnKey]),
+					OwnerNsn: &allocpb.NSN{
+						Namespace: route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey],
+						Name:      route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey],
+					},
 				},
 				StatusCode: statusCode,
 			}); err != nil {

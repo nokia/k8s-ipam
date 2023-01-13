@@ -14,6 +14,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -185,12 +186,16 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}
-	nsn := cr.GetGenericNamespacedName()
+	nsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
 	// if the ownerNsn is in the labels we use this as ownerNsn
-	ownerNsn := cr.GetGenericNamespacedName()
-	ownerNSNValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnKey]
+	ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	ownerNameValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNameKey]
 	if ok {
-		ownerNsn = ownerNSNValue
+		ownerNsn.Name = ownerNameValue
+	}
+	ownerNamespaceValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey]
+	if ok {
+		ownerNsn.Namespace = ownerNamespaceValue
 	}
 
 	spec := cr.Spec
@@ -253,10 +258,16 @@ func (r *clientproxy) ValidateIpamResponse(origResp *allocpb.Response, newResp *
 	if err := json.Unmarshal([]byte(origResp.Status), newAlloc); err != nil {
 		return false
 	}
+	r.l.Info("validate ipam response",
+		"orig allocatedPrefix", origAlloc.Status.AllocatedPrefix,
+		"new allocatedPrefix", newAlloc.Status.AllocatedPrefix,
+		"orig gateway", origAlloc.Status.Gateway,
+		"new gateway", newAlloc.Status.Gateway,
+	)
 	if origAlloc.Status.AllocatedPrefix != newAlloc.Status.AllocatedPrefix ||
 		origAlloc.Status.Gateway != newAlloc.Status.Gateway {
 		return false
 	}
-	return false
+	return true
 
 }

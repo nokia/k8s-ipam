@@ -7,7 +7,6 @@ spec:
   networkInstance: vpc2
   prefix: 10.0.0.2/24
   labels:
-    nephio.org/gateway: "true"
     nephio.org/region: us-central1
     nephio.org/site: edge1
-    nephio.org/network-name: net30
+    nephio.org/network-name: net1

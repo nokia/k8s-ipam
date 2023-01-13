@@ -33,11 +33,11 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
-	allocSelector, err := r.alloc.GetAllocSelector()
+	nsnSelector, err := r.alloc.GetNsnSelector()
 	if err != nil {
 		return nil, err
 	}
-	routes := r.rib.GetByLabel(allocSelector)
+	routes := r.rib.GetByLabel(nsnSelector)
 	if len(routes) != 0 {
 		if len(routes) > 1 {
 			return nil, fmt.Errorf("multiple prefixes match the nsn labelselector, %v", routes)

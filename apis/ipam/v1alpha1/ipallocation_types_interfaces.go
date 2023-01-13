@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -169,9 +170,10 @@ func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 	return fullselector, nil
 }
 
-func (r *IPAllocation) GetAllocSelector() (labels.Selector, error) {
+func (r *IPAllocation) GetNsnSelector() (labels.Selector, error) {
 	l := map[string]string{
-		NephioNsnKey: r.Spec.Labels[NephioNsnKey],
+		NephioNsnNameKey:      r.Spec.Labels[NephioNsnNameKey],
+		NephioNsnNamespaceKey: r.Spec.Labels[NephioNsnNamespaceKey],
 	}
 	/*
 		if r.Spec.Labels[NephioGvkKey] == OriginSystem {
@@ -267,8 +269,8 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			cr.GetGenericNamespacedName(),
-			cr.GetGenericNamespacedName(),
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			cr.Spec.Labels), // added the owner label in it
 	}
 	return BuildIPAllocation(cr, cr.GetName(), spec)
@@ -289,20 +291,22 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
-			cr.GetGenericNamespacedName(),
-			cr.GetGenericNamespacedName(),
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
 	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec)
 }
 
-func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn string, specLabels map[string]string) map[string]string {
+func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
 	labels := map[string]string{
-		NephioOwnerGvkKey: meta.GVKToString(ownerGvk),
-		NephioOwnerNsnKey: ownerNsn,
-		NephioGvkKey:      IPAllocationKindGVKString,
-		NephioNsnKey:      nsn,
+		NephioOwnerGvkKey:          meta.GVKToString(ownerGvk),
+		NephioOwnerNsnNameKey:      ownerNsn.Name,
+		NephioOwnerNsnNamespaceKey: ownerNsn.Namespace,
+		NephioGvkKey:               IPAllocationKindGVKString,
+		NephioNsnNameKey:           nsn.Name,
+		NephioNsnNamespaceKey:      nsn.Namespace,
 	}
 	for k, v := range specLabels {
 		labels[k] = v
@@ -326,14 +330,16 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec) *I
 }
 
 // GetDummyLabelsFromPrefix used in validation
-func (x *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
+func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
 	return map[string]string{
-		NephioOwnerGvkKey:     "dummy",
-		NephioOwnerNsnKey:     "dummy",
-		NephioGvkKey:          IPAllocationKindGVKString,
-		NephioNsnKey:          x.GetGenericNamespacedName(),
-		NephioPrefixKindKey:   string(x.GetPrefixKind()),
-		NephioPrefixLengthKey: pi.GetPrefixLength().String(),
-		NephioSubnetKey:       pi.GetSubnetName(),
+		NephioOwnerGvkKey:          "dummy",
+		NephioOwnerNsnNameKey:      "dummy",
+		NephioOwnerNsnNamespaceKey: "dummy",
+		NephioGvkKey:               IPAllocationKindGVKString,
+		NephioNsnNameKey:           r.GetName(),
+		NephioNsnNamespaceKey:      r.GetNamespace(),
+		NephioPrefixKindKey:        string(r.GetPrefixKind()),
+		NephioPrefixLengthKey:      pi.GetPrefixLength().String(),
+		NephioSubnetKey:            pi.GetSubnetName(),
 	}
 }

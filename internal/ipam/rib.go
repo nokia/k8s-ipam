@@ -32,9 +32,9 @@ func (r *ribContext) IsInit() bool {
 }
 
 type ipamRib interface {
-	init(niName string) bool
+	initializing(niName string) bool
 	initDone(niName string) error
-	getRIB(niName string, init bool) (*table.RIB, error)
+	getRIB(niName string, initializing bool) (*table.RIB, error)
 	delete(niName string)
 }
 
@@ -50,9 +50,9 @@ type ipamrib struct {
 }
 
 // init initializes the ipamrib
-// return true -> to be initialized
+// return true -> initializing
 // return false -> already initialized
-func (r *ipamrib) init(crName string) bool {
+func (r *ipamrib) initializing(crName string) bool {
 	r.m.Lock()
 	defer r.m.Unlock()
 	_, ok := r.r[crName]
@@ -77,14 +77,14 @@ func (r *ipamrib) initDone(crName string) error {
 
 // getRIB returns the RIB
 // you can ignore the fact the rib is initialized or not using the init flag
-func (r *ipamrib) getRIB(niName string, init bool) (*table.RIB, error) {
+func (r *ipamrib) getRIB(niName string, initializing bool) (*table.RIB, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ii, ok := r.r[niName]
 	if !ok {
 		return nil, fmt.Errorf("network instance not initialized: %s", niName)
 	}
-	if !init && ii.IsInit() {
+	if !initializing && ii.IsInit() {
 		return nil, fmt.Errorf("network instance is initializing: %s", niName)
 	}
 	return ii.rib, nil

@@ -59,12 +59,11 @@ func (r *ipamOperations) GetAllocOperation() ipamOperation {
 }
 
 type ipamOperation interface {
-	Get(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error)
+	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error)
 }
 
 func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 	return &ipamPrefixOperation{
-		init:    c.init,
 		ipamRib: c.ipamRib,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -104,17 +103,16 @@ func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 }
 
 type ipamPrefixOperation struct {
-	init    bool
 	ipamRib ipamRib
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
 }
 
-func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error) {
+func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), r.init)
+	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +153,11 @@ type ipamAllocOperation struct {
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
 }
 
-func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error) {
+func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), r.init)
+	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}

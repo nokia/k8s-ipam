@@ -91,11 +91,11 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	}
 
 	// exact match prefix
-	allocSelector, err := r.alloc.GetAllocSelector()
+	nsnSelector, err := r.alloc.GetNsnSelector()
 	if err != nil {
 		return "", err
 	}
-	routes := dryrunRib.GetByLabel(allocSelector)
+	routes := dryrunRib.GetByLabel(nsnSelector)
 	// Route exists
 	if len(routes) > 0 {
 		// check if more than 1 route exist which would be bad
@@ -222,7 +222,8 @@ func validateExactMatcPrefixKind(route table.Route, alloc *ipamv1alpha1.IPAlloca
 }
 
 func validateChildrenExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string {
-	if prefixKind == ipamv1alpha1.PrefixKindNetwork {
+	switch prefixKind {
+	case ipamv1alpha1.PrefixKindNetwork:
 		if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
 			return fmt.Sprintf("a child prefix of a %s prefix, can be of the same kind", prefixKind)
 		}
@@ -232,12 +233,16 @@ func validateChildrenExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind
 		if route.Prefix().Addr().Is6() && route.Prefix().Bits() != 128 {
 			return fmt.Sprintf("a child prefix of a %s prefix, can only be an address prefix (/128), got: %v", prefixKind, route.Prefix())
 		}
-	} else {
-		return fmt.Sprintf("a more specific prefix was already allocated %s, nesting not allowed for %s",
-			route.Labels().Get(ipamv1alpha1.NephioNsnKey),
+		return ""
+	case ipamv1alpha1.PrefixKindAggregate:
+		// nesting is possible in aggregate
+		return ""
+	default:
+		return fmt.Sprintf("a more specific prefix was already allocated %s/%s, nesting not allowed for %s",
+			route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+			route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
 			prefixKind)
-	}
-	return ""
+	} 
 }
 
 func validateNoParentExist(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string {
@@ -256,15 +261,17 @@ func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, 
 	switch prefixKind {
 	case ipamv1alpha1.PrefixKindAggregate:
 		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
-			return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnKey))
+			return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s",
+				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
 		}
 		return ""
 	case ipamv1alpha1.PrefixKindLoopback:
 		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
 			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindLoopback) {
-			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/loopback prefix is not allowed, prefix nested with %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnKey))
+			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/loopback prefix is not allowed, prefix nested with %s/%s",
+				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
 		}
 		if pi.IsAddressPrefix() {
 			// address (/32 or /128) can parant with aggregate or loopback
@@ -287,8 +294,9 @@ func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, 
 		return ""
 	case ipamv1alpha1.PrefixKindNetwork:
 		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
-			return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s of kind %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnKey),
+			return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s of kind %s",
+				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
 				route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
 			)
 		}
@@ -297,8 +305,9 @@ func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, 
 		// if the parent is not an aggregate we dont allow the prefix to be created
 		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
 			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindPool) {
-			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/pool prefix is not allowed, prefix nested with %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnKey))
+			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/pool prefix is not allowed, prefix nested with %s/%s",
+				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
 		}
 		return ""
 	}

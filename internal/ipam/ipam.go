@@ -54,7 +54,7 @@ func New(c client.Client, opts ...Option) Ipam {
 		ipamRib:       ipamRib,
 		ipamOperation: NewIPamOperation(&IPAMOperationMapConfig{ipamRib: ipamRib}),
 		c:             c,
-		watches: make(map[string]*watchContext),
+		watches:       make(map[string]*watchContext),
 	}
 
 	for _, opt := range opts {
@@ -65,9 +65,9 @@ func New(c client.Client, opts ...Option) Ipam {
 }
 
 type ipam struct {
-	c client.Client
-	m sync.RWMutex
-	watches map[string]*watchContext
+	c             client.Client
+	m             sync.RWMutex
+	watches       map[string]*watchContext
 	ipamRib       ipamRib
 	ipamOperation IPAMOperations
 
@@ -87,7 +87,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 
 	// if the IPAM is not initialaized initialaize it
 	// this happens upon initialization or ipam restart
-	if r.ipamRib.init(cr.GetName()) {
+	if r.ipamRib.initializing(cr.GetName()) {
 		r.l.Info("ipam create instance", "name", cr.GetName())
 
 		// List the ip prefixes to restore the in the ipam upon restart
@@ -109,14 +109,15 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 			if labels.Get(ipamv1alpha1.NephioOwnerGvkKey) == ipamv1alpha1.NetworkInstanceGVKString {
 				for _, ipprefix := range cr.Spec.Prefixes {
 					// the prefix is implicitly checked based on the name
-					if labels.Get(ipamv1alpha1.NephioNsnKey) == cr.GetNameFromNetworkInstancePrefix(ipprefix.Prefix) {
+					if labels.Get(ipamv1alpha1.NephioNsnNameKey) == cr.GetNameFromNetworkInstancePrefix(ipprefix.Prefix) &&
+						labels.Get(ipamv1alpha1.NephioNsnNamespaceKey) == cr.Namespace {
 						if prefix != ipprefix.Prefix {
 							r.l.Error(fmt.Errorf("strange that the prefixes dont match: ipam prefix: %s, spec ipprefix: %s", prefix, ipprefix.Prefix),
 								"mismatch prefixes", "kind", "network-instance aggregate")
 						}
 
 						alloc := ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipprefix)
-						op, err := r.ipamOperation.GetPrefixOperation().Get(alloc)
+						op, err := r.ipamOperation.GetPrefixOperation().Get(alloc, true)
 						if err != nil {
 							r.l.Error(err, "canot initialize ipam operation map")
 							return err
@@ -125,25 +126,6 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 							r.l.Error(err, "canot apply aggregate prefix from network instance on init")
 							return err
 						}
-
-						/*
-							r.mm.Lock()
-							mutatorFn := r.mutator[ipamUsage{
-								PrefixKind: ipamv1alpha1.PrefixKindAggregate,
-								HasPrefix:  true}]
-							r.mm.Unlock()
-							allocs := mutatorFn(ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipprefix))
-							for _, alloc := range allocs {
-								_, err := r.applyAllocation(ctx, alloc, true)
-								//	_, err := r.AllocateIPPrefix(ctx, alloc, true)
-								if err != nil {
-									return err
-								}
-								r.l.Info("ipam action",
-									"action", "initialize",
-									"added prefix", alloc.GetPrefix())
-							}
-						*/
 					}
 				}
 			}
@@ -154,14 +136,15 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipprefix := range prefixList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipprefix", ipprefix)
-					if labels.Get(ipamv1alpha1.NephioNsnKey) == ipprefix.Name {
+					if labels.Get(ipamv1alpha1.NephioNsnNameKey) == ipprefix.Name &&
+						labels.Get(ipamv1alpha1.NephioNsnNamespaceKey) == ipprefix.Namespace {
 						if prefix != ipprefix.Spec.Prefix {
 							r.l.Error(fmt.Errorf("strange that the prefixes dont match: ipam prefix: %s, spec ipprefix: %s", prefix, ipprefix.Spec.Prefix),
 								"mismatch prefixes", "kind", ipprefix.Spec.PrefixKind)
 						}
 
 						alloc := ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipprefix)
-						op, err := r.ipamOperation.GetPrefixOperation().Get(alloc)
+						op, err := r.ipamOperation.GetPrefixOperation().Get(alloc, true)
 						if err != nil {
 							r.l.Error(err, "canot initialize ipam operation map")
 							return err
@@ -170,26 +153,6 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 							r.l.Error(err, "canot apply aggregate prefix from network instance on init")
 							return err
 						}
-
-						/*
-							r.mm.Lock()
-							mutatorFn := r.mutator[ipamUsage{
-								PrefixKind: ipamv1alpha1.PrefixKind(ipprefix.Spec.PrefixKind),
-								HasPrefix:  true}]
-							r.mm.Unlock()
-							allocs := mutatorFn(ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipprefix))
-
-							for _, alloc := range allocs {
-								_, err := r.applyAllocation(ctx, alloc, true)
-								//	_, err := r.AllocateIPPrefix(ctx, alloc, true)
-								if err != nil {
-									return err
-								}
-								r.l.Info("ipam action",
-									"action", "initialize",
-									"added prefix", alloc.GetPrefix())
-							}
-						*/
 					}
 				}
 			}
@@ -200,13 +163,14 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 				r.l.Info("ipam action", "action", "initialize", "prefix", prefix, "labels", labels)
 				for _, ipalloc := range allocList.Items {
 					r.l.Info("ipam action", "action", "initialize", "ipalloc", ipalloc)
-					if labels.Get(ipamv1alpha1.NephioNsnKey) == ipalloc.Name {
+					if labels.Get(ipamv1alpha1.NephioNsnNameKey) == ipalloc.GetName() &&
+						labels.Get(ipamv1alpha1.NephioNsnNamespaceKey) == ipalloc.GetNamespace() {
 						if prefix != ipalloc.Status.AllocatedPrefix {
 							r.l.Error(fmt.Errorf("strange that the prefixes dont match: ipam prefix: %s, spec ipprefix: %s", prefix, ipalloc.Spec.Prefix),
 								"mismatch prefixes", "kind", ipalloc.Spec.PrefixKind)
 						}
 
-						op, err := r.ipamOperation.GetPrefixOperation().Get(&ipalloc)
+						op, err := r.ipamOperation.GetAllocOperation().Get(&ipalloc, true)
 						if err != nil {
 							r.l.Error(err, "canot initialize ipam operation map")
 							return err
@@ -215,30 +179,10 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 							r.l.Error(err, "canot apply aggregate prefix from network instance on init")
 							return err
 						}
-
-						/*
-							r.mm.Lock()
-							mutatorFn := r.mutator[ipamUsage{
-								PrefixKind: ipamv1alpha1.PrefixKind(ipalloc.Spec.PrefixKind),
-								HasPrefix:  ipalloc.Spec.Prefix != ""}]
-							r.mm.Unlock()
-							allocs := mutatorFn(&ipalloc)
-
-							for _, alloc := range allocs {
-								_, err := r.applyAllocation(ctx, alloc, true)
-								//_, err := r.AllocateIPPrefix(ctx, alloc, true)
-								if err != nil {
-									return err
-								}
-								r.l.Info("ipam action", "action", "initialize", "added prefix", alloc.GetPrefix())
-							}
-							r.l.Info("ipam action", "action", "initialize", "added alloc", prefix)
-						*/
 					}
 				}
 			}
 		}
-
 		r.l.Info("ipam create instance done")
 		return r.ipamRib.initDone(cr.GetName())
 	}
@@ -338,7 +282,7 @@ func (r *ipam) updateNetworkInstanceStatus(ctx context.Context, alloc *ipamv1alp
 
 func (r *ipam) getOperation(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error) {
 	if alloc.GetPrefix() == "" {
-		return r.ipamOperation.GetAllocOperation().Get(alloc)
+		return r.ipamOperation.GetAllocOperation().Get(alloc, false)
 	}
-	return r.ipamOperation.GetPrefixOperation().Get(alloc)
+	return r.ipamOperation.GetPrefixOperation().Get(alloc, false)
 }

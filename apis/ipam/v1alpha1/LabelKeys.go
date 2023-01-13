@@ -28,12 +28,14 @@ const (
 	NephioPoolKey               = "nephio.org/pool"
 	NephioGatewayKey            = "nephio.org/gateway"
 	NephioOwnerGvkKey           = "nephio.org/owner-gvk"
-	NephioOwnerNsnKey           = "nephio.org/owner-nsn"
+	NephioOwnerNsnNameKey       = "nephio.org/owner-nsn-name"
+	NephioOwnerNsnNamespaceKey  = "nephio.org/owner-nsn-namespace"
 	NephioGvkKey                = "nephio.org/gvk"
-	NephioNsnKey                = "nephio.org/nsn"
+	NephioNsnNameKey            = "nephio.org/nsn-name"
+	NephioNsnNamespaceKey       = "nephio.org/nsn-namespace"
 	//NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
-	NephioIPContributingRouteKey  = "nephio.org/contributing-route"
-	NephioReplacementNameKey    = "nephio.org/replacement-name"
+	NephioIPContributingRouteKey = "nephio.org/contributing-route"
+	NephioReplacementNameKey     = "nephio.org/replacement-name"
 	//NephioSubnetNameKey         = "nephio.org/subnet-name" // this is the subnet string or name given in the spec/selector
 	//ipam user defined
 	NephioInterfaceKey         = "nephio.org/interface"

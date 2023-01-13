@@ -165,7 +165,8 @@ func (r *mutator) mutateNetworkNet(alloc *ipamv1alpha1.IPAllocation) *ipamv1alph
 	newalloc.Name = r.pi.GetSubnetName()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetPrefix
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetPrefix
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
 	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
 	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
@@ -179,8 +180,8 @@ func (r *mutator) mutateNetworkFirstAddressInNet(alloc *ipamv1alpha1.IPAllocatio
 	newalloc.Name = r.pi.GetFirstIPAddress().String()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = pi.GetFirstIPAddress().String()
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetFirstAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetFirstAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
 	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
 	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
@@ -194,7 +195,8 @@ func (r *mutator) mutateNetworkLastAddressInNet(alloc *ipamv1alpha1.IPAllocation
 	newalloc.Name = r.pi.GetLastIPAddress().String()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetLastAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetLastAddress
+	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
 	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
 	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
