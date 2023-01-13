@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -17,15 +18,17 @@ type Deletor interface {
 
 func NewDeleteApplicator(c *ApplicatorConfig) Deletor {
 	return &applicator{
-		alloc: c.alloc,
-		rib:   c.rib,
+		alloc:   c.alloc,
+		rib:     c.rib,
+		watcher: c.watcher,
 	}
 }
 
 type applicator struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	l     logr.Logger
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	watcher Watcher
+	l       logr.Logger
 }
 
 func (r *applicator) Delete(ctx context.Context) error {
@@ -70,6 +73,8 @@ func (r *applicator) Delete(ctx context.Context) error {
 		if err := r.rib.Delete(route); err != nil {
 			return err
 		}
+		// handle update to the owner of the object to indicate the routes has changed
+		r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
 	}
 	return nil
 }

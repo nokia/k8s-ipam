@@ -96,27 +96,4 @@ func (r *ipamrib) delete(niName string) {
 	delete(r.r, niName)
 }
 
-func (r *ipam) addWatch(ownerGvkKey, ownerGvk string, fn CallbackFn) {
-	r.m.Lock()
-	defer r.m.Unlock()
-	/* TO BE ADDED AGAIN
-	for _, ribCtx := range r.ipam {
-		ribCtx.rib.AddWatch(ownerGvkKey, ownerGvk, fn)
-	}
-	*/
-	r.watches[ownerGvk] = &watchContext{
-		ownerGvkKey: ownerGvkKey,
-		callBackFn:  fn,
-	}
-}
 
-func (r *ipam) deleteWatch(ownerGvkKey, ownerGvk string) {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	/* TO BE ADDED AGAIN
-	for _, ribCtx := range r.ipam {
-		ribCtx.rib.DeleteWatch(ownerGvkKey, ownerGvk)
-	}
-	*/
-	delete(r.watches, ownerGvk)
-}

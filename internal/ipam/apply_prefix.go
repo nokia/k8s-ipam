@@ -8,6 +8,7 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -17,24 +18,27 @@ type Applicator interface {
 }
 
 type ApplicatorConfig struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	pi    iputil.PrefixInfo
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	pi      iputil.PrefixInfo
+	watcher Watcher
 }
 
 func NewPrefixApplicator(c *ApplicatorConfig) Applicator {
 	return &prefixApplicator{
-		alloc: c.alloc,
-		rib:   c.rib,
-		pi:    c.pi,
+		alloc:   c.alloc,
+		rib:     c.rib,
+		pi:      c.pi,
+		watcher: c.watcher,
 	}
 }
 
 type prefixApplicator struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	pi    iputil.PrefixInfo
-	l     logr.Logger
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	pi      iputil.PrefixInfo
+	watcher Watcher
+	l       logr.Logger
 }
 
 func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
@@ -70,6 +74,8 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 				return nil, errors.Wrap(err, "cannot update prefix")
 			}
 		}
+		// handle update to the owner of the object to indicate the routes has changed
+		r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
 	} else {
 		r.l.Info("route does not exist", "route", route)
 		// prefix does not exists -> add
@@ -90,6 +96,7 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 			if !strings.Contains(err.Error(), "already exists") {
 				return nil, errors.Wrap(err, "cannot add prefix")
 			}
+			r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
 		}
 	}
 

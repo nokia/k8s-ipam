@@ -10,21 +10,24 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func NewAllocApplicator(c *ApplicatorConfig) Applicator {
 	return &allocApplicator{
-		alloc: c.alloc,
-		rib:   c.rib,
+		alloc:   c.alloc,
+		rib:     c.rib,
+		watcher: c.watcher,
 	}
 }
 
 type allocApplicator struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	l     logr.Logger
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	watcher Watcher
+	l       logr.Logger
 }
 
 func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
@@ -51,6 +54,8 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 				return nil, errors.Wrap(err, "route insertion failed")
 			}
 		}
+		r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
+
 		p := route.Prefix()
 		r.alloc.Status.AllocatedPrefix = p.String()
 
@@ -116,6 +121,8 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 			return nil, errors.Wrap(err, "cannot add prefix")
 		}
 	}
+	// handle update to the owner of the object to indicate the routes has changed
+	r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
 
 	r.alloc.Status.AllocatedPrefix = prefix
 

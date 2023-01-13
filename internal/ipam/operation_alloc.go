@@ -17,17 +17,19 @@ func NewAllocOperator(cfg any) (IPAMOperation, error) {
 	}
 	fmt.Printf("NewAllocOperator: %v\n", *c.fnc)
 	return &allocOperator{
-		alloc: c.alloc,
-		rib:   c.rib,
-		fnc:   c.fnc,
+		alloc:   c.alloc,
+		rib:     c.rib,
+		fnc:     c.fnc,
+		watcher: c.watcher,
 	}, nil
 }
 
 type allocOperator struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	fnc   *AllocValidatorFunctionConfig
-	l     logr.Logger
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	fnc     *AllocValidatorFunctionConfig
+	watcher Watcher
+	l       logr.Logger
 }
 
 func (r *allocOperator) Validate(ctx context.Context) (string, error) {
@@ -51,6 +53,7 @@ func (r *allocOperator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, 
 		a := NewAllocApplicator(&ApplicatorConfig{
 			alloc: alloc,
 			rib:   r.rib,
+			watcher: r.watcher,
 		})
 		ap, err := a.Apply(ctx)
 		if err != nil {
@@ -73,8 +76,9 @@ func (r *allocOperator) Delete(ctx context.Context) error {
 	for _, alloc := range allocs {
 		r.l.Info("deallocate individual prefix", "alloc", alloc)
 		d := NewDeleteApplicator(&ApplicatorConfig{
-			alloc: alloc,
-			rib:   r.rib,
+			alloc:   alloc,
+			rib:     r.rib,
+			watcher: r.watcher,
 		})
 		if err := d.Delete(ctx); err != nil {
 			return err

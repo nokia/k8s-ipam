@@ -17,20 +17,22 @@ type IPAMOperation interface {
 }
 
 type IPAMPrefixOperatorConfig struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	fnc   *PrefixValidatorFunctionConfig
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	fnc     *PrefixValidatorFunctionConfig
+	watcher Watcher
 }
 
 type IPAMAllocOperatorConfig struct {
-	alloc *ipamv1alpha1.IPAllocation
-	rib   *table.RIB
-	fnc   *AllocValidatorFunctionConfig
+	alloc   *ipamv1alpha1.IPAllocation
+	rib     *table.RIB
+	fnc     *AllocValidatorFunctionConfig
+	watcher Watcher
 }
 
 type IPAMOperationMapConfig struct {
-	init    bool
 	ipamRib ipamRib
+	watcher Watcher
 }
 
 type IPAMOperations interface {
@@ -65,12 +67,13 @@ type ipamOperation interface {
 func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 	return &ipamPrefixOperation{
 		ipamRib: c.ipamRib,
+		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
 				validateExistanceOfSpecialLabelsFn: validateExistanceOfSpecialLabels,
 				validateAddressPrefixFn:            validateAddressPrefix,        // no /32 or /128 allowed
 				validateIfAddressinSubnetFn:        validateIfAddressinSubnetNop, // not relevant
-				validateChildrenExistFn:            validateChildrenExist, 
+				validateChildrenExistFn:            validateChildrenExist,
 				validateNoParentExistFn:            validateNoParentExist,
 				validateParentExistFn:              validateParentExist,
 			},
@@ -104,6 +107,7 @@ func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 
 type ipamPrefixOperation struct {
 	ipamRib ipamRib
+	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
 }
@@ -118,17 +122,18 @@ func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing
 	}
 
 	return NewPrefixOperator(&IPAMPrefixOperatorConfig{
-		alloc: alloc,
-		rib:   rib,
-		fnc:   r.oc[alloc.GetPrefixKind()],
+		alloc:   alloc,
+		rib:     rib,
+		watcher: r.watcher,
+		fnc:     r.oc[alloc.GetPrefixKind()],
 	})
 
 }
 
 func newAllocOperation(c *IPAMOperationMapConfig) ipamOperation {
 	return &ipamAllocOperation{
-		init:    c.init,
 		ipamRib: c.ipamRib,
+		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
 				validateInputFn: validateInput,
@@ -147,8 +152,8 @@ func newAllocOperation(c *IPAMOperationMapConfig) ipamOperation {
 }
 
 type ipamAllocOperation struct {
-	init    bool
 	ipamRib ipamRib
+	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
 }
@@ -163,9 +168,10 @@ func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing 
 	}
 
 	return NewAllocOperator(&IPAMAllocOperatorConfig{
-		alloc: alloc,
-		rib:   rib,
-		fnc:   r.oc[alloc.GetPrefixKind()],
+		alloc:   alloc,
+		rib:     rib,
+		watcher: r.watcher,
+		fnc:     r.oc[alloc.GetPrefixKind()],
 	})
 
 }

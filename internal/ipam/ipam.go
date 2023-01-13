@@ -50,11 +50,15 @@ type Ipam interface {
 
 func New(c client.Client, opts ...Option) Ipam {
 	ipamRib := newIpamRib()
+	watcher := newWatcher()
 	i := &ipam{
-		ipamRib:       ipamRib,
-		ipamOperation: NewIPamOperation(&IPAMOperationMapConfig{ipamRib: ipamRib}),
-		c:             c,
-		watches:       make(map[string]*watchContext),
+		ipamRib: ipamRib,
+		ipamOperation: NewIPamOperation(&IPAMOperationMapConfig{
+			ipamRib: ipamRib,
+			watcher: watcher,
+		}),
+		c:       c,
+		watcher: watcher,
 	}
 
 	for _, opt := range opts {
@@ -67,7 +71,7 @@ func New(c client.Client, opts ...Option) Ipam {
 type ipam struct {
 	c             client.Client
 	m             sync.RWMutex
-	watches       map[string]*watchContext
+	watcher       Watcher
 	ipamRib       ipamRib
 	ipamOperation IPAMOperations
 
@@ -75,10 +79,10 @@ type ipam struct {
 }
 
 func (r *ipam) AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn) {
-	r.addWatch(ownerGvkKey, ownerGvk, fn)
+	r.watcher.addWatch(ownerGvkKey, ownerGvk, fn)
 }
 func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
-	r.deleteWatch(ownerGvkKey, ownerGvk)
+	r.watcher.deleteWatch(ownerGvkKey, ownerGvk)
 }
 
 // Initialize and create the ipam instance with the allocated prefixes
