@@ -187,10 +187,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
 	*/
+	// The spec got changed we check the existing prefix against the status
+	// if there is a difference, we need to delete the prefix
+	// w/o the prefix in the spec
+	specPrefix := cr.Spec.Prefix
+	if cr.Status.AllocatedPrefix != "" && cr.Spec.Prefix != "" &&
+		cr.Status.AllocatedPrefix != cr.Spec.Prefix {
+		// we set the prefix to "", to ensure the deallocation works
+		cr.Spec.Prefix = ""
+		if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
+			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+				r.l.Error(err, "cannot delete resource")
+				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+		}
+	}
+	cr.Spec.Prefix = specPrefix
 
 	allocatedPrefix, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
+
+		// TODO -> Depending on the error we should clear the prefix
+		cr.Status.Gateway = ""
+		cr.Status.AllocatedPrefix = ""
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}

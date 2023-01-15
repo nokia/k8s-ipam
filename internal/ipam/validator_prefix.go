@@ -15,34 +15,16 @@ type Validator interface {
 	Validate(ctx context.Context) (string, error)
 }
 
-type validateExistanceOfSpecialLabelsFn func(labels map[string]string) string
-type validateAddressPrefixFn func(pi iputil.PrefixInfo) string
-type validateIfAddressinSubnetFn func(pi iputil.PrefixInfo, prefixKind ipamv1alpha1.PrefixKind) string
+type validateInputFn func(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string
 type validateChildrenExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string
 type validateNoParentExistFn func(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string
 type validateParentExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind, pi iputil.PrefixInfo) string
 
-// func validateExistanceOfSpecialLabelsNop(labels map[string]string) string { return "" }
-func validateAddressPrefixNop(pi iputil.PrefixInfo) string { return "" }
-func validateIfAddressinSubnetNop(pi iputil.PrefixInfo, prefixKind ipamv1alpha1.PrefixKind) string {
-	return ""
-}
-
-//func validateChildrenExistNop(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string {
-//	return ""
-//}
-//func validateNoParentExistNop(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string { return "" }
-//func validateParentExistNop(route table.Route, prefixKind ipamv1alpha1.PrefixKind, pi iputil.PrefixInfo) string {
-//	return ""
-//}
-
 type PrefixValidatorFunctionConfig struct {
-	validateExistanceOfSpecialLabelsFn validateExistanceOfSpecialLabelsFn
-	validateAddressPrefixFn            validateAddressPrefixFn
-	validateIfAddressinSubnetFn        validateIfAddressinSubnetFn
-	validateChildrenExistFn            validateChildrenExistFn
-	validateNoParentExistFn            validateNoParentExistFn
-	validateParentExistFn              validateParentExistFn
+	validateInputFn         validateInputFn
+	validateChildrenExistFn validateChildrenExistFn
+	validateNoParentExistFn validateNoParentExistFn
+	validateParentExistFn   validateParentExistFn
 }
 
 type PrefixValidatorConfig struct {
@@ -70,79 +52,81 @@ type prefixvalidator struct {
 }
 
 func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "cr", r.alloc.GetName(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "name", r.alloc.GetName(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("validate")
 
 	// get dryrun rib
 	dryrunRib := r.rib.Clone()
 
 	// validate input
-	r.l.Info("validate", "fnc", r.fnc)
-	if msg := r.fnc.validateExistanceOfSpecialLabelsFn(r.alloc.GetSpecLabels()); msg != "" {
-		return msg, nil
-	}
-	// validate address
-	if msg := r.fnc.validateAddressPrefixFn(r.pi); msg != "" {
-		return msg, nil
-	}
-	// validate address in subnet
-	if msg := r.fnc.validateAddressPrefixFn(r.pi); msg != "" {
+	if msg := r.fnc.validateInputFn(r.alloc, r.pi); msg != "" {
 		return msg, nil
 	}
 
-	// exact match prefix
-	nsnSelector, err := r.alloc.GetNsnSelector()
-	if err != nil {
-		return "", err
-	}
-	routes := dryrunRib.GetByLabel(nsnSelector)
+	// check if the prefix exists
+	// for network based prefixes this is always the subnet (10.0.0.0/24) that is validated
+	// for network based prefixes we need to do a second validation with the specific address
+	// (10.0.0.x/24 which is turned into 10.0.0.x/32)
+	route, ok := dryrunRib.Get(r.pi.GetIPSubnet())
+	r.l.Info("validate if route exists",
+		"createprefix", r.alloc.GetCreatePrefix(),
+		"prefix", r.pi.GetIPPrefix(),
+		"ok", ok,
+		"route", route,
+		"labels", r.alloc.GetSpecLabels())
 	// Route exists
-	if len(routes) > 0 {
-		// check if more than 1 route exist which would be bad
-		if msg := validateExactMatchLenRoutes(routes); msg != "" {
+	if ok {
+		if r.alloc.GetCreatePrefix() {
+			// this is a create/allocate prefix:
+			// ip prefix or a dynamic allocation with a prefix
+			if msg := validatePrefixOwner(route, r.alloc); msg != "" {
+				return msg, nil
+			}
+			// all good prefix exists and has the proper attributes
+			return "", nil
+		}
+		// in case of a network prefix we need to turn this in an address and validate again
+		// since the initial validation is for the network subnet and not for the individual address
+		// in the subnet
+		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+			// if parent is prefixkind network
+			if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
+				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[ipamv1alpha1.NephioPrefixKindKey]), nil
+			}
+			route, ok = dryrunRib.Get(r.pi.GetIPAddressPrefix())
+			if !ok {
+				// we can return since we know there is a parent
+				// the child is a /32 or /128 which cannot have children
+				return "", nil
+			}
+		}
+		if msg := validatePrefixOwner(route, r.alloc); msg != "" {
 			return msg, nil
 		}
-		// validate the prefix
-		if msg := validateExactMatchPrefix(routes[0], r.pi); msg != "" {
-			return msg, nil
-		}
-		// validate the owner gvk match
-		if msg := validateExactMatchOwnerGVk(routes[0], r.alloc); msg != "" {
-			return msg, nil
-		}
-		// validate the prefixKind
-		if msg := validateExactMatcPrefixKind(routes[0], r.alloc); msg != "" {
-			return msg, nil
-		}
+		// finish all good
+		return "", nil
 	}
 	// Route does not exist
 	// add dummy route in dry run rib, this is the subnet route
 	// which serves as general purpose
-	route := table.NewRoute(
+	route = table.NewRoute(
 		r.pi.GetIPSubnet(),
 		r.alloc.GetDummyLabelsFromPrefix(r.pi),
 		map[string]any{},
 	)
-	// if the prefix already exists we need to set it otherwise add it
-	if _, ok := dryrunRib.Get(route.Prefix()); ok {
-		if err := dryrunRib.Set(route); err != nil {
-			r.l.Error(err, "cannot set route", "route", route)
-			return "", err
-		}
-	} else {
-		if err := dryrunRib.Add(route); err != nil {
-			r.l.Error(err, "cannot add route", "route", route)
-			return "", err
-		}
+
+	if err := dryrunRib.Add(route); err != nil {
+		r.l.Error(err, "cannot add route", "route", route)
+		return "", err
 	}
 
 	// get the route again and check for children
-	route, ok := dryrunRib.Get(r.pi.GetIPSubnet())
+	route, ok = dryrunRib.Get(r.pi.GetIPSubnet())
 	if !ok {
-		return "", fmt.Errorf("route just added, but a new get does not find it")
+		return "route just added, but a new get does not find it", nil
 	}
 	// check for children
-	routes = route.Children(dryrunRib)
+	routes := route.Children(dryrunRib)
 	if len(routes) > 0 {
 		r.l.Info("got children", "routes", routes)
 		if msg := r.fnc.validateChildrenExistFn(routes[0], r.alloc.GetPrefixKind()); msg != "" {
@@ -166,150 +150,4 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	//	return msg, nil
 	//}
 	return "", nil
-}
-
-func validateExistanceOfSpecialLabels(labels map[string]string) string {
-	if len(labels) == 0 {
-		return "prefix cannot have empty labels, otherwise specific selection is not possible"
-	}
-	return ""
-}
-
-func validateAddressPrefix(pi iputil.PrefixInfo) string {
-	if pi.IsAddressPrefix() {
-		return "the prefix cannot be created with address (/32, /128)"
-	}
-	return ""
-}
-
-func validateIfAddressinSubnet(pi iputil.PrefixInfo, prefixKind ipamv1alpha1.PrefixKind) string {
-	if pi.GetIPSubnet().String() != pi.GetIPPrefix().String() {
-		return fmt.Sprintf("a %s prefix cannot have net <> address", prefixKind)
-	}
-	return ""
-}
-
-func validateExactMatchLenRoutes(routes table.Routes) string {
-	if len(routes) > 1 {
-		return "multiple prefixes match the nsn labelselector"
-	}
-	return ""
-}
-
-func validateExactMatchPrefix(route table.Route, pi iputil.PrefixInfo) string {
-	if route.Prefix().String() != pi.GetIPAddressPrefix().String() {
-		return "route exist but prefix mismatch"
-	}
-	return ""
-}
-
-func validateExactMatchOwnerGVk(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
-	if route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
-		return fmt.Sprintf("route was already allocated from a different origin, req origin %s, ipam origin %s",
-			alloc.GetOwnerGvk(),
-			route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey))
-	}
-	return ""
-}
-
-func validateExactMatcPrefixKind(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
-	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(alloc.GetPrefixKind()) {
-		return fmt.Sprintf("prefix used by different prefixKind req prefixKind %s, ipam prefixKind %s",
-			string(alloc.GetPrefixKind()),
-			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey))
-	}
-	return ""
-}
-
-func validateChildrenExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string {
-	switch prefixKind {
-	case ipamv1alpha1.PrefixKindNetwork:
-		if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
-			return fmt.Sprintf("a child prefix of a %s prefix, can be of the same kind", prefixKind)
-		}
-		if route.Prefix().Addr().Is4() && route.Prefix().Bits() != 32 {
-			return fmt.Sprintf("a child prefix of a %s prefix, can only be an address prefix (/32), got: %v", prefixKind, route.Prefix())
-		}
-		if route.Prefix().Addr().Is6() && route.Prefix().Bits() != 128 {
-			return fmt.Sprintf("a child prefix of a %s prefix, can only be an address prefix (/128), got: %v", prefixKind, route.Prefix())
-		}
-		return ""
-	case ipamv1alpha1.PrefixKindAggregate:
-		// nesting is possible in aggregate
-		return ""
-	default:
-		return fmt.Sprintf("a more specific prefix was already allocated %s/%s, nesting not allowed for %s",
-			route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-			route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
-			prefixKind)
-	} 
-}
-
-func validateNoParentExist(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string {
-	if prefixKind != ipamv1alpha1.PrefixKindAggregate {
-		return "an aggregate prefix is required"
-	}
-	if ownerGvk == ipamv1alpha1.NetworkInstanceGVKString {
-		// aggregates from a network instance dont need a parent since they
-		// are the parent for the network instance
-		return ""
-	}
-	return "an aggregate prefix is required"
-}
-
-func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, pi iputil.PrefixInfo) string {
-	switch prefixKind {
-	case ipamv1alpha1.PrefixKindAggregate:
-		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
-			return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
-		}
-		return ""
-	case ipamv1alpha1.PrefixKindLoopback:
-		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
-			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindLoopback) {
-			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/loopback prefix is not allowed, prefix nested with %s/%s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
-		}
-		if pi.IsAddressPrefix() {
-			// address (/32 or /128) can parant with aggregate or loopback
-			switch route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) {
-			case string(ipamv1alpha1.PrefixKindAggregate), string(ipamv1alpha1.PrefixKindLoopback):
-				// /32 or /128 can be parented with aggregates or loopbacks
-			default:
-				return fmt.Sprintf("nesting loopback prefixes only possible with address (/32, /128) based prefixes, got %s", pi.GetIPPrefix().String())
-			}
-		}
-
-		if !pi.IsAddressPrefix() {
-			switch route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) {
-			case string(ipamv1alpha1.PrefixKindAggregate):
-				// none /32 or /128 can only be parented with aggregates
-			default:
-				return fmt.Sprintf("nesting (none /32, /128)loopback prefixes only possible with aggregate prefixes, got %s", route.String())
-			}
-		}
-		return ""
-	case ipamv1alpha1.PrefixKindNetwork:
-		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
-			return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s of kind %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
-				route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
-			)
-		}
-		return ""
-	case ipamv1alpha1.PrefixKindPool:
-		// if the parent is not an aggregate we dont allow the prefix to be created
-		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) &&
-			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindPool) {
-			return fmt.Sprintf("nesting loopback prefixes with anything other than an aggregate/pool prefix is not allowed, prefix nested with %s/%s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey))
-		}
-		return ""
-	}
-	return ""
 }

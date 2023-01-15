@@ -174,19 +174,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	/*
-		DEBUG the routing table
-		rt, ok := r.Ipam.Get(req.NamespacedName.String())
-		if ok {
-			fmt.Println(strings.Repeat("#", 64))
-			fmt.Println("Dumping route-table in JSON format:")
-			j, _ := json.MarshalIndent(rt.GetTable(), "", "  ")
-			fmt.Println(string(j))
-			// Printing the Stdout seperator
-			fmt.Println(strings.Repeat("#", 64))
-		}
-	*/
-
 	cr.Status.AllocatedPrefixes = cr.Spec.Prefixes
 
 	// Update the status of the CR and end the reconciliation loop

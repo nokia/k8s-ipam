@@ -88,7 +88,7 @@ var (
 	NetworkInstancegroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: NetworkInstanceKind}.String()
 	NetworkInstanceAPIVersion       = NetworkInstanceKind + "." + GroupVersion.String()
 	NetworkInstanceGroupVersionKind = GroupVersion.WithKind(NetworkInstanceKind)
-	NetworkInstanceGVKString        = meta.GVKToString(&schema.GroupVersionKind{
+	NetworkInstanceKindGVKString        = meta.GVKToString(&schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    NetworkInstanceKind,

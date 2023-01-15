@@ -44,10 +44,15 @@ type PrefixInfo interface {
 	GetAddressFamily() AddressFamily
 	IsAddressPrefix() bool
 	GetIPPrefixWithPrefixLength(pl int) netip.Prefix
+	IsPrefixPresentInSubnetMap(string) bool
 }
 
 type prefixInfo struct {
 	p netip.Prefix
+}
+
+func NewPrefixInfo(p netip.Prefix) PrefixInfo {
+	return &prefixInfo{p: p}
 }
 
 func New(prefix string) (PrefixInfo, error) {
@@ -140,6 +145,22 @@ func (r *prefixInfo) IsAddressPrefix() bool {
 
 func (r *prefixInfo) GetIPPrefixWithPrefixLength(pl int) netip.Prefix {
 	return netip.PrefixFrom(r.GetLastIPAddress(), pl)
+}
+
+func (r *prefixInfo) IsPrefixPresentInSubnetMap(prefix string) bool {
+	if r.GetIPSubnet().String() == prefix {
+		return true
+	}
+	if r.GetFirstIPPrefix().String() == prefix {
+		return true
+	}
+	if r.GetLastIPPrefix().String() == prefix {
+		return true
+	}
+	if r.GetIPAddressPrefix().String() == prefix {
+		return true
+	}
+	return false
 }
 
 type PrefixLength int

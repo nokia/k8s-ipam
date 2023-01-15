@@ -14,7 +14,6 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -72,7 +71,7 @@ func (r *clientproxy) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 	if err != nil {
 		return err
 	}
-	req := buildAllocPb(cr, string(b), "never", gvk, ownerGvk)
+	req := buildAllocPb(cr, cr.GetName(), string(b), "never", gvk, ownerGvk)
 	_, err = r.pc.Allocate(ctx, req)
 	return err
 }
@@ -84,7 +83,7 @@ func (r *clientproxy) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 	if err != nil {
 		return err
 	}
-	req := buildAllocPb(cr, string(b), "never", gvk, ownerGvk)
+	req := buildAllocPb(cr, cr.GetName(), string(b), "never", gvk, ownerGvk)
 	return r.pc.DeAllocate(ctx, req)
 }
 
@@ -95,6 +94,7 @@ func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d a
 	if err != nil {
 		return nil, err
 	}
+	r.l.Info("allocate prefix", "allobrequest", req)
 
 	resp, err := r.pc.Allocate(ctx, req)
 	if err != nil {
@@ -165,7 +165,7 @@ func BuildAllocationFromIPPrefix(cr *ipamv1alpha1.IPPrefix) (*allocpb.Request, e
 		return nil, err
 	}
 
-	return buildAllocPb(cr, string(b), "never", getIPAllocGVK(), ownerGvk), nil
+	return buildAllocPb(cr, cr.GetName(), string(b), "never", getIPAllocGVK(), ownerGvk), nil
 }
 
 func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix *ipamv1alpha1.Prefix) (*allocpb.Request, error) {
@@ -176,38 +176,45 @@ func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, 
 		return nil, err
 	}
 
-	return buildAllocPb(cr, string(b), "never", getIPAllocGVK(), ownerGvk), nil
+	//cr.Name = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
+
+	return buildAllocPb(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), string(b), "never", getIPAllocGVK(), ownerGvk), nil
 }
 
 func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime string) (*allocpb.Request, error) {
+	
+	
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 	// if the ownerGvk is in the labels we use this as ownerGVK
 	ownerGVKValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerGvkKey]
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}
-	nsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
-	// if the ownerNsn is in the labels we use this as ownerNsn
-	ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
-	ownerNameValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNameKey]
-	if ok {
-		ownerNsn.Name = ownerNameValue
-	}
-	ownerNamespaceValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey]
-	if ok {
-		ownerNsn.Namespace = ownerNamespaceValue
-	}
+	/*
+		nsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+		// if the ownerNsn is in the labels we use this as ownerNsn
+		ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+		ownerNameValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNameKey]
+		if ok {
+			ownerNsn.Name = ownerNameValue
+		}
+		ownerNamespaceValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey]
+		if ok {
+			ownerNsn.Namespace = ownerNamespaceValue
+		}
+	*/
+	newCr := ipamv1alpha1.BuildIPAllocationFromIPAllocation(cr)
 
-	spec := cr.Spec
-	spec.Labels = ipamv1alpha1.AddSpecLabelsWithTypeMeta(ownerGvk, ownerNsn, nsn, cr.Spec.Labels)
+	//spec := cr.Spec
+	//spec.Labels = ipamv1alpha1.AddSpecLabelsWithTypeMeta(ownerGvk, ownerNsn, nsn, cr.Spec.Labels)
 
-	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), spec)
+	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), newCr.Spec, ipamv1alpha1.IPAllocationStatus{AllocatedPrefix: cr.Status.AllocatedPrefix})
 	b, err := json.Marshal(ipalloc)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildAllocPb(cr, string(b), expiryTime, getIPAllocGVK(), ownerGvk), nil
+	return buildAllocPb(cr, cr.GetName(), string(b), expiryTime, getIPAllocGVK(), ownerGvk), nil
 }
 
 func getIPAllocGVK() *schema.GroupVersionKind {
@@ -218,7 +225,7 @@ func getIPAllocGVK() *schema.GroupVersionKind {
 	}
 }
 
-func buildAllocPb(o client.Object, specBody string, expiryTime string, gvk, ownerGvk *schema.GroupVersionKind) *allocpb.Request {
+func buildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk, ownerGvk *schema.GroupVersionKind) *allocpb.Request {
 	return &allocpb.Request{
 		Header: &allocpb.Header{
 			Gvk: &allocpb.GVK{
@@ -228,7 +235,7 @@ func buildAllocPb(o client.Object, specBody string, expiryTime string, gvk, owne
 			},
 			Nsn: &allocpb.NSN{
 				Namespace: o.GetNamespace(),
-				Name:      o.GetName(),
+				Name:      nsnName, // this will be overwritten for niInstance prefixes
 			},
 			OwnerGvk: &allocpb.GVK{
 				Group:   ownerGvk.Group,

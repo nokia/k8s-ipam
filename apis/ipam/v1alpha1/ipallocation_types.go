@@ -48,6 +48,8 @@ type IPAllocationSpec struct {
 	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
 	// As such we distinguish clearly between the metadata labels and the labels used in the spec
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	// indicates a prefix has to be created which is not an address
+	CreatePrefix bool `json:"createPrefix,omitempty" yaml:"createPrefix,omitempty"`
 	// expiryTime indicated when the allocation expires
 	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }

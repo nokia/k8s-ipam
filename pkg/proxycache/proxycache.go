@@ -165,17 +165,21 @@ func (r *proxycache) Start(ctx context.Context) {
 							r.cache.Delete(objKey)
 							r.informer.NotifyClient(ownerGvk, ownerNsn)
 						}
-						r.l.Info("refresh resp", "resp", resp.Status)
-						// Validate the response through the client proxy registered validator
-						// if the validator is not happy with the response we notify the client
-						if r.validator.Get(group) != nil {
-							if !r.validator.Get(group)(origresp, resp) {
-								r.l.Error(err, "refresh validation NOK")
-								// remove the cache entry
-								r.cache.Delete(objKey)
-								r.informer.NotifyClient(ownerGvk, ownerNsn)
+						// TBD if we need more protection
+						if resp != nil {
+							r.l.Info("refresh resp", "resp", resp.Status)
+							// Validate the response through the client proxy registered validator
+							// if the validator is not happy with the response we notify the client
+							if r.validator.Get(group) != nil {
+								if !r.validator.Get(group)(origresp, resp) {
+									r.l.Error(err, "refresh validation NOK")
+									// remove the cache entry
+									r.cache.Delete(objKey)
+									r.informer.NotifyClient(ownerGvk, ownerNsn)
+								}
 							}
 						}
+
 					}()
 				}
 				wg.Wait()

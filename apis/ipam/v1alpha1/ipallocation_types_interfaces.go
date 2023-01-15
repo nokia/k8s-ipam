@@ -56,6 +56,10 @@ func (r *IPAllocation) GetPrefix() string {
 	return r.Spec.Prefix
 }
 
+func (r *IPAllocation) GetCreatePrefix() bool {
+	return r.Spec.CreatePrefix
+}
+
 func (r *IPAllocation) GetAddressFamily() iputil.AddressFamily {
 	switch r.Spec.AddressFamily {
 	case "ipv4":
@@ -105,6 +109,40 @@ func (r *IPAllocation) GetSpecLabels() map[string]string {
 		l[k] = v
 	}
 	return l
+}
+
+func (r *IPAllocation) IsCreatePrefixAllcation() (bool, error) {
+	// if create prefix is set this is seen as a prefix allocation
+	// if create prefix is not set this is seen as an address allocation
+	if r.GetCreatePrefix() {
+		// create prefix validation
+		if r.GetPrefix() != "" {
+			pi, err := iputil.New(r.GetPrefix())
+			if err != nil {
+				return false, err
+			}
+			if pi.IsAddressPrefix() {
+				return false, fmt.Errorf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
+			}
+			return true, nil
+		}
+		// this is the case where a dynamic prefix will be allocate based on a prefix length defined by the user
+		if r.GetPrefixLengthFromSpec() != 0 {
+			return true, nil
+		}
+	}
+	// create address validation
+	if r.GetPrefix() != "" {
+		pi, err := iputil.New(r.GetPrefix())
+		if err != nil {
+			return false, err
+		}
+		if !pi.IsAddressPrefix() {
+			return false, fmt.Errorf("create address is only allowed with /32 or .128, got: %s", pi.GetIPPrefix().String())
+		}
+		return false, nil
+	}
+	return false, nil
 }
 
 func (x *IPAllocation) GetSubnetLabelSelector() (labels.Selector, error) {
@@ -172,8 +210,8 @@ func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 
 func (r *IPAllocation) GetNsnSelector() (labels.Selector, error) {
 	l := map[string]string{
-		NephioNsnNameKey:      r.Spec.Labels[NephioNsnNameKey],
-		NephioNsnNamespaceKey: r.Spec.Labels[NephioNsnNamespaceKey],
+		NephioNsnNameKey: r.Spec.Labels[NephioNsnNameKey],
+		//NephioNsnNamespaceKey: r.Spec.Labels[NephioNsnNamespaceKey],
 	}
 	/*
 		if r.Spec.Labels[NephioGvkKey] == OriginSystem {
@@ -254,6 +292,34 @@ func GetPrefixFromRoute(route table.Route) string {
 	return p
 }
 
+func BuildIPAllocationFromIPAllocation(cr *IPAllocation) *IPAllocation {
+	newcr := cr.DeepCopy()
+	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
+	// if the ownerGvk is in the labels we use this as ownerGVK
+	ownerGVKValue, ok := cr.GetLabels()[NephioOwnerGvkKey]
+	if ok {
+		ownerGvk = meta.StringToGVK(ownerGVKValue)
+	}
+	// if the ownerNsn is in the labels we use this as ownerNsn
+	ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	ownerNameValue, ok := cr.GetLabels()[NephioOwnerNsnNameKey]
+	if ok {
+		ownerNsn.Name = ownerNameValue
+	}
+	ownerNamespaceValue, ok := cr.GetLabels()[NephioOwnerNsnNamespaceKey]
+	if ok {
+		ownerNsn.Namespace = ownerNamespaceValue
+	}
+
+	newcr.Spec.Labels = AddSpecLabelsWithTypeMeta(
+		ownerGvk,
+		types.NamespacedName{Namespace: ownerNsn.Namespace, Name: ownerNsn.Name},
+		types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+		cr.Spec.Labels,
+	) // added the owner label in it
+	return newcr
+}
+
 func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 
@@ -267,13 +333,14 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		AddressFamily:   pi.GetAddressFamily(),
 		Prefix:          cr.Spec.Prefix,
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
+		CreatePrefix:    true,
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			cr.Spec.Labels), // added the owner label in it
 	}
-	return BuildIPAllocation(cr, cr.GetName(), spec)
+	return BuildIPAllocation(cr, cr.GetName(), spec, IPAllocationStatus{})
 }
 
 func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Prefix) *IPAllocation {
@@ -289,14 +356,15 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		AddressFamily:   pi.GetAddressFamily(),
 		Prefix:          prefix.Prefix,
 		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
+		CreatePrefix:    true,
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)},
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
-	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec)
+	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec, IPAllocationStatus{})
 }
 
 func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
@@ -314,7 +382,7 @@ func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn 
 	return labels
 }
 
-func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec) *IPAllocation {
+func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
 	return &IPAllocation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: IPAllocationKindAPIVersion,
@@ -325,7 +393,8 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec) *I
 			Name:      crName,
 			Labels:    o.GetLabels(),
 		},
-		Spec: spec,
+		Spec:   spec,
+		Status: status,
 	}
 }
 

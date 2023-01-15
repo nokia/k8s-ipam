@@ -31,3 +31,7 @@ func (x *IPPrefix) SetConditions(c ...Condition) {
 func (x *IPPrefix) GetGenericNamespacedName() string {
 	return fmt.Sprintf("%s-%s", x.GetNamespace(), x.GetName())
 }
+
+func (x *IPPrefix) GetPrefixKind() PrefixKind {
+	return x.Spec.PrefixKind
+}

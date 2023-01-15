@@ -10,6 +10,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -18,27 +19,30 @@ type Applicator interface {
 }
 
 type ApplicatorConfig struct {
-	alloc   *ipamv1alpha1.IPAllocation
-	rib     *table.RIB
-	pi      iputil.PrefixInfo
-	watcher Watcher
+	initializing bool
+	alloc        *ipamv1alpha1.IPAllocation
+	rib          *table.RIB
+	pi           iputil.PrefixInfo
+	watcher      Watcher
 }
 
 func NewPrefixApplicator(c *ApplicatorConfig) Applicator {
 	return &prefixApplicator{
-		alloc:   c.alloc,
-		rib:     c.rib,
-		pi:      c.pi,
-		watcher: c.watcher,
+		initializing: c.initializing,
+		alloc:        c.alloc,
+		rib:          c.rib,
+		pi:           c.pi,
+		watcher:      c.watcher,
 	}
 }
 
 type prefixApplicator struct {
-	alloc   *ipamv1alpha1.IPAllocation
-	rib     *table.RIB
-	pi      iputil.PrefixInfo
-	watcher Watcher
-	l       logr.Logger
+	initializing bool
+	alloc        *ipamv1alpha1.IPAllocation
+	rib          *table.RIB
+	pi           iputil.PrefixInfo
+	watcher      Watcher
+	l            logr.Logger
 }
 
 func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
@@ -46,7 +50,14 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 	r.l.Info("apply allocation with prefix")
 
 	// get route
-	route, ok := r.rib.Get(r.pi.GetIPPrefix())
+	var route table.Route
+	var ok bool
+	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork && !r.alloc.GetCreatePrefix() {
+		route, ok = r.rib.Get(r.pi.GetIPAddressPrefix())
+	} else {
+		route, ok = r.rib.Get(r.pi.GetIPPrefix())
+	}
+
 	//if route exists -> update
 	// if route does not exist -> add
 	if ok {
@@ -57,46 +68,70 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 		// add the contributing route name to the data
 		// replace the nsn with the replacement route name
 		// delete the contributing and replacemnt keys
-		labels := r.alloc.GetFullLabels()
-		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork &&
-			r.alloc.GetFullLabels()[ipamv1alpha1.NephioGvkKey] == ipamv1alpha1.OriginSystem {
+		//lbls := r.alloc.GetFullLabels()
+		/*
+			if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork &&
+				r.alloc.GetFullLabels()[ipamv1alpha1.NephioGvkKey] == ipamv1alpha1.OriginSystem {
 
-			data := route.GetData()
-			labels, data = UpdateLabelsAndDataWithContributingRoutes(labels, data)
+				data := route.GetData()
+				lbls, data = UpdateLabelsAndDataWithContributingRoutes(lbls, data)
 
-			route = route.SetData(data)
-		}
-		route = route.UpdateLabel(labels)
-		r.l.Info("route exists", "update route", route, "labels", labels)
-		if err := r.rib.Set(route); err != nil {
-			r.l.Error(err, "cannot update prefix")
-			if !strings.Contains(err.Error(), "already exists") {
-				return nil, errors.Wrap(err, "cannot update prefix")
+				route = route.SetData(data)
+			}
+		*/
+		if !labels.Equals(r.alloc.GetFullLabels(), route.Labels()) {
+			route = route.UpdateLabel(r.alloc.GetFullLabels())
+			r.l.Info("route exists", "update route", route, "labels", r.alloc.GetFullLabels())
+			if err := r.rib.Set(route); err != nil {
+				r.l.Error(err, "cannot update prefix")
+				if !strings.Contains(err.Error(), "already exists") {
+					return nil, errors.Wrap(err, "cannot update prefix")
+				}
+			}
+			// this is an update where the labels changed
+			// only update when not initializing
+			// only update when the prefix is a non /32 or /128
+			if !r.initializing && !r.pi.IsAddressPrefix() && r.alloc.GetCreatePrefix() {
+				r.l.Info("route exists", "handle update for route", route, "labels", r.alloc.GetFullLabels())
+				// delete the children from the rib
+				// update the once that have a nsn different from the origin
+				childRoutesToBeUpdated := []table.Route{}
+				for _, childRoute := range route.Children(r.rib) {
+					r.l.Info("route exists", "handle update for route", route, "child route", childRoute)
+					if childRoute.Labels()[ipamv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNameKey] ||
+						childRoute.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNamespaceKey] {
+						childRoutesToBeUpdated = append(childRoutesToBeUpdated, childRoute)
+						if err := r.rib.Delete(childRoute); err != nil {
+							r.l.Error(err, "cannot delete route from rib", "route", childRoute)
+						}
+					}
+				}
+				// handler watch update to the source owner controller
+				r.l.Info("route exists", "handle update for route", route, "child routes", childRoutesToBeUpdated)
+				r.watcher.handleUpdate(ctx, childRoutesToBeUpdated, allocpb.StatusCode_Unknown)
 			}
 		}
-		// handle update to the owner of the object to indicate the routes has changed
-		r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
+
 	} else {
 		r.l.Info("route does not exist", "route", route)
 		// prefix does not exists -> add
-		var route table.Route
-		labels := r.alloc.GetFullLabels()
-		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork &&
-			r.alloc.GetFullLabels()[ipamv1alpha1.NephioGvkKey] == ipamv1alpha1.OriginSystem {
-
-			data := map[string]any{}
-			labels, data = UpdateLabelsAndDataWithContributingRoutes(labels, data)
-
-			route = table.NewRoute(r.pi.GetIPPrefix(), labels, data)
-		} else {
-			route = table.NewRoute(r.pi.GetIPPrefix(), labels, map[string]any{})
+		prefix := r.pi.GetIPPrefix()
+		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork && !r.alloc.GetCreatePrefix() {
+			prefix = r.pi.GetIPAddressPrefix()
 		}
+
+		route := table.NewRoute(prefix, r.alloc.GetFullLabels(), map[string]any{})
 		if err := r.rib.Add(route); err != nil {
 			r.l.Error(err, "cannot add prefix")
 			if !strings.Contains(err.Error(), "already exists") {
 				return nil, errors.Wrap(err, "cannot add prefix")
 			}
-			r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
+			/*
+				if !r.initializing {
+					// handler watch update to the source owner controller
+					r.watcher.handleUpdate(ctx, route.Children(r.rib), allocpb.StatusCode_Unknown)
+				}
+			*/
 		}
 	}
 
@@ -105,6 +140,7 @@ func (r *prefixApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocatio
 	return r.alloc, nil
 }
 
+/*
 // UpdateLabelsAndDataWithContributingRoutes updates the labels and data with the contributing route info and replacement route
 func UpdateLabelsAndDataWithContributingRoutes(labels map[string]string, data map[string]any) (map[string]string, map[string]any) {
 	// update data with contributing route
@@ -119,3 +155,4 @@ func UpdateLabelsAndDataWithContributingRoutes(labels map[string]string, data ma
 
 	return labels, data
 }
+*/

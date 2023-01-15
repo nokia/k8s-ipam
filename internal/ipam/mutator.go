@@ -92,6 +92,13 @@ func (r *mutator) MutateAllocWithPrefix(ctx context.Context) []*ipamv1alpha1.IPA
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
+
+	if newalloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+		newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
+		newalloc.Spec.Labels[ipamv1alpha1.NephioParentPrefixLengthKey] = r.pi.GetPrefixLength().String()
+		newalloc.Spec.Labels[ipamv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+
+	}
 	// build the generic allocation
 	newallocs = append(newallocs, newalloc)
 
@@ -118,29 +125,29 @@ func (r *mutator) MutateAllocNetworkWithPrefix(ctx context.Context) []*ipamv1alp
 	// NO POOL allowed here	delete(alloc.Spec.Labels, ipamv1alpha1.NephioPoolKey)
 
 	if r.pi.IsNorLastNorFirst() {
-		// allocate the address
-		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the network
 		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
+		// allocate the address
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the first address)
 		newallocs = append(newallocs, r.mutateNetworkFirstAddressInNet(r.alloc))
 		// allocate the last address
 		newallocs = append(newallocs, r.mutateNetworkLastAddressInNet(r.alloc))
 	}
 	if r.pi.IsFirst() {
-		// allocate the address part, which is the first address in this scenario
-		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the network part
 		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
+		// allocate the address part, which is the first address in this scenario
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the last address
 		newallocs = append(newallocs, r.mutateNetworkLastAddressInNet(r.alloc))
 	}
 
 	if r.pi.IsLast() {
-		// allocate the address part, which is the last address in this scenario
-		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the network part
 		newallocs = append(newallocs, r.mutateNetworkNet(r.alloc))
+		// allocate the address part, which is the last address in this scenario
+		newallocs = append(newallocs, r.mutateNetworkIPAddress(r.alloc))
 		// allocate the last address
 		newallocs = append(newallocs, r.mutateNetworkFirstAddressInNet(r.alloc))
 	}
@@ -162,13 +169,13 @@ func (r *mutator) mutateNetworkNet(alloc *ipamv1alpha1.IPAllocation) *ipamv1alph
 	// copy allocation
 	newalloc := alloc.DeepCopy()
 	newalloc.Spec.Prefix = r.pi.GetIPSubnet().String()
-	newalloc.Name = r.pi.GetSubnetName()
+	//newalloc.Name = r.pi.GetSubnetName()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetPrefix
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
-	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetPrefix
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
 	return newalloc
 }
@@ -180,10 +187,10 @@ func (r *mutator) mutateNetworkFirstAddressInNet(alloc *ipamv1alpha1.IPAllocatio
 	newalloc.Name = r.pi.GetFirstIPAddress().String()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetFirstAddress
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
-	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetFirstAddress
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 	return newalloc
 }
@@ -195,10 +202,10 @@ func (r *mutator) mutateNetworkLastAddressInNet(alloc *ipamv1alpha1.IPAllocation
 	newalloc.Name = r.pi.GetLastIPAddress().String()
 	// NO GW allowed here
 	delete(newalloc.Spec.Labels, ipamv1alpha1.NephioGatewayKey)
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetLastAddress
-	newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
-	newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
-	newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNameKey] = r.pi.GetSubnetName() + "-" + ipamv1alpha1.SubnetLastAddress
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioNsnNamespaceKey] = alloc.Namespace
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioGvkKey] = ipamv1alpha1.OriginSystem
+	//newalloc.Spec.Labels[ipamv1alpha1.NephioIPContributingRouteKey] = r.alloc.GetGenericNamespacedName()
 	newalloc.Spec.Labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 
 	return newalloc

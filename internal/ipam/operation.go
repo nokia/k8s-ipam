@@ -17,17 +17,19 @@ type IPAMOperation interface {
 }
 
 type IPAMPrefixOperatorConfig struct {
-	alloc   *ipamv1alpha1.IPAllocation
-	rib     *table.RIB
-	fnc     *PrefixValidatorFunctionConfig
-	watcher Watcher
+	initializing bool
+	alloc        *ipamv1alpha1.IPAllocation
+	rib          *table.RIB
+	fnc          *PrefixValidatorFunctionConfig
+	watcher      Watcher
 }
 
 type IPAMAllocOperatorConfig struct {
-	alloc   *ipamv1alpha1.IPAllocation
-	rib     *table.RIB
-	fnc     *AllocValidatorFunctionConfig
-	watcher Watcher
+	initializing bool
+	alloc        *ipamv1alpha1.IPAllocation
+	rib          *table.RIB
+	fnc          *AllocValidatorFunctionConfig
+	watcher      Watcher
 }
 
 type IPAMOperationMapConfig struct {
@@ -70,36 +72,28 @@ func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
-				validateExistanceOfSpecialLabelsFn: validateExistanceOfSpecialLabels,
-				validateAddressPrefixFn:            validateAddressPrefix,        // no /32 or /128 allowed
-				validateIfAddressinSubnetFn:        validateIfAddressinSubnetNop, // not relevant
-				validateChildrenExistFn:            validateChildrenExist,
-				validateNoParentExistFn:            validateNoParentExist,
-				validateParentExistFn:              validateParentExist,
+				validateInputFn:         validateInput,
+				validateChildrenExistFn: validateChildrenExist,
+				validateNoParentExistFn: validateNoParentExist,
+				validateParentExistFn:   validateParentExist,
 			},
 			ipamv1alpha1.PrefixKindLoopback: {
-				validateExistanceOfSpecialLabelsFn: validateExistanceOfSpecialLabels,
-				validateAddressPrefixFn:            validateAddressPrefixNop, // not relevant
-				validateIfAddressinSubnetFn:        validateIfAddressinSubnet,
-				validateChildrenExistFn:            validateChildrenExist,
-				validateNoParentExistFn:            validateNoParentExist,
-				validateParentExistFn:              validateParentExist,
+				validateInputFn:         validateInput,
+				validateChildrenExistFn: validateChildrenExist,
+				validateNoParentExistFn: validateNoParentExist,
+				validateParentExistFn:   validateParentExist,
 			},
 			ipamv1alpha1.PrefixKindPool: {
-				validateExistanceOfSpecialLabelsFn: validateExistanceOfSpecialLabels,
-				validateAddressPrefixFn:            validateAddressPrefix,        // no /32 or /128 allowed
-				validateIfAddressinSubnetFn:        validateIfAddressinSubnetNop, // not relevant
-				validateChildrenExistFn:            validateChildrenExist,
-				validateNoParentExistFn:            validateNoParentExist,
-				validateParentExistFn:              validateParentExist,
+				validateInputFn:         validateInput,
+				validateChildrenExistFn: validateChildrenExist,
+				validateNoParentExistFn: validateNoParentExist,
+				validateParentExistFn:   validateParentExist,
 			},
 			ipamv1alpha1.PrefixKindAggregate: {
-				validateExistanceOfSpecialLabelsFn: validateExistanceOfSpecialLabels,
-				validateAddressPrefixFn:            validateAddressPrefix,     // no /32 or /128 allowed
-				validateIfAddressinSubnetFn:        validateIfAddressinSubnet, // not allowed
-				validateChildrenExistFn:            validateChildrenExist,
-				validateNoParentExistFn:            validateNoParentExist,
-				validateParentExistFn:              validateParentExist,
+				validateInputFn:         validateInput,
+				validateChildrenExistFn: validateChildrenExist,
+				validateNoParentExistFn: validateNoParentExist,
+				validateParentExistFn:   validateParentExist,
 			},
 		},
 	}
@@ -122,10 +116,11 @@ func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing
 	}
 
 	return NewPrefixOperator(&IPAMPrefixOperatorConfig{
-		alloc:   alloc,
-		rib:     rib,
-		watcher: r.watcher,
-		fnc:     r.oc[alloc.GetPrefixKind()],
+		initializing: initializing,
+		alloc:        alloc,
+		rib:          rib,
+		watcher:      r.watcher,
+		fnc:          r.oc[alloc.GetPrefixKind()],
 	})
 
 }
@@ -142,10 +137,10 @@ func newAllocOperation(c *IPAMOperationMapConfig) ipamOperation {
 				validateInputFn: validateInput,
 			},
 			ipamv1alpha1.PrefixKindPool: {
-				validateInputFn: validateInputNop,
+				validateInputFn: validateInput,
 			},
 			ipamv1alpha1.PrefixKindAggregate: {
-				validateInputFn: validateInputNop,
+				validateInputFn: validateInput,
 			},
 		},
 	}
@@ -168,10 +163,11 @@ func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing 
 	}
 
 	return NewAllocOperator(&IPAMAllocOperatorConfig{
-		alloc:   alloc,
-		rib:     rib,
-		watcher: r.watcher,
-		fnc:     r.oc[alloc.GetPrefixKind()],
+		initializing: initializing,
+		alloc:        alloc,
+		rib:          rib,
+		watcher:      r.watcher,
+		fnc:          r.oc[alloc.GetPrefixKind()],
 	})
 
 }

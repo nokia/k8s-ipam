@@ -18,9 +18,9 @@ package v1alpha1
 
 const (
 	// ipam system defined
-	NephioNetworkInstanceKey    = "nephio.org/network-instance"
+	//NephioNetworkInstanceKey    = "nephio.org/network-instance"
 	NephioPrefixKindKey         = "nephio.org/prefix-kind"
-	NephioPrefixKey             = "nephio.org/prefix"
+	//NephioPrefixKey             = "nephio.org/prefix"
 	NephioPrefixLengthKey       = "nephio.org/prefix-length"
 	NephioAddressFamilyKey      = "nephio.org/address-family"
 	NephioSubnetKey             = "nephio.org/subnet" // this is the subnet in prefix annotation
@@ -34,8 +34,8 @@ const (
 	NephioNsnNameKey            = "nephio.org/nsn-name"
 	NephioNsnNamespaceKey       = "nephio.org/nsn-namespace"
 	//NephioIPAllocactionNameKey  = "nephio.org/allocation-name"
-	NephioIPContributingRouteKey = "nephio.org/contributing-route"
-	NephioReplacementNameKey     = "nephio.org/replacement-name"
+	//NephioIPContributingRouteKey = "nephio.org/contributing-route"
+	//NephioReplacementNameKey     = "nephio.org/replacement-name"
 	//NephioSubnetNameKey         = "nephio.org/subnet-name" // this is the subnet string or name given in the spec/selector
 	//ipam user defined
 	NephioInterfaceKey         = "nephio.org/interface"
