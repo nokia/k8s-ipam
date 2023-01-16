@@ -39,7 +39,7 @@ func (r *allocvalidator) Validate(ctx context.Context) (string, error) {
 	r.l.Info("validate alloc without prefix")
 
 	// validate input
-	if msg := r.fnc.validateInputFn(r.alloc, nil);  msg != "" {
+	if msg := r.fnc.validateInputFn(r.alloc, nil); msg != "" {
 		return msg, nil
 	}
 

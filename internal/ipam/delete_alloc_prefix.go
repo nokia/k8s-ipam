@@ -36,13 +36,13 @@ func (r *applicator) Delete(ctx context.Context) error {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "kind", r.alloc.GetPrefixKind())
 	r.l.Info("delete")
 
-	nsnSelector, err := r.alloc.GetNsnSelector()
+	ownerSelector, err := r.alloc.GetOwnerSelector()
 	if err != nil {
 		return err
 	}
-	r.l.Info("deallocate individual prefix", "nsnSelector", nsnSelector)
+	r.l.Info("deallocate individual prefix", "nsnSelector", ownerSelector)
 
-	routes := r.rib.GetByLabel(nsnSelector)
+	routes := r.rib.GetByLabel(ownerSelector)
 	for _, route := range routes {
 		r.l = log.FromContext(ctx).WithValues("route prefix", route.Prefix())
 

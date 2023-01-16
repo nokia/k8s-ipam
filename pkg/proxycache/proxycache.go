@@ -196,6 +196,7 @@ func (r *proxycache) refreshAllocate(ctx context.Context, alloc *allocpb.Request
 	return r.allocate(ctx, alloc, true)
 }
 
+// refresh flag indicates if the allocation is initiated for a refresh
 func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.Request, refresh bool) (*allocpb.Response, error) {
 	allocClient, err := r.getClient()
 	if err != nil {

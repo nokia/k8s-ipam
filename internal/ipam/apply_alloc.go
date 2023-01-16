@@ -39,18 +39,12 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
-	nsnSelector, err := r.alloc.GetNsnSelector()
-	if err != nil {
-		return nil, err
+	route, ok, msg := getRoutesByOwner(r.rib, r.alloc)
+	if msg != "" {
+		return nil, fmt.Errorf(msg)
 	}
-	routes := r.rib.GetByLabel(nsnSelector)
-	if len(routes) != 0 {
-		if len(routes) > 1 {
-			return nil, fmt.Errorf("multiple prefixes match the nsn labelselector, %v", routes)
-		}
-
-		// there should only be 1 route with this name in the route table
-		route := routes[0]
+	if ok {
+		// route exists
 		route = route.UpdateLabel(r.alloc.GetFullLabels())
 		r.l.Info("dynamic allocation: route exist", "route", route)
 
@@ -87,7 +81,7 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 	if err != nil {
 		return nil, err
 	}
-	routes = r.rib.GetByLabel(labelSelector)
+	routes := r.rib.GetByLabel(labelSelector)
 	if len(routes) == 0 {
 		return nil, fmt.Errorf("no available routes based on the label selector: %v", labelSelector)
 	}
@@ -160,7 +154,7 @@ func (r *allocApplicator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation
 	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
 	labels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(p.Bits())
 	labels[ipamv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
-	route := table.NewRoute(p, labels, map[string]any{})
+	route = table.NewRoute(p, labels, map[string]any{})
 
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		prefix = netip.PrefixFrom(p.Addr(), pi.GetPrefixLength().Int()).String()
@@ -251,4 +245,24 @@ func (r *allocApplicator) GetSelectedRouteWithPrefixLength(routes table.Routes, 
 		}
 	}
 	return nil
+}
+
+func getRoutesByOwner(rib *table.RIB, alloc *ipamv1alpha1.IPAllocation) (table.Route, bool, string) {
+	// check if the prefix/alloc already exists in the routing table
+	// based on the name of the allocator
+	route := table.Route{}
+	ownerSelector, err := alloc.GetOwnerSelector()
+	if err != nil {
+		return route, false, err.Error()
+	}
+	routes := rib.GetByLabel(ownerSelector)
+	if len(routes) != 0 {
+		if len(routes) > 1 {
+			return route, false, fmt.Sprintf("multiple prefixes match the nsn labelselector, %v", routes)
+		}
+		// route found
+		return routes[0], true, ""
+	}
+	// no route found
+	return route, false, ""
 }

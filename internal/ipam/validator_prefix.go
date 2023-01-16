@@ -55,13 +55,13 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "name", r.alloc.GetName(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("validate")
 
-	// get dryrun rib
-	dryrunRib := r.rib.Clone()
-
 	// validate input
 	if msg := r.fnc.validateInputFn(r.alloc, r.pi); msg != "" {
 		return msg, nil
 	}
+
+	// get dryrun rib
+	dryrunRib := r.rib.Clone()
 
 	// check if the prefix exists
 	// for network based prefixes this is always the subnet (10.0.0.0/24) that is validated

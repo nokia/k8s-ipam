@@ -155,7 +155,7 @@ func (x *IPAllocation) GetSubnetLabelSelector() (labels.Selector, error) {
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.In, []string{v})
+		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +174,7 @@ func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 		if k == NephioSubnetKey ||
 			//k == ipamv1alpha1.NephioNetworkInstanceKey ||
 			k == NephioGatewayKey {
-			req, err := labels.NewRequirement(k, selection.In, []string{v})
+			req, err := labels.NewRequirement(k, selection.Equals, []string{v})
 			if err != nil {
 				return nil, err
 			}
@@ -199,7 +199,7 @@ func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.In, []string{v})
+		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
 		if err != nil {
 			return nil, err
 		}
@@ -208,24 +208,18 @@ func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 	return fullselector, nil
 }
 
-func (r *IPAllocation) GetNsnSelector() (labels.Selector, error) {
+func (r *IPAllocation) GetOwnerSelector() (labels.Selector, error) {
 	l := map[string]string{
-		NephioNsnNameKey: r.Spec.Labels[NephioNsnNameKey],
-		//NephioNsnNamespaceKey: r.Spec.Labels[NephioNsnNamespaceKey],
+		NephioNsnNameKey:           r.Spec.Labels[NephioNsnNameKey],
+		NephioNsnNamespaceKey:      r.Spec.Labels[NephioNsnNamespaceKey],
+		NephioOwnerGvkKey:          r.Spec.Labels[NephioOwnerGvkKey],
+		NephioOwnerNsnNameKey:      r.Spec.Labels[NephioOwnerNsnNameKey],
+		NephioOwnerNsnNamespaceKey: r.Spec.Labels[NephioOwnerNsnNamespaceKey],
 	}
-	/*
-		if r.Spec.Labels[NephioGvkKey] == OriginSystem {
-			l[NephioNsnKey] = r.Spec.Labels[NephioNsnKey]
-		} else {
-			l[NephioNsnKey] = strings.ReplaceAll(
-				types.NamespacedName{Name: r.GetName(), Namespace: r.GetNamespace()}.String(), "/", "-",
-			)
-		}
-	*/
 
 	fullselector := labels.NewSelector()
 	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.In, []string{v})
+		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
 		if err != nil {
 			return nil, err
 		}

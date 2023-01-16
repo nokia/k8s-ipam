@@ -65,11 +65,18 @@ func validateExactMatchPrefix(route table.Route, pi iputil.PrefixInfo) string {
 
 func validatePrefixOwner(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
 	if route.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNamespaceKey] ||
-		route.Labels()[ipamv1alpha1.NephioNsnNameKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNameKey] {
-		return fmt.Sprintf("prefix was already allocated by %s/%s",
-			alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNamespaceKey],
-			alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNameKey])
+		route.Labels()[ipamv1alpha1.NephioNsnNameKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNameKey] ||
+		route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey] ||
+		route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerNsnNameKey] ||
+		route.Labels()[ipamv1alpha1.NephioOwnerGvkKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerGvkKey] {
+		return fmt.Sprintf("prefix was already allocated by owner gvk %s, owner nsn %s/%s with nsn %s/%s",
+			route.Labels()[ipamv1alpha1.NephioOwnerGvkKey],
+			route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey],
+			route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey],
+			route.Labels()[ipamv1alpha1.NephioNsnNamespaceKey],
+			route.Labels()[ipamv1alpha1.NephioNsnNameKey])
 	}
+
 	return ""
 }
 
