@@ -7,69 +7,56 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewPrefixOperator(cfg any) (IPAMOperation, error) {
-	c, ok := cfg.(*IPAMPrefixOperatorConfig)
+func NewAllocOperator(cfg any) (Runtime, error) {
+	c, ok := cfg.(*AllocRuntimeConfig)
 	if !ok {
-		return nil, fmt.Errorf("invalid config expecting IPAMPrefixOperatorConfig")
+		return nil, fmt.Errorf("invalid config expecting IPAMAllocOperatorConfig")
 	}
-	pi, err := iputil.New(c.alloc.GetPrefix())
-	if err != nil {
-		return nil, err
-	}
-	return &prefixOperator{
+	fmt.Printf("NewAllocOperator: %v\n", *c.fnc)
+	return &allocRuntime{
 		initializing: c.initializing,
 		alloc:        c.alloc,
 		rib:          c.rib,
 		fnc:          c.fnc,
-		pi:           pi,
 		watcher:      c.watcher,
 	}, nil
 }
 
-type prefixOperator struct {
+type allocRuntime struct {
 	initializing bool
 	alloc        *ipamv1alpha1.IPAllocation
 	rib          *table.RIB
-	pi           iputil.PrefixInfo
-	fnc          *PrefixValidatorFunctionConfig
+	fnc          *AllocValidatorFunctionConfig
 	watcher      Watcher
 	l            logr.Logger
 }
 
-func (r *prefixOperator) Validate(ctx context.Context) (string, error) {
+func (r *allocRuntime) Validate(ctx context.Context) (string, error) {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("validate")
-	v := NewPrefixValidator(&PrefixValidatorConfig{
+	v := NewAllocValidator(&AllocValidatorConfig{
 		alloc: r.alloc,
 		rib:   r.rib,
-		pi:    r.pi,
 		fnc:   r.fnc,
 	})
 	return v.Validate(ctx)
 }
 
-func (r *prefixOperator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
+func (r *allocRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("apply")
 
 	allocs := r.getMutatedAllocs(ctx)
 	var updatedAlloc *ipamv1alpha1.IPAllocation
 	for _, alloc := range allocs {
-		r.l.Info("allocate individual prefix", "alloc", alloc)
-		pi, err := iputil.New(alloc.GetPrefix())
-		if err != nil {
-			return nil, err
-		}
-		a := NewPrefixApplicator(&ApplicatorConfig{
+		a := NewAllocApplicator(&ApplicatorConfig{
 			initializing: r.initializing,
-			alloc:        alloc,
-			rib:          r.rib,
-			pi:           pi,
-			watcher:      r.watcher,
+			alloc:   alloc,
+			rib:     r.rib,
+			watcher: r.watcher,
 		})
 		ap, err := a.Apply(ctx)
 		if err != nil {
@@ -84,7 +71,7 @@ func (r *prefixOperator) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation,
 	return updatedAlloc, nil
 
 }
-func (r *prefixOperator) Delete(ctx context.Context) error {
+func (r *allocRuntime) Delete(ctx context.Context) error {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("delete")
 
@@ -104,13 +91,9 @@ func (r *prefixOperator) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (r *prefixOperator) getMutatedAllocs(ctx context.Context) []*ipamv1alpha1.IPAllocation {
+func (r *allocRuntime) getMutatedAllocs(ctx context.Context) []*ipamv1alpha1.IPAllocation {
 	m := NewMutator(&MutatorConfig{
 		alloc: r.alloc,
-		pi:    r.pi,
 	})
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork && r.alloc.GetCreatePrefix() {
-		return m.MutateAllocNetworkWithPrefix(ctx)
-	}
-	return m.MutateAllocWithPrefix(ctx)
+	return m.MutateAllocWithoutPrefix(ctx)
 }

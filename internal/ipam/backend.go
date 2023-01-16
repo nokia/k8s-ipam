@@ -29,24 +29,24 @@ type Backend interface {
 }
 
 type BackendConfig struct {
-	client        client.Client
-	ipamRib       ipamRib
-	ipamOperation IPAMOperations
+	client   client.Client
+	ipamRib  ipamRib
+	runtimes Runtimes
 }
 
 func NewConfigMapBackend(c *BackendConfig) Backend {
 	return &cm{
-		c:             c.client,
-		ipamRib:       c.ipamRib,
-		ipamOperation: c.ipamOperation,
+		c:        c.client,
+		ipamRib:  c.ipamRib,
+		runtimes: c.runtimes,
 	}
 }
 
 type cm struct {
-	c             client.Client
-	ipamRib       ipamRib
-	ipamOperation IPAMOperations
-	l             logr.Logger
+	c        client.Client
+	ipamRib  ipamRib
+	runtimes Runtimes
+	l        logr.Logger
 	//m             sync.Mutex
 }
 
@@ -303,7 +303,7 @@ func (r *cm) restorIPAllocations(ctx context.Context, prefix string, labels labe
 }
 
 func (r *cm) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) {
-	op, err := r.getOperation(alloc)
+	op, err := r.runtimes.Get(alloc, true)
 	if err != nil {
 		// we log but we dont fail to initialize the ipam network instance
 		r.l.Error(err, "cannot restore operation map creation failed")
@@ -314,12 +314,14 @@ func (r *cm) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocati
 	}
 }
 
-func (r *cm) getOperation(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error) {
+/*
+func (r *cm) getRuntime(alloc *ipamv1alpha1.IPAllocation) (Runtime, error) {
 	if alloc.GetPrefix() == "" {
-		return r.ipamOperation.GetAllocOperation().Get(alloc, true)
+		return r.runtimes.GetAllocRuntime().Get(alloc, true)
 	}
-	return r.ipamOperation.GetPrefixOperation().Get(alloc, true)
+	return r.runtimes.GetPrefixRuntime().Get(alloc, true)
 }
+*/
 
 func buildConfigMap(namespace, name string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{

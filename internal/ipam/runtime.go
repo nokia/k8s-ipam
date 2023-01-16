@@ -8,15 +8,57 @@ import (
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 )
 
-//type ipamOperationFn func(c any) (IPAMOperation, error)
+type Runtimes interface {
+	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
+	//GetPrefixRuntime() runtime
+	//GetAllocRuntime() runtime
+}
 
-type IPAMOperation interface {
+type RuntimeConfig struct {
+	ipamRib ipamRib
+	watcher Watcher
+}
+
+func NewRuntimes(c *RuntimeConfig) Runtimes {
+	return &runtimes{
+		prefixRuntime: newPrefixRuntime(c),
+		allocRuntime:  newAllocRuntime(c),
+	}
+}
+
+type runtimes struct {
+	prefixRuntime runtime
+	allocRuntime  runtime
+}
+
+func (r *runtimes) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
+	if alloc.GetPrefix() == "" {
+		return r.allocRuntime.Get(alloc, initializing)
+	}
+	return r.prefixRuntime.Get(alloc, initializing)
+}
+
+/*
+func (r *runtimes) GetPrefixRuntime() runtime {
+	return r.prefixRuntime
+}
+
+func (r *runtimes) GetAllocRuntime() runtime {
+	return r.allocRuntime
+)
+*/
+
+type runtime interface {
+	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
+}
+
+type Runtime interface {
 	Validate(ctx context.Context) (string, error)
 	Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
 	Delete(ctx context.Context) error
 }
 
-type IPAMPrefixOperatorConfig struct {
+type PrefixRuntimeConfig struct {
 	initializing bool
 	alloc        *ipamv1alpha1.IPAllocation
 	rib          *table.RIB
@@ -24,7 +66,7 @@ type IPAMPrefixOperatorConfig struct {
 	watcher      Watcher
 }
 
-type IPAMAllocOperatorConfig struct {
+type AllocRuntimeConfig struct {
 	initializing bool
 	alloc        *ipamv1alpha1.IPAllocation
 	rib          *table.RIB
@@ -32,42 +74,9 @@ type IPAMAllocOperatorConfig struct {
 	watcher      Watcher
 }
 
-type IPAMOperationMapConfig struct {
-	ipamRib ipamRib
-	watcher Watcher
-}
 
-type IPAMOperations interface {
-	GetPrefixOperation() ipamOperation
-	GetAllocOperation() ipamOperation
-}
-
-func NewIPamOperation(c *IPAMOperationMapConfig) IPAMOperations {
-	return &ipamOperations{
-		prefixOperation: newPrefixOperation(c),
-		allocOperation:  newAllocOperation(c),
-	}
-}
-
-type ipamOperations struct {
-	prefixOperation ipamOperation
-	allocOperation  ipamOperation
-}
-
-func (r *ipamOperations) GetPrefixOperation() ipamOperation {
-	return r.prefixOperation
-}
-
-func (r *ipamOperations) GetAllocOperation() ipamOperation {
-	return r.allocOperation
-}
-
-type ipamOperation interface {
-	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error)
-}
-
-func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
-	return &ipamPrefixOperation{
+func newPrefixRuntime(c *RuntimeConfig) Runtimes {
+	return &ipamPrefixRuntime{
 		ipamRib: c.ipamRib,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
@@ -99,23 +108,24 @@ func newPrefixOperation(c *IPAMOperationMapConfig) ipamOperation {
 	}
 }
 
-type ipamPrefixOperation struct {
+type ipamPrefixRuntime struct {
 	ipamRib ipamRib
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
 }
 
-func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error) {
+func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	// get rib, returns an error if not yet initialized based on the init flag
+	// the initializing flag allows to get the rib even when initializing
+	// if not set and the rib is initializing an error will be returned
 	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewPrefixOperator(&IPAMPrefixOperatorConfig{
+	return NewPrefixRuntime(&PrefixRuntimeConfig{
 		initializing: initializing,
 		alloc:        alloc,
 		rib:          rib,
@@ -125,8 +135,8 @@ func (r *ipamPrefixOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing
 
 }
 
-func newAllocOperation(c *IPAMOperationMapConfig) ipamOperation {
-	return &ipamAllocOperation{
+func newAllocRuntime(c *RuntimeConfig) Runtimes {
+	return &ipamAllocRuntime{
 		ipamRib: c.ipamRib,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
@@ -146,14 +156,14 @@ func newAllocOperation(c *IPAMOperationMapConfig) ipamOperation {
 	}
 }
 
-type ipamAllocOperation struct {
+type ipamAllocRuntime struct {
 	ipamRib ipamRib
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
 }
 
-func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (IPAMOperation, error) {
+func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
@@ -162,7 +172,7 @@ func (r *ipamAllocOperation) Get(alloc *ipamv1alpha1.IPAllocation, initializing 
 		return nil, err
 	}
 
-	return NewAllocOperator(&IPAMAllocOperatorConfig{
+	return NewAllocOperator(&AllocRuntimeConfig{
 		initializing: initializing,
 		alloc:        alloc,
 		rib:          rib,

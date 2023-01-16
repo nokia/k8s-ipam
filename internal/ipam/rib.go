@@ -32,7 +32,7 @@ func (r *ribContext) IsInitialized() bool {
 
 type ipamRib interface {
 	isInitialized(niName string) bool
-	initialized(niName string) error
+	setInitialized(niName string) error
 	getRIB(niName string, initializing bool) (*table.RIB, error)
 	create(niName string)
 	delete(niName string)
@@ -78,7 +78,7 @@ func (r *ipamrib) isInitialized(niName string) bool {
 }
 
 // initialized sets the status in the ribCtxt to initialized
-func (r *ipamrib) initialized(niName string) error {
+func (r *ipamrib) setInitialized(niName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ribCtx, ok := r.r[niName]

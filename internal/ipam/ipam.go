@@ -47,21 +47,21 @@ type Ipam interface {
 func New(c client.Client, opts ...Option) Ipam {
 	ipamRib := newIpamRib()
 	watcher := newWatcher()
-	ipamOperation := NewIPamOperation(&IPAMOperationMapConfig{
+	runtimes := NewRuntimes(&RuntimeConfig{
 		ipamRib: ipamRib,
 		watcher: watcher,
 	})
 	backend := NewConfigMapBackend(&BackendConfig{
 		client:        c,
 		ipamRib:       ipamRib,
-		ipamOperation: ipamOperation,
+		runtimes: runtimes,
 	})
 	i := &ipam{
-		ipamRib:       ipamRib,
-		ipamOperation: ipamOperation,
-		backend:       backend,
-		c:             c,
-		watcher:       watcher,
+		ipamRib: ipamRib,
+		runtimes: runtimes,
+		backend: backend,
+		c:       c,
+		watcher: watcher,
 	}
 
 	for _, opt := range opts {
@@ -72,11 +72,11 @@ func New(c client.Client, opts ...Option) Ipam {
 }
 
 type ipam struct {
-	c             client.Client
-	watcher       Watcher
-	ipamRib       ipamRib
-	ipamOperation IPAMOperations
-	backend       Backend
+	c       client.Client
+	watcher Watcher
+	ipamRib ipamRib
+	runtimes Runtimes
+	backend Backend
 
 	l logr.Logger
 }
@@ -90,50 +90,50 @@ func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
 
 // Initialize and create the ipam instance with the allocated prefixes
 func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
-	r.l = log.FromContext(context.Background())
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
 
-	r.l.Info("ipam create instance", "name", cr.GetName(), "isInitialized", r.ipamRib.isInitialized(cr.GetName()))
-
+	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(cr.GetName()))
 	// if the IPAM is not initialaized initialaize it
 	// this happens upon initialization or ipam restart
-
 	r.ipamRib.create(cr.GetName())
 	if !r.ipamRib.isInitialized(cr.GetName()) {
 		if err := r.backend.Restore(ctx, cr); err != nil {
-			r.l.Error(err, "restore error")
+			r.l.Error(err, "backend restore error")
 		}
 
-		r.l.Info("ipam create instance done")
-		return r.ipamRib.initialized(cr.GetName())
+		r.l.Info("ipam create instance finished")
+		return r.ipamRib.setInitialized(cr.GetName())
 	}
-	r.l.Info("ipam create instance -> already initialized")
+	r.l.Info("ipam create instance already initialized")
 	return nil
 }
 
 // Delete the ipam instance
 func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
-	r.l = log.FromContext(context.Background())
-	r.l.Info("ipam delete instance", "name", cr.GetName())
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	r.l.Info("ipam delete instance start")
 	r.ipamRib.delete(cr.GetName())
 
 	// delete the configmap
-	r.backend.Delete(ctx, cr)
+	if err := r.backend.Delete(ctx, cr); err != nil {
+		r.l.Error(err, "backend delete error")
+	}
 
-	r.l.Info("ipam delete instance cm", "name", cr.GetName())
+	r.l.Info("ipam delete instance finished")
 
 }
 
 // AllocateIPPrefix allocates the prefix
 func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx)
-	r.l.Info("allocate prefix ", "alloc", alloc)
+	r.l = log.FromContext(ctx).WithValues("name", alloc.GetName())
+	r.l.Info("allocate prefix", "prefix", alloc.GetPrefix())
 
-	// get the ipam operation based the following parameters
+	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.getOperation(alloc)
+	op, err := r.runtimes.Get(alloc, false)
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +158,12 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
 	r.l = log.FromContext(ctx)
 
-	// get the ipam operation based the following parameters
+	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.getOperation(alloc)
+	op, err := r.runtimes.Get(alloc, false)
 	if err != nil {
 		r.l.Error(err, "cannot get ipam operation map")
 		return err
@@ -176,9 +176,11 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 	return r.backend.Store(ctx, alloc)
 }
 
-func (r *ipam) getOperation(alloc *ipamv1alpha1.IPAllocation) (IPAMOperation, error) {
+/*
+func (r *ipam) getRuntime(alloc *ipamv1alpha1.IPAllocation) (Runtime, error) {
 	if alloc.GetPrefix() == "" {
-		return r.ipamOperation.GetAllocOperation().Get(alloc, false)
+		return r.runtimes.GetAllocRuntime().Get(alloc, false)
 	}
-	return r.ipamOperation.GetPrefixOperation().Get(alloc, false)
+	return r.runtimes.GetPrefixRuntime().Get(alloc, false)
 }
+*/
