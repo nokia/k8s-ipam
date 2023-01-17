@@ -10,14 +10,24 @@ import (
 
 func validateInput(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string {
 	if pi == nil {
+		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate {
+			return fmt.Sprintf("a dynamic prefix allocation is not supported for: %s", alloc.GetPrefixKind())
+		}
 		// this is an allocation w/o a prefix
 		if alloc.GetCreatePrefix() {
 			// this is request for a dynamic prefix allocation
 			// based on prefixlength set by the user, the prefix length has to be specified
-			if alloc.GetPrefixLengthFromSpec() != 0 {
-				return ""
+			if alloc.GetPrefixLengthFromSpec() == 0 {
+				return "a dynamic prefix allocation w/o a prefix length need a prefix length to be set"
 			}
-			return "a dynamic prefix allocation w/o a prefix length is not valid"
+			return ""
+		}
+		if alloc.GetPrefixLengthFromSpec() != 0 {
+			return fmt.Sprintf("a dynamic prefix allocation with prefixlength <> 0 need to set create prefix, got: %d", alloc.GetPrefixLengthFromSpec())
+		}
+		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate ||
+			alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
+			return fmt.Sprintf("a dynamic allocation of kind %s is not supported unless prefixlength and create prefix is set", alloc.GetPrefixKind())
 		}
 		return ""
 	}
@@ -26,10 +36,11 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) strin
 	if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate ||
 		alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		if pi.IsAddressPrefix() {
-			return fmt.Sprintf("no /32 or /128 notation is allowed for prefixkind: %s", alloc.GetPrefixKind())
+			return fmt.Sprintf("a prefix allocation for kind %s is not allowed with /32 or /128 notation", alloc.GetPrefixKind())
 		}
 	}
 
+	// validation check net <> address
 	if alloc.GetPrefixKind() != ipamv1alpha1.PrefixKindNetwork {
 		if pi.GetIPSubnet().String() != pi.GetIPPrefix().String() {
 			return fmt.Sprintf("net <> address is not allowed for prefixkind: %s", alloc.GetPrefixKind())
@@ -38,6 +49,7 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) strin
 
 	if alloc.GetCreatePrefix() {
 		if pi.IsAddressPrefix() {
+			// a create prefix should have an address different from /32 or /128
 			return fmt.Sprintf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
 		}
 		return ""

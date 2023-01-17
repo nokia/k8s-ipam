@@ -145,6 +145,10 @@ func (r *IPAllocation) IsCreatePrefixAllcation() (bool, error) {
 	return false, nil
 }
 
+func (r *IPAllocation) GetAllocatedPrefix() string {
+	return r.Status.AllocatedPrefix
+}
+
 func (x *IPAllocation) GetSubnetLabelSelector() (labels.Selector, error) {
 	pi, err := iputil.New(x.GetPrefix())
 	if err != nil {
@@ -194,9 +198,9 @@ func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
 	l := r.GetSelectorLabels()
 	// For prefixkind network we want to allocate only prefixes within a network
-	if r.GetPrefixKind() == PrefixKindNetwork {
-		l[NephioPrefixKindKey] = string(PrefixKindNetwork)
-	}
+	//if r.GetPrefixKind() == PrefixKindNetwork {
+	//	l[NephioPrefixKindKey] = string(PrefixKindNetwork)
+	//}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
 		req, err := labels.NewRequirement(k, selection.Equals, []string{v})

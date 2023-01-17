@@ -10,8 +10,6 @@ import (
 
 type Runtimes interface {
 	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
-	//GetPrefixRuntime() runtime
-	//GetAllocRuntime() runtime
 }
 
 type RuntimeConfig struct {
@@ -37,16 +35,6 @@ func (r *runtimes) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Run
 	}
 	return r.prefixRuntime.Get(alloc, initializing)
 }
-
-/*
-func (r *runtimes) GetPrefixRuntime() runtime {
-	return r.prefixRuntime
-}
-
-func (r *runtimes) GetAllocRuntime() runtime {
-	return r.allocRuntime
-)
-*/
 
 type runtime interface {
 	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
