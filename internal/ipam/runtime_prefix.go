@@ -2,7 +2,6 @@ package ipam
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
@@ -11,22 +10,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewPrefixRuntime(cfg any) (Runtime, error) {
-	c, ok := cfg.(*PrefixRuntimeConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config expecting IPAMPrefixOperatorConfig")
-	}
-	pi, err := iputil.New(c.alloc.GetPrefix())
+func NewPrefixRuntime(cfg *PrefixRuntimeConfig) (Runtime, error) {
+	pi, err := iputil.New(cfg.alloc.GetPrefix())
 	if err != nil {
 		return nil, err
 	}
 	return &prefixRuntime{
-		initializing: c.initializing,
-		alloc:        c.alloc,
-		rib:          c.rib,
-		fnc:          c.fnc,
+		initializing: cfg.initializing,
+		alloc:        cfg.alloc,
+		rib:          cfg.rib,
+		fnc:          cfg.fnc,
 		pi:           pi,
-		watcher:      c.watcher,
+		watcher:      cfg.watcher,
 	}, nil
 }
 

@@ -105,7 +105,7 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 	cm := buildConfigMap(cr.GetNamespace(), cr.GetName())
 	if err := r.c.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrap(r.c.Create(ctx, cm), "canno create configmap")
+			return errors.Wrap(r.c.Create(ctx, cm), "cannot create configmap")
 		}
 	}
 	//allocations := map[string]map[string]string{}

@@ -33,7 +33,7 @@ func (r *ribContext) IsInitialized() bool {
 type ipamRib interface {
 	isInitialized(niName string) bool
 	setInitialized(niName string) error
-	getRIB(niName string, initializing bool) (*table.RIB, error)
+	getRIB(niName string, Initializing bool) (*table.RIB, error)
 	create(niName string)
 	delete(niName string)
 }
