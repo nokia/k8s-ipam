@@ -182,8 +182,7 @@ func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, 
 }
 
 func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime string) (*allocpb.Request, error) {
-	
-	
+
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 	// if the ownerGvk is in the labels we use this as ownerGVK
 	ownerGVKValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerGvkKey]
@@ -208,7 +207,7 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 	//spec := cr.Spec
 	//spec.Labels = ipamv1alpha1.AddSpecLabelsWithTypeMeta(ownerGvk, ownerNsn, nsn, cr.Spec.Labels)
 
-	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), newCr.Spec, ipamv1alpha1.IPAllocationStatus{AllocatedPrefix: cr.Status.AllocatedPrefix})
+	ipalloc := ipamv1alpha1.BuildIPAllocation(cr.GetNamespace(), cr.GetLabels(), cr.GetName(), newCr.Spec, ipamv1alpha1.IPAllocationStatus{AllocatedPrefix: cr.Status.AllocatedPrefix})
 	b, err := json.Marshal(ipalloc)
 	if err != nil {
 		return nil, err

@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition of this resource
@@ -344,7 +343,7 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			cr.Spec.Labels), // added the owner label in it
 	}
-	return BuildIPAllocation(cr, cr.GetName(), spec, IPAllocationStatus{})
+	return BuildIPAllocation(cr.GetNamespace(), cr.GetLabels(), cr.GetName(), spec, IPAllocationStatus{})
 }
 
 func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Prefix) *IPAllocation {
@@ -368,7 +367,7 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
-	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec, IPAllocationStatus{})
+	return BuildIPAllocation(cr.GetNamespace(), cr.GetLabels(), cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec, IPAllocationStatus{})
 }
 
 func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
@@ -386,16 +385,16 @@ func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn 
 	return labels
 }
 
-func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
+func BuildIPAllocation(namespace string, labels map[string]string, crName string, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
 	return &IPAllocation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: IPAllocationKindAPIVersion,
 			Kind:       IPAllocationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: o.GetNamespace(),
+			Namespace: namespace,
 			Name:      crName,
-			Labels:    o.GetLabels(),
+			Labels:    labels,
 		},
 		Spec:   spec,
 		Status: status,

@@ -37,7 +37,6 @@ func TestRibIsInitilaizedNonExisting(t *testing.T) {
 	if b {
 		t.Errorf("NetworkInstance %q appears initialized although not explicitly initilaized", myNetworInstance)
 	}
-
 }
 
 func TestRibSetInitilaizedNonExisting(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 
 func Test_watcher_handleUpdate(t *testing.T) {
 	w := newWatcher()
-	gvkKey := "foo"
+	gvkKey := "key1"
 	ownerGvk := "bar"
 	isCalled := false
 	route1 := table.NewRoute(
@@ -21,17 +21,23 @@ func Test_watcher_handleUpdate(t *testing.T) {
 	)
 	route2 := table.NewRoute(
 		netip.MustParsePrefix("1.2.3.1/24"),
-		map[string]string{"key1": "prefix"},
+		map[string]string{"key1": "bar"},
+		map[string]any{"bla": "other"},
+	)
+	route3 := table.NewRoute(
+		netip.MustParsePrefix("1.2.3.1/24"),
+		map[string]string{"key1": "otherval"},
 		map[string]any{"bla": "other"},
 	)
 	routes := table.Routes{
 		route1,
 		route2,
+		route3,
 	}
 	allocStatus := allocpb.StatusCode_Valid
 	fn := func(fnRoutes table.Routes, sc allocpb.StatusCode) {
 		isCalled = true
-		if fnRoutes.Len() != len(routes) {
+		if fnRoutes.Len() != 2 {
 			t.Errorf("expected %d routes, got %d", len(routes), fnRoutes.Len())
 		}
 		if sc != allocStatus {
