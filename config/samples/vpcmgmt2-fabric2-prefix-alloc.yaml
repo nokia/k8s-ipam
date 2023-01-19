@@ -6,7 +6,7 @@ spec:
   kind: loopback
   networkInstance: vpc-mgmt2
   prefixLength: 24
-  addressFamily: ipv4
+  createPrefix: true
   labels:
     nephio.org/purpose: mgmt
     nephio.org/fabric: fabric2

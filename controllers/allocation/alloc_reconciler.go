@@ -210,6 +210,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		r.l.Info("cannot allocate prefix", "err", err)
 
 		// TODO -> Depending on the error we should clear the prefix
+		// e.g. when the ni instance is not yet available we should not clear the error
 		cr.Status.Gateway = ""
 		cr.Status.AllocatedPrefix = ""
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))

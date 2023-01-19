@@ -24,7 +24,7 @@ const (
 	NephioPrefixLengthKey       = "nephio.org/prefix-length"
 	NephioAddressFamilyKey      = "nephio.org/address-family"
 	NephioSubnetKey             = "nephio.org/subnet" // this is the subnet in prefix annotation
-	NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
+	//NephioParentPrefixLengthKey = "nephio.org/parent-prefix-length"
 	NephioPoolKey               = "nephio.org/pool"
 	NephioGatewayKey            = "nephio.org/gateway"
 	NephioOwnerGvkKey           = "nephio.org/owner-gvk"

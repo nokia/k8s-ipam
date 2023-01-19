@@ -5,6 +5,7 @@ metadata:
 spec:
   kind: loopback
   networkInstance: vpc-mgmt
+  prefix: 10.0.0.100/32
   selector:
     matchLabels:
       nephio.org/region: us-central1

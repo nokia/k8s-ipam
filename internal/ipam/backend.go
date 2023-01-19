@@ -3,10 +3,11 @@ package ipam
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"reflect"
-	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
@@ -71,7 +72,7 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 
 	data := map[string]labels.Set{}
 	for _, route := range rib.GetTable() {
-		data[route.String()] = route.Labels()
+		data[route.Prefix().String()] = route.Labels()
 
 	}
 	b, err := yaml.Marshal(data)
@@ -118,18 +119,22 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 	// INFO: dynamic allocations which dont come through the k8s api
 	// are resstored from the proxy cache, we assume the grpc client takes care of that
 
+	rib, err := r.ipamRib.getRIB(cr.GetName(), true)
+	if err != nil {
+		return err
+	}
 	// we restore in order right now
 	// 1st network instance
 	// 2nd prefixes
 	// 3rd allocations
-	r.restorePrefixes(ctx, allocations, cr)
+	r.restorePrefixes(ctx, rib, allocations, cr)
 
 	// get the prefixes from the k8s api system
 	ipPrefixList := &ipamv1alpha1.IPPrefixList{}
 	if err := r.c.List(context.Background(), ipPrefixList); err != nil {
 		return errors.Wrap(err, "cannot get ip prefix list")
 	}
-	r.restorePrefixes(ctx, allocations, ipPrefixList)
+	r.restorePrefixes(ctx, rib, allocations, ipPrefixList)
 
 	// list all allocation to restore them in the ipam upon restart
 	// this is the list of allocations that uses the k8s API
@@ -137,14 +142,14 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 	if err := r.c.List(context.Background(), ipAllocationList); err != nil {
 		return errors.Wrap(err, "cannot get ip allocation list")
 	}
-	r.restorePrefixes(ctx, allocations, ipAllocationList)
+	r.restorePrefixes(ctx, rib, allocations, ipAllocationList)
 
 	return nil
 }
 
-func (r *cm) restorePrefixes(ctx context.Context, allocations map[string]labels.Set, input any) {
+func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations map[string]labels.Set, input any) {
 	var ownerGVK string
-	var restoreFunc func(ctx context.Context, prefix string, labels labels.Set, specData any)
+	var restoreFunc func(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, specData any)
 	switch input.(type) {
 	case *ipamv1alpha1.NetworkInstance:
 		ownerGVK = ipamv1alpha1.NetworkInstanceKindGVKString
@@ -165,13 +170,13 @@ func (r *cm) restorePrefixes(ctx context.Context, allocations map[string]labels.
 		// handle the allocation owned by the network instance
 		if labels[ipamv1alpha1.NephioOwnerGvkKey] == ownerGVK {
 			// WORKAROUND since Yaml marshal stores the full object as a string
-			split := strings.Split(prefix, " ")
-			restoreFunc(ctx, split[0], labels, input)
+			//split := strings.Split(prefix, " ")
+			restoreFunc(ctx, rib, prefix, labels, input)
 		}
 	}
 }
 
-func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, prefix string, labels labels.Set, input any) {
+func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "niPrefixes", "prefix", prefix)
 	cr, ok := input.(*ipamv1alpha1.NetworkInstance)
 	if !ok {
@@ -192,14 +197,15 @@ func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, prefix string, 
 					"spec prefix", ipPrefix.Prefix)
 			}
 
-			alloc := ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipPrefix)
+			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
+			//alloc := ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipPrefix)
 
-			r.applyAllocation(ctx, alloc)
+			//r.applyAllocation(ctx, alloc)
 		}
 	}
 }
 
-func (r *cm) restoreIPPrefixes(ctx context.Context, prefix string, labels labels.Set, input any) {
+func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipprefixes", "prefix", prefix)
 	ipPrefixList, ok := input.(*ipamv1alpha1.IPPrefixList)
 	if !ok {
@@ -237,15 +243,17 @@ func (r *cm) restoreIPPrefixes(ctx context.Context, prefix string, labels labels
 				}
 			}
 
-			alloc := ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipPrefix)
+			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
+
+			//alloc := ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipPrefix)
 
 			// apply the allocation to the ipam rib
-			r.applyAllocation(ctx, alloc)
+			//r.applyAllocation(ctx, alloc)
 		}
 	}
 }
 
-func (r *cm) restorIPAllocations(ctx context.Context, prefix string, labels labels.Set, input any) {
+func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipAllocations", "prefix", prefix)
 	ipAllocationList, ok := input.(*ipamv1alpha1.IPAllocationList)
 	if !ok {
@@ -263,14 +271,14 @@ func (r *cm) restorIPAllocations(ctx context.Context, prefix string, labels labe
 			if alloc.Spec.Prefix == "" {
 				allocPrefix = alloc.Status.AllocatedPrefix
 			}
+			
 			// prefixes of prefixkind network need to be expanded in the subnet
 			// we compare against the expanded list
-
 			if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-
+				// TODO this can error if the prefix got released since ipam was not available -> to be added to the allocation controller
 				pi, err := iputil.New(allocPrefix)
 				if err != nil {
-					r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing")
+					r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing, unless the prefix got released")
 					break
 				}
 				if !pi.IsPrefixPresentInSubnetMap(prefix) {
@@ -291,17 +299,19 @@ func (r *cm) restorIPAllocations(ctx context.Context, prefix string, labels labe
 				}
 			}
 
+			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
 			// set the allocated status in as a prefix in the spec
-			newAlloc := ipamv1alpha1.BuildIPAllocationFromIPAllocation(&alloc)
-			newAlloc.Spec.Prefix = alloc.Status.AllocatedPrefix
+			//newAlloc := ipamv1alpha1.BuildIPAllocationFromIPAllocation(&alloc)
+			//newAlloc.Spec.Prefix = alloc.Status.AllocatedPrefix
 
 			// apply the allocation to the ipam rib
-			r.applyAllocation(ctx, newAlloc)
+			//r.applyAllocation(ctx, newAlloc)
 
 		}
 	}
 }
 
+/*
 func (r *cm) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) {
 	op, err := r.runtimes.Get(alloc, true)
 	if err != nil {
@@ -313,7 +323,7 @@ func (r *cm) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocati
 		r.l.Error(err, "cannot apply prefix")
 	}
 }
-
+*/
 /*
 func (r *cm) getRuntime(alloc *ipamv1alpha1.IPAllocation) (Runtime, error) {
 	if alloc.GetPrefix() == "" {

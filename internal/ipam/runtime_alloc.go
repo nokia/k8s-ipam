@@ -47,53 +47,54 @@ func (r *allocRuntime) Validate(ctx context.Context) (string, error) {
 
 func (r *allocRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
-	r.l.Info("apply")
+	r.l.Info("apply dynamic allocation")
 
-	allocs := r.getMutatedAllocs(ctx)
-	var updatedAlloc *ipamv1alpha1.IPAllocation
-	for _, alloc := range allocs {
-		a := NewAllocApplicator(&ApplicatorConfig{
-			initializing: r.initializing,
-			alloc:   alloc,
-			rib:     r.rib,
-			watcher: r.watcher,
-		})
-		ap, err := a.Apply(ctx)
-		if err != nil {
-			return nil, err
-		}
-		r.l.Info("allocate prefix", "name", alloc.GetName(), "prefix", alloc.GetPrefix())
-		if r.alloc.GetName() == alloc.GetName() {
-			updatedAlloc = ap
-		}
+	//allocs := r.getMutatedAllocs(ctx)
+	//var updatedAlloc *ipamv1alpha1.IPAllocation
+	//for _, alloc := range allocs {
+	a := NewApplicator(&ApplicatorConfig{
+		initializing: r.initializing,
+		alloc:        r.alloc,
+		rib:          r.rib,
+		watcher:      r.watcher,
+	})
+	if err := a.ApplyAlloc(ctx); err != nil {
+		return nil, err
 	}
-	r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
-	return updatedAlloc, nil
+	//r.l.Info("allocate prefix", "name", alloc.GetName(), "prefix", alloc.GetPrefix())
+	//if r.alloc.GetName() == alloc.GetName() {
+	//	updatedAlloc = ap
+	//}
+	//}
+	r.l.Info("allocate dynamic allocation done done", "status", r.alloc.Status)
+	return r.alloc, nil
 
 }
 func (r *allocRuntime) Delete(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
 	r.l.Info("delete")
 
-	allocs := r.getMutatedAllocs(ctx)
-	for _, alloc := range allocs {
-		r.l.Info("deallocate individual prefix", "alloc", alloc)
-		d := NewDeleteApplicator(&ApplicatorConfig{
-			initializing: r.initializing,
-			alloc:        alloc,
-			rib:          r.rib,
-			watcher:      r.watcher,
-		})
-		if err := d.Delete(ctx); err != nil {
-			return err
-		}
+	//allocs := r.getMutatedAllocs(ctx)
+	//for _, alloc := range allocs {
+	r.l.Info("deallocate dynamic allocation", "alloc", r.alloc)
+	d := NewApplicator(&ApplicatorConfig{
+		initializing: r.initializing,
+		alloc:        r.alloc,
+		rib:          r.rib,
+		watcher:      r.watcher,
+	})
+	if err := d.Delete(ctx); err != nil {
+		return err
 	}
+	//}
 	return nil
 }
 
+/*
 func (r *allocRuntime) getMutatedAllocs(ctx context.Context) []*ipamv1alpha1.IPAllocation {
 	m := NewMutator(&MutatorConfig{
 		alloc: r.alloc,
 	})
 	return m.MutateAllocWithoutPrefix(ctx)
 }
+*/

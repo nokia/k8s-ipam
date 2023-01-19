@@ -1,0 +1,14 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: us-central1.edge3.net1.dynprefix1
+spec:
+  kind: network
+  networkInstance: vpc2
+  prefixLength: 24
+  createPrefix: true
+  labels:
+    nephio.org/gateway: "true"
+    nephio.org/region: us-central1
+    nephio.org/site: edge3
+    nephio.org/network-name: net1

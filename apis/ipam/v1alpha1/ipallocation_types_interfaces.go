@@ -18,8 +18,6 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	//"github.com/hansthienpondt/goipam/pkg/table"
 	"github.com/hansthienpondt/nipam/pkg/table"
@@ -60,6 +58,7 @@ func (r *IPAllocation) GetCreatePrefix() bool {
 	return r.Spec.CreatePrefix
 }
 
+/*
 func (r *IPAllocation) GetAddressFamily() iputil.AddressFamily {
 	switch r.Spec.AddressFamily {
 	case "ipv4":
@@ -70,6 +69,7 @@ func (r *IPAllocation) GetAddressFamily() iputil.AddressFamily {
 		return iputil.AddressFamilyUnknown
 	}
 }
+*/
 
 func (x *IPAllocation) GetPrefixLengthFromSpec() iputil.PrefixLength {
 	return iputil.PrefixLength(x.Spec.PrefixLength)
@@ -243,6 +243,7 @@ func (r *IPAllocation) GetFullLabels() map[string]string {
 	return l
 }
 
+/*
 func (r *IPAllocation) GetPrefixFromNewAlloc() string {
 	p := r.GetPrefix()
 	parentPrefixLength, ok := r.GetSpecLabels()[NephioParentPrefixLengthKey]
@@ -252,6 +253,7 @@ func (r *IPAllocation) GetPrefixFromNewAlloc() string {
 	}
 	return p
 }
+*/
 
 func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
 	if alloc.Spec.PrefixLength != 0 {
@@ -263,6 +265,7 @@ func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
 	return 128
 }
 
+/*
 func GetPrefixFromAlloc(p string, alloc *IPAllocation) string {
 	parentPrefixLength, ok := alloc.GetSpecLabels()[NephioParentPrefixLengthKey]
 	if ok {
@@ -275,7 +278,9 @@ func GetPrefixFromAlloc(p string, alloc *IPAllocation) string {
 	}
 	return p
 }
+*/
 
+/*
 func GetPrefixFromRoute(route table.Route) string {
 	parentPrefixLength := route.Labels().Get(NephioParentPrefixLengthKey)
 	p := route.Prefix().String()
@@ -289,6 +294,7 @@ func GetPrefixFromRoute(route table.Route) string {
 	}
 	return p
 }
+*/
 
 func BuildIPAllocationFromIPAllocation(cr *IPAllocation) *IPAllocation {
 	newcr := cr.DeepCopy()
@@ -328,10 +334,10 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 	spec := IPAllocationSpec{
 		PrefixKind:      cr.Spec.PrefixKind,
 		NetworkInstance: cr.Spec.NetworkInstance,
-		AddressFamily:   pi.GetAddressFamily(),
-		Prefix:          cr.Spec.Prefix,
-		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
-		CreatePrefix:    true,
+		//AddressFamily:   pi.GetAddressFamily(),
+		Prefix:       cr.Spec.Prefix,
+		PrefixLength: uint8(pi.GetPrefixLength().Int()),
+		CreatePrefix: true,
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
@@ -351,10 +357,10 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 	spec := IPAllocationSpec{
 		PrefixKind:      PrefixKindAggregate,
 		NetworkInstance: cr.GetName(),
-		AddressFamily:   pi.GetAddressFamily(),
-		Prefix:          prefix.Prefix,
-		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
-		CreatePrefix:    true,
+		//AddressFamily:   pi.GetAddressFamily(),
+		Prefix:       prefix.Prefix,
+		PrefixLength: uint8(pi.GetPrefixLength().Int()),
+		CreatePrefix: true,
 		Labels: AddSpecLabelsWithTypeMeta(
 			ownerGvk,
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},

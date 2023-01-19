@@ -31,7 +31,6 @@ import (
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -452,10 +451,10 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 	}
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
-		PrefixKind:    ipamv1alpha1.PrefixKind(spec.GetString("kind")),
-		AddressFamily: iputil.AddressFamily(spec.GetString("addressFamily")),
-		Prefix:        spec.GetString("prefix"),
-		PrefixLength:  uint8(spec.GetInt("prefixLength")),
+		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
+		//AddressFamily: iputil.AddressFamily(spec.GetString("addressFamily")),
+		Prefix:       spec.GetString("prefix"),
+		PrefixLength: uint8(spec.GetInt("prefixLength")),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: selectorLabels,
 		},
