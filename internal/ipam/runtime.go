@@ -62,7 +62,6 @@ type AllocRuntimeConfig struct {
 	watcher      Watcher
 }
 
-
 func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamPrefixRuntime{
 		ipamRib: c.ipamRib,
@@ -160,7 +159,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 		return nil, err
 	}
 
-	return NewAllocOperator(&AllocRuntimeConfig{
+	return NewAllocRuntime(&AllocRuntimeConfig{
 		initializing: initializing,
 		alloc:        alloc,
 		rib:          rib,

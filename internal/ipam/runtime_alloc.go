@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewAllocOperator(cfg any) (Runtime, error) {
+func NewAllocRuntime(cfg any) (Runtime, error) {
 	c, ok := cfg.(*AllocRuntimeConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config expecting IPAMAllocOperatorConfig")
