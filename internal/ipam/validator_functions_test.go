@@ -64,15 +64,15 @@ func Test_validateParentExist(t *testing.T) {
 		ipamv1alpha1.NephioPrefixKindKey: string(ipamv1alpha1.PrefixKindNetwork),
 	})
 	s = validateParentExist(r, v1alpha1.PrefixKindLoopback, pi)
-	if s != "" {
-		t.Errorf("unexpected error received %q", s)
+	if s == "" {
+		t.Errorf("message expected, got nothing")
 	}
-	// // message
+	// // pass
 	r = r.UpdateLabel(map[string]string{
 		ipamv1alpha1.NephioPrefixKindKey: string(ipamv1alpha1.PrefixKindAggregate),
 	})
 	s = validateParentExist(r, v1alpha1.PrefixKindLoopback, pi)
-	if s == "" {
+	if s != "" {
 		t.Errorf("no message received, although it was expected to receive one")
 	}
 }
