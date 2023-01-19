@@ -72,6 +72,15 @@ func TestGetRibPass(t *testing.T) {
 	if rib == nil {
 		t.Errorf("got a nil rib")
 	}
+
+	// delete the rib
+	r.delete(myNetworInstance)
+
+	// make sure it is gone
+	_, err = r.getRIB(myNetworInstance, true)
+	if err == nil {
+		t.Errorf("calling getRIB for %q succeded but it should have been deleted", myNetworInstance)
+	}
 }
 
 func TestGetRibFail(t *testing.T) {
