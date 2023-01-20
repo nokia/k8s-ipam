@@ -149,25 +149,6 @@ func (r *IPAllocation) GetAllocatedPrefix() string {
 	return r.Status.AllocatedPrefix
 }
 
-func (x *IPAllocation) GetSubnetLabelSelector() (labels.Selector, error) {
-	pi, err := iputil.New(x.GetPrefix())
-	if err != nil {
-		return nil, err
-	}
-	l := map[string]string{
-		NephioSubnetKey: pi.GetSubnetName(),
-	}
-	fullselector := labels.NewSelector()
-	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
-		if err != nil {
-			return nil, err
-		}
-		fullselector = fullselector.Add(*req)
-	}
-	return fullselector, nil
-}
-
 func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	l := map[string]string{
 		NephioGatewayKey: "true",
@@ -175,9 +156,9 @@ func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	fullselector := labels.NewSelector()
 	for k, v := range l {
 		// exclude any key that is not network and networkinstance
-		if k == NephioSubnetKey ||
-			//k == ipamv1alpha1.NephioNetworkInstanceKey ||
-			k == NephioGatewayKey {
+		if //k == NephioSubnetKey ||
+		//k == ipamv1alpha1.NephioNetworkInstanceKey ||
+		k == NephioGatewayKey {
 			req, err := labels.NewRequirement(k, selection.Equals, []string{v})
 			if err != nil {
 				return nil, err
@@ -243,18 +224,6 @@ func (r *IPAllocation) GetFullLabels() map[string]string {
 	return l
 }
 
-/*
-func (r *IPAllocation) GetPrefixFromNewAlloc() string {
-	p := r.GetPrefix()
-	parentPrefixLength, ok := r.GetSpecLabels()[NephioParentPrefixLengthKey]
-	if ok {
-		n := strings.Split(p, "/")
-		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
-	}
-	return p
-}
-*/
-
 func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
 	if alloc.Spec.PrefixLength != 0 {
 		return alloc.Spec.PrefixLength
@@ -264,37 +233,6 @@ func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
 	}
 	return 128
 }
-
-/*
-func GetPrefixFromAlloc(p string, alloc *IPAllocation) string {
-	parentPrefixLength, ok := alloc.GetSpecLabels()[NephioParentPrefixLengthKey]
-	if ok {
-		pl, _ := strconv.Atoi(parentPrefixLength)
-		pi, err := iputil.New(p)
-		if err != nil {
-			return ""
-		}
-		p = pi.GetIPPrefixWithPrefixLength(pl).String()
-	}
-	return p
-}
-*/
-
-/*
-func GetPrefixFromRoute(route table.Route) string {
-	parentPrefixLength := route.Labels().Get(NephioParentPrefixLengthKey)
-	p := route.Prefix().String()
-	if parentPrefixLength != "" {
-		pl, _ := strconv.Atoi(parentPrefixLength)
-		pi, err := iputil.New(p)
-		if err != nil {
-			return ""
-		}
-		p = pi.GetIPPrefixWithPrefixLength(pl).String()
-	}
-	return p
-}
-*/
 
 func BuildIPAllocationFromIPAllocation(cr *IPAllocation) *IPAllocation {
 	newcr := cr.DeepCopy()
@@ -412,7 +350,7 @@ func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string
 		NephioNsnNameKey:           r.GetName(),
 		NephioNsnNamespaceKey:      r.GetNamespace(),
 		NephioPrefixKindKey:        string(r.GetPrefixKind()),
-		NephioPrefixLengthKey:      pi.GetPrefixLength().String(),
-		NephioSubnetKey:            pi.GetSubnetName(),
+		//NephioPrefixLengthKey:      pi.GetPrefixLength().String(),
+		NephioSubnetKey: pi.GetSubnetName(),
 	}
 }
