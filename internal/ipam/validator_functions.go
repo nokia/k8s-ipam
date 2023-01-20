@@ -57,24 +57,6 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) strin
 	return ""
 }
 
-/*
-func validateExactMatchLenRoutes(routes table.Routes) string {
-	if len(routes) > 1 {
-		return "multiple prefixes match the nsn labelselector"
-	}
-	return ""
-}
-*/
-
-/*
-func validateExactMatchPrefix(route table.Route, pi iputil.PrefixInfo) string {
-	if route.Prefix().String() != pi.GetIPAddressPrefix().String() {
-		return "route exist but prefix mismatch"
-	}
-	return ""
-}
-*/
-
 func validatePrefixOwner(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
 	if route.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNamespaceKey] ||
 		route.Labels()[ipamv1alpha1.NephioNsnNameKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioNsnNameKey] ||
@@ -91,28 +73,6 @@ func validatePrefixOwner(route table.Route, alloc *ipamv1alpha1.IPAllocation) st
 
 	return ""
 }
-
-/*
-func validateExactMatchOwnerGVk(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
-	if route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey) != alloc.GetOwnerGvk() {
-		return fmt.Sprintf("route was already allocated from a different origin, req origin %s, ipam origin %s",
-			alloc.GetOwnerGvk(),
-			route.Labels().Get(ipamv1alpha1.NephioOwnerGvkKey))
-	}
-	return ""
-}
-*/
-
-/*
-func validateExactMatcPrefixKind(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
-	if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(alloc.GetPrefixKind()) {
-		return fmt.Sprintf("prefix used by different prefixKind req prefixKind %s, ipam prefixKind %s",
-			string(alloc.GetPrefixKind()),
-			route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey))
-	}
-	return ""
-}
-*/
 
 func validateChildrenExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string {
 	switch prefixKind {

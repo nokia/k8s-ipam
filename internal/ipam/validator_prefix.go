@@ -145,9 +145,5 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 			return msg, nil
 		}
 	}
-	// final validation
-	//if msg := validateFinal(); msg != "" {
-	//	return msg, nil
-	//}
 	return "", nil
 }

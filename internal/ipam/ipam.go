@@ -51,17 +51,22 @@ func New(c client.Client, opts ...Option) Ipam {
 		ipamRib: ipamRib,
 		watcher: watcher,
 	})
-	backend := NewConfigMapBackend(&BackendConfig{
-		client:        c,
-		ipamRib:       ipamRib,
-		runtimes: runtimes,
-	})
+
+	backend := NewNopBackend()
+	if c != nil {
+		backend = NewConfigMapBackend(&BackendConfig{
+			client:   c,
+			ipamRib:  ipamRib,
+			runtimes: runtimes,
+		})
+	}
+
 	i := &ipam{
-		ipamRib: ipamRib,
+		ipamRib:  ipamRib,
 		runtimes: runtimes,
-		backend: backend,
-		c:       c,
-		watcher: watcher,
+		backend:  backend,
+		c:        c,
+		watcher:  watcher,
 	}
 
 	for _, opt := range opts {
@@ -72,11 +77,11 @@ func New(c client.Client, opts ...Option) Ipam {
 }
 
 type ipam struct {
-	c       client.Client
-	watcher Watcher
-	ipamRib ipamRib
+	c        client.Client
+	watcher  Watcher
+	ipamRib  ipamRib
 	runtimes Runtimes
-	backend Backend
+	backend  Backend
 
 	l logr.Logger
 }
@@ -175,12 +180,3 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 	}
 	return r.backend.Store(ctx, alloc)
 }
-
-/*
-func (r *ipam) getRuntime(alloc *ipamv1alpha1.IPAllocation) (Runtime, error) {
-	if alloc.GetPrefix() == "" {
-		return r.runtimes.GetAllocRuntime().Get(alloc, false)
-	}
-	return r.runtimes.GetPrefixRuntime().Get(alloc, false)
-}
-*/

@@ -23,6 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type BackendType string
+
+const (
+	BackendTypeNop       BackendType = ""
+	BackendTypeConfigMap BackendType = "configmap"
+)
+
 type Backend interface {
 	Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error
@@ -169,8 +176,6 @@ func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations ma
 		r.l.Info("restore allocation", "prefix", prefix, "labels", labels)
 		// handle the allocation owned by the network instance
 		if labels[ipamv1alpha1.NephioOwnerGvkKey] == ownerGVK {
-			// WORKAROUND since Yaml marshal stores the full object as a string
-			//split := strings.Split(prefix, " ")
 			restoreFunc(ctx, rib, prefix, labels, input)
 		}
 	}
@@ -198,9 +203,6 @@ func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB,
 			}
 
 			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
-			//alloc := ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, ipPrefix)
-
-			//r.applyAllocation(ctx, alloc)
 		}
 	}
 }
@@ -244,11 +246,6 @@ func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix strin
 			}
 
 			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
-
-			//alloc := ipamv1alpha1.BuildIPAllocationFromIPPrefix(&ipPrefix)
-
-			// apply the allocation to the ipam rib
-			//r.applyAllocation(ctx, alloc)
 		}
 	}
 }
@@ -271,7 +268,7 @@ func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix str
 			if alloc.Spec.Prefix == "" {
 				allocPrefix = alloc.Status.AllocatedPrefix
 			}
-			
+
 			// prefixes of prefixkind network need to be expanded in the subnet
 			// we compare against the expanded list
 			if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
@@ -300,38 +297,9 @@ func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix str
 			}
 
 			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
-			// set the allocated status in as a prefix in the spec
-			//newAlloc := ipamv1alpha1.BuildIPAllocationFromIPAllocation(&alloc)
-			//newAlloc.Spec.Prefix = alloc.Status.AllocatedPrefix
-
-			// apply the allocation to the ipam rib
-			//r.applyAllocation(ctx, newAlloc)
-
 		}
 	}
 }
-
-/*
-func (r *cm) applyAllocation(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) {
-	op, err := r.runtimes.Get(alloc, true)
-	if err != nil {
-		// we log but we dont fail to initialize the ipam network instance
-		r.l.Error(err, "cannot restore operation map creation failed")
-	}
-	if _, err := op.Apply(ctx); err != nil {
-		// we log but we dont fail to initialize the ipam network instance
-		r.l.Error(err, "cannot apply prefix")
-	}
-}
-*/
-/*
-func (r *cm) getRuntime(alloc *ipamv1alpha1.IPAllocation) (Runtime, error) {
-	if alloc.GetPrefix() == "" {
-		return r.runtimes.GetAllocRuntime().Get(alloc, true)
-	}
-	return r.runtimes.GetPrefixRuntime().Get(alloc, true)
-}
-*/
 
 func buildConfigMap(namespace, name string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
@@ -346,3 +314,13 @@ func buildConfigMap(namespace, name string) *corev1.ConfigMap {
 		},
 	}
 }
+
+func NewNopBackend() Backend {
+	return &nopBackend{}
+}
+
+type nopBackend struct{}
+
+func (r *nopBackend) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error { return nil }
+func (r *nopBackend) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error   { return nil }
+func (r *nopBackend) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error  { return nil }

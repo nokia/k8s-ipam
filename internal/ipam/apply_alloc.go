@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"strings"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -27,13 +25,18 @@ func (r *applicator) ApplyAlloc(ctx context.Context) error {
 	if len(routes) > 0 {
 		r.l.Info("dynamic allocation: route exist")
 		// route exists
-		if err := r.updateRouteIfChanged(routes); err != nil {
+		if err := r.updateRib(ctx, routes); err != nil {
 			return err
 		}
+		/*
+			if err := r.updateRouteIfChanged(routes); err != nil {
+				return err
+			}
 
-		// updates the status of the route
-		// should not have changed -> allocatedPrefix + gateway allocs with prefixkind = network
-		r.updateAllocStatus(routes[0])
+			// updates the status of the route
+			// should not have changed -> allocatedPrefix + gateway allocs with prefixkind = network
+			r.updateAllocStatus(routes[0])
+		*/
 
 		r.l.Info("dynamic allocation: route exist", "allocatedPrefix", r.alloc.Status)
 		return nil
@@ -182,6 +185,7 @@ func (r *applicator) getRoutesByLabel() table.Routes {
 	return r.rib.GetByLabel(labelSelector)
 }
 
+/*
 func (r *applicator) updateRouteIfChanged(routes table.Routes) error {
 	r.l.Info("dynamic allocation: route exist", "route", routes)
 
@@ -200,6 +204,7 @@ func (r *applicator) updateRouteIfChanged(routes table.Routes) error {
 
 	return nil
 }
+*/
 
 func (r *applicator) getPrefixLengthFromRoute(route table.Route) iputil.PrefixLength {
 	if r.alloc.GetPrefixLengthFromSpec() != 0 {
@@ -211,76 +216,17 @@ func (r *applicator) getPrefixLengthFromRoute(route table.Route) iputil.PrefixLe
 func (r *applicator) updatePrefixInfo(pi iputil.PrefixInfo, p netip.Prefix, prefixLength iputil.PrefixLength) iputil.PrefixInfo {
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		if r.alloc.GetCreatePrefix() {
-			
+
 			return iputil.NewPrefixInfo(p)
 		}
-		 return  iputil.NewPrefixInfo(netip.PrefixFrom(p.Addr(), int(pi.GetPrefixLength())))
-	} 
+		return iputil.NewPrefixInfo(netip.PrefixFrom(p.Addr(), int(pi.GetPrefixLength())))
+	}
 	return iputil.NewPrefixInfo(netip.PrefixFrom(p.Addr(), prefixLength.Int()))
-	
+
 }
 
 /*
-func (r *applicator) addSuggestedRoute(pi iputil.PrefixInfo) error {
-	// TODO if this is a create prefix and based on prefix kind we need to add all the contributing routes
-	// like a mutate operation (look if we can add the mutate functionality here)
-
-	// update the labels for the route that will be added in the routing table
-	labels := r.alloc.GetFullLabels()
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
-	labels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(pi.GetIPAddress().BitLen())
-	labels[ipamv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		labels[ipamv1alpha1.NephioParentPrefixLengthKey] = pi.GetPrefixLength().String()
-	}
-
-	// we add the route based on the Address Prefix as thisis uniform with all prefixkinds
-	// e.g. in network prefix we would have 10.0.0.10/24 presented to the user but in the rib
-	// we allocate 10.0.0.10/32
-	route := table.NewRoute(pi.GetIPAddressPrefix(), labels, map[string]any{})
-	if err := r.rib.Add(route); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return errors.Wrap(err, "cannot add prefix")
-		}
-	}
-
-	// update the gateway status, the allocatedPrefix is not changed so we dont update this
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		r.alloc.Status.Gateway = r.getGateway()
-	}
-	return nil
-}
-*/
-
-/*
-func (r *applicator) addSelectedRoute(pi iputil.PrefixInfo, p netip.Prefix) error {
-	// since this is a dynamic allocation we dont know the prefix info ahead of time,
-	// we need to augment the labels with the prefixlength info
-	labels := r.alloc.GetFullLabels()
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
-	labels[ipamv1alpha1.NephioPrefixLengthKey] = strconv.Itoa(p.Bits())
-	labels[ipamv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		labels[ipamv1alpha1.NephioParentPrefixLengthKey] = pi.GetPrefixLength().String()
-	}
-
-	route := table.NewRoute(p, labels, map[string]any{})
-	if err := r.rib.Add(route); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return errors.Wrap(err, "cannot add prefix")
-		}
-	}
-
-	r.alloc.Status.AllocatedPrefix = p.String()
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		r.alloc.Status.Gateway = r.getGateway()
-		r.alloc.Status.AllocatedPrefix = netip.PrefixFrom(p.Addr(), pi.GetPrefixLength().Int()).String()
-	}
-	return nil
-}
-*/
-
-func (r *applicator) updateAllocStatus(route table.Route) {
+func (r *applicator) UpdateAllocStatus(route table.Route) {
 	r.alloc.Status.AllocatedPrefix = route.Prefix().String()
 
 	// for prefixkind network we try to get the gateway
@@ -293,3 +239,4 @@ func (r *applicator) updateAllocStatus(route table.Route) {
 		r.alloc.Status.AllocatedPrefix = netip.PrefixFrom(route.Prefix().Addr(), parentRoutes[0].Prefix().Bits()).String()
 	}
 }
+*/
