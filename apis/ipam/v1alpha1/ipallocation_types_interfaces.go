@@ -342,15 +342,12 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, st
 
 // GetDummyLabelsFromPrefix used in validation
 func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
-	return map[string]string{
-		NephioOwnerGvkKey:          "dummy",
-		NephioOwnerNsnNameKey:      "dummy",
-		NephioOwnerNsnNamespaceKey: "dummy",
-		NephioGvkKey:               IPAllocationKindGVKString,
-		NephioNsnNameKey:           r.GetName(),
-		NephioNsnNamespaceKey:      r.GetNamespace(),
-		NephioPrefixKindKey:        string(r.GetPrefixKind()),
-		//NephioPrefixLengthKey:      pi.GetPrefixLength().String(),
-		NephioSubnetKey: pi.GetSubnetName(),
+	labels := map[string]string{}
+	for k, v := range r.GetSpecLabels() {
+		labels[k] = v
 	}
+	labels[NephioPrefixKindKey] = string(r.GetPrefixKind())
+	labels[NephioSubnetKey] = string(pi.GetSubnetName())
+
+	return labels
 }
