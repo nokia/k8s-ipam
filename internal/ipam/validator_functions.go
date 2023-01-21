@@ -153,7 +153,8 @@ func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi
 			}
 		} else {
 			if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindNetwork) {
-				return fmt.Sprintf("a network prefix can only be created within a parent network prefix, got %s/%s of kind %s",
+				return fmt.Sprintf("%s, got %s/%s of kind %s",
+					errValidateNetworkPrefixWoNetworkParent,
 					route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
 					route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
 					route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),

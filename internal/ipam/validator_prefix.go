@@ -116,7 +116,6 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		map[string]any{},
 	)
 
-	fmt.Println(route)
 	if err := dryrunRib.Add(route); err != nil {
 		r.l.Error(err, "cannot add route", "route", route)
 		return "", err
@@ -141,11 +140,22 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		if msg := r.fnc.validateNoParentExistFn(r.alloc.GetPrefixKind(), r.alloc.GetOwnerGvk()); msg != "" {
 			return msg, nil
 		}
+		return "", nil
 	}
-	for _, route := range routes {
-		if msg := r.fnc.validateParentExistFn(route, r.alloc, r.pi); msg != "" {
-			return msg, nil
-		}
+
+	parentRoute := findParent(routes)
+	if msg := r.fnc.validateParentExistFn(parentRoute, r.alloc, r.pi); msg != "" {
+		return msg, nil
 	}
 	return "", nil
+}
+
+func findParent(routes table.Routes) table.Route {
+	parentRoute := routes[0]
+	for _, route := range routes {
+		if route.Prefix().Bits() > parentRoute.Prefix().Bits() {
+			parentRoute = route
+		}
+	}
+	return parentRoute
 }
