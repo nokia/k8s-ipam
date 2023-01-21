@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -42,6 +43,8 @@ type Ipam interface {
 	AllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
 	// DeAllocateIPPrefix
 	DeAllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) error
+	// GetPrefixes
+	GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes
 }
 
 func New(c client.Client, opts ...Option) Ipam {
@@ -179,4 +182,13 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 		return err
 	}
 	return r.backend.Store(ctx, alloc)
+}
+
+func (r *ipam) GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes {
+	rib, err := r.ipamRib.getRIB(cr.GetName(), false)
+	if err != nil {
+		r.l.Error(err, "cannpt get rib")
+		return []table.Route{}
+	}
+	return rib.GetTable()
 }

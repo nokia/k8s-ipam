@@ -2,6 +2,7 @@ package ipam
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
@@ -94,8 +95,7 @@ func TestNetworkInstance(t *testing.T) {
 		name:      niName,
 		spec: ipamv1alpha1.IPAllocationSpec{
 			NetworkInstance: niName,
-			//PrefixKind:      ipamv1alpha1.PrefixKindAggregate,
-			Prefix: "10.0.0.0/8",
+			Prefix:          "10.0.0.0/8",
 		},
 	}
 
@@ -106,7 +106,8 @@ func TestNetworkInstance(t *testing.T) {
 		spec: ipamv1alpha1.IPAllocationSpec{
 			NetworkInstance: niName,
 			PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
-			Prefix:          "10.0.0.0/24",
+			Prefix:          "10.0.0.1/24",
+			CreatePrefix:    true,
 			Labels: map[string]string{
 				"nephio.org/gateway":      "true",
 				"nephio.org/region":       "us-central1",
@@ -126,7 +127,7 @@ func TestNetworkInstance(t *testing.T) {
 	allocNiPrefix := buildIPAllocation(niPrefixAlloc)
 	allocNiPrefixResp, err := ipam.AllocateIPPrefix(context.Background(), allocNiPrefix)
 	if err != nil {
-		t.Errorf("%v occured, cannot create ip prefix: %v", err, allocNiPrefixResp)
+		t.Errorf("%v, cannot create ip prefix: %v", err, allocNiPrefixResp)
 		return
 	}
 	if allocNiPrefixResp.Status.AllocatedPrefix != niPrefixAlloc.spec.Prefix {
@@ -135,11 +136,15 @@ func TestNetworkInstance(t *testing.T) {
 	allocNet1Prefix := buildIPAllocation(net1PrefixAlloc)
 	allocNet1PrefixResp, err := ipam.AllocateIPPrefix(context.Background(), allocNet1Prefix)
 	if err != nil {
-		t.Errorf("%v occured, cannot create ip prefix: %v", err, allocNet1PrefixResp)
+		t.Errorf("%v, cannot create ip prefix: %v", err, allocNet1PrefixResp)
 		return
 	}
 	if allocNet1PrefixResp.Status.AllocatedPrefix != net1PrefixAlloc.spec.Prefix {
 		t.Errorf("expected prefix %s, got %s", net1PrefixAlloc.spec.Prefix, allocNet1PrefixResp.Status.AllocatedPrefix)
+	}
+	routes := ipam.GetPrefixes(niCr)
+	for _, route := range routes {
+		fmt.Println(route)
 	}
 
 }

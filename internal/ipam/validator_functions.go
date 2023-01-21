@@ -107,8 +107,8 @@ func validateNoParentExist(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) 
 	return "an aggregate prefix is required"
 }
 
-func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, pi iputil.PrefixInfo) string {
-	switch prefixKind {
+func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string {
+	switch alloc.GetPrefixKind() {
 	case ipamv1alpha1.PrefixKindAggregate:
 		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
 			return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s",
@@ -143,13 +143,24 @@ func validateParentExist(route table.Route, prefixKind ipamv1alpha1.PrefixKind, 
 		}
 		return ""
 	case ipamv1alpha1.PrefixKindNetwork:
-		if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
-			return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s of kind %s",
-				route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
-				route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
-				route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
-			)
+		if alloc.GetCreatePrefix() {
+			if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
+				return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s of kind %s",
+					route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+					route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
+					route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
+				)
+			}
+		} else {
+			if route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindNetwork) {
+				return fmt.Sprintf("a network prefix can only be created within a parent network prefix, got %s/%s of kind %s",
+					route.Labels().Get(ipamv1alpha1.NephioNsnNamespaceKey),
+					route.Labels().Get(ipamv1alpha1.NephioNsnNameKey),
+					route.Labels().Get(ipamv1alpha1.NephioPrefixKindKey),
+				)
+			}
 		}
+
 		return ""
 	case ipamv1alpha1.PrefixKindPool:
 		// if the parent is not an aggregate we dont allow the prefix to be created

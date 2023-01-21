@@ -18,7 +18,7 @@ type Validator interface {
 type validateInputFn func(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string
 type validateChildrenExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string
 type validateNoParentExistFn func(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string
-type validateParentExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind, pi iputil.PrefixInfo) string
+type validateParentExistFn func(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string
 
 type PrefixValidatorFunctionConfig struct {
 	validateInputFn         validateInputFn
@@ -109,12 +109,14 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	// Route does not exist
 	// add dummy route in dry run rib, this is the subnet route
 	// which serves as general purpose
+
 	route = table.NewRoute(
 		r.pi.GetIPSubnet(),
 		r.alloc.GetDummyLabelsFromPrefix(r.pi),
 		map[string]any{},
 	)
 
+	fmt.Println(route)
 	if err := dryrunRib.Add(route); err != nil {
 		r.l.Error(err, "cannot add route", "route", route)
 		return "", err
@@ -141,7 +143,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		}
 	}
 	for _, route := range routes {
-		if msg := r.fnc.validateParentExistFn(route, r.alloc.GetPrefixKind(), r.pi); msg != "" {
+		if msg := r.fnc.validateParentExistFn(route, r.alloc, r.pi); msg != "" {
 			return msg, nil
 		}
 	}
