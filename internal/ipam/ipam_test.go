@@ -90,48 +90,127 @@ func TestNetworkInstance(t *testing.T) {
 	namespace := "dummy"
 	niName := "niName"
 	niCreate := &allocation{namespace: namespace, name: niName}
-	niPrefixAlloc := &allocation{
-		kind:      ipamv1alpha1.NetworkInstanceKind,
-		namespace: namespace,
-		name:      niName,
-		spec: ipamv1alpha1.IPAllocationSpec{
-			NetworkInstance: niName,
-			Prefix:          "10.0.0.0/8",
-		},
+
+	type ipamTests struct {
+		allocation *allocation
+		errString  string
+		gateway string
 	}
 
-	net1PrefixAllocWoCreate := &allocation{
-		kind:      ipamv1alpha1.IPAllocationKind,
-		namespace: namespace,
-		name:      "alloc-net1-prefix1",
-		spec: ipamv1alpha1.IPAllocationSpec{
-			NetworkInstance: niName,
-			PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
-			Prefix:          "10.0.0.2/24",
-			Labels: map[string]string{
-				"nephio.org/gateway":      "true",
-				"nephio.org/region":       "us-central1",
-				"nephio.org/site":         "edge1",
-				"nephio.org/network-name": "net1",
+	tests := []ipamTests{
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.NetworkInstanceKind,
+				namespace: namespace,
+				name:      niName,
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					Prefix:          "10.0.0.0/8",
+				},
 			},
+			errString: "",
 		},
-	}
-
-	net1PrefixAllocCreate := &allocation{
-		kind:      ipamv1alpha1.IPAllocationKind,
-		namespace: namespace,
-		name:      "alloc-net1-prefix1",
-		spec: ipamv1alpha1.IPAllocationSpec{
-			NetworkInstance: niName,
-			PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
-			Prefix:          "10.0.0.1/24",
-			CreatePrefix:    true,
-			Labels: map[string]string{
-				"nephio.org/gateway":      "true",
-				"nephio.org/region":       "us-central1",
-				"nephio.org/site":         "edge1",
-				"nephio.org/network-name": "net1",
+		// create network prefix w/o parent
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.IPAllocationKind,
+				namespace: namespace,
+				name:      "alloc-net1-prefix1",
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.2/24",
+					Labels: map[string]string{
+						"nephio.org/gateway":      "true",
+						"nephio.org/region":       "us-central1",
+						"nephio.org/site":         "edge1",
+						"nephio.org/network-name": "net1",
+					},
+				},
 			},
+			errString: errValidateNetworkPrefixWoNetworkParent,
+		},
+		// create parent prefix
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.IPAllocationKind,
+				namespace: namespace,
+				name:      "alloc-net1-prefix1",
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.1/24",
+					CreatePrefix:    true,
+					Labels: map[string]string{
+						"nephio.org/gateway":      "true",
+						"nephio.org/region":       "us-central1",
+						"nephio.org/site":         "edge1",
+						"nephio.org/network-name": "net1",
+					},
+				},
+			},
+			errString: "",
+		},
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.IPAllocationKind,
+				namespace: namespace,
+				name:      "alloc-net1-staticprefix",
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.2/24",
+					Labels: map[string]string{
+						"nephio.org/gateway":      "true",
+						"nephio.org/region":       "us-central1",
+						"nephio.org/site":         "edge1",
+						"nephio.org/network-name": "net1",
+					},
+				},
+			},
+			errString: errValidateNetworkPrefixWoNetworkParent,
+		},
+		// test duplication
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.IPAllocationKind,
+				namespace: namespace,
+				name:      "alloc-net1-prefix2",
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.10/24",
+					CreatePrefix:    true,
+					Labels: map[string]string{
+						"nephio.org/gateway":      "true",
+						"nephio.org/region":       "us-central1",
+						"nephio.org/site":         "edge1",
+						"nephio.org/network-name": "net1",
+					},
+				},
+			},
+			errString: errValidateDuplicatePrefix,
+		},
+		// test allocation
+		{
+			allocation: &allocation{
+				kind:      ipamv1alpha1.IPAllocationKind,
+				namespace: namespace,
+				name:      "alloc-net1-alloc1",
+				spec: ipamv1alpha1.IPAllocationSpec{
+					NetworkInstance: niName,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nephio.org/region":       "us-central1",
+							"nephio.org/site":         "edge1",
+							"nephio.org/network-name": "net1",
+						},
+					},
+				},
+			},
+			errString: "",
+			gateway: "10.0.0.1",
 		},
 	}
 
@@ -142,49 +221,35 @@ func TestNetworkInstance(t *testing.T) {
 	if err := ipam.Create(context.Background(), niCr); err != nil {
 		t.Errorf("%v occured, cannot create network instance: %s/%s", err, niCr.GetNamespace(), niCr.GetName())
 	}
-	allocNiPrefix := buildIPAllocation(niPrefixAlloc)
-	allocNiPrefixResp, err := ipam.AllocateIPPrefix(context.Background(), allocNiPrefix)
-	if err != nil {
-		t.Errorf("%v, cannot create ip prefix: %v", err, allocNiPrefixResp)
-		return
-	}
-	if allocNiPrefixResp.Status.AllocatedPrefix != niPrefixAlloc.spec.Prefix {
-		t.Errorf("expected prefix %s, got %s", niPrefixAlloc.spec.Prefix, allocNiPrefixResp.Status.AllocatedPrefix)
-	}
 
-	// create prefix w/o parent network prefix -> should fail
-	allocNet1PrefixWoCreate := buildIPAllocation(net1PrefixAllocWoCreate)
-	allocNet1PrefixWoCreateResp, err := ipam.AllocateIPPrefix(context.Background(), allocNet1PrefixWoCreate)
-	if err == nil {
-		t.Errorf("expecting error: %s, got %v resp: %v", errValidateNetworkPrefixWoNetworkParent, err, allocNet1PrefixWoCreateResp)
-		return
-	} else {
-		if !strings.Contains(err.Error(), errValidateNetworkPrefixWoNetworkParent) {
-			t.Errorf("expecting error: %s, got %v resp: %v", errValidateNetworkPrefixWoNetworkParent, err, allocNet1PrefixWoCreateResp)
-			return
+	for _, test := range tests {
+		allocReq := buildIPAllocation(test.allocation)
+		allocResp, err := ipam.AllocateIPPrefix(context.Background(), allocReq)
+		if err != nil {
+			if test.errString == "" {
+				t.Errorf("%v, cannot create ip prefix: %v", err, allocResp)
+				return
+			} else {
+				// expected error
+				if !strings.Contains(err.Error(), test.errString) {
+					t.Errorf("expecting error: %s, got %v resp: %v", test.errString, err, allocResp)
+					return
+				}
+			}
+		}
+		if test.errString == "" {
+			if test.allocation.spec.Prefix != "" {
+				if allocResp.Status.AllocatedPrefix != test.allocation.spec.Prefix {
+					t.Errorf("expected prefix %s, got %s", test.allocation.spec.Prefix, allocResp.Status.AllocatedPrefix)
+				}
+			} else {
+				if allocResp.Status.AllocatedPrefix == "" || allocResp.Status.Gateway != test.gateway {
+					t.Errorf("expected allocation with gateway %s, got allocatedPrefix %s, gateway %s", test.gateway, allocResp.Status.AllocatedPrefix, allocReq.Status.Gateway)
+				}
+			}
 		}
 	}
 
-	// create parent network prefix
-	allocNet1PrefixCreate := buildIPAllocation(net1PrefixAllocCreate)
-	allocNet1PrefixCreateResp, err := ipam.AllocateIPPrefix(context.Background(), allocNet1PrefixCreate)
-	if err != nil {
-		t.Errorf("%v, cannot create ip prefix: %v", err, allocNet1PrefixCreateResp)
-		return
-	}
-	if allocNet1PrefixCreateResp.Status.AllocatedPrefix != net1PrefixAllocCreate.spec.Prefix {
-		t.Errorf("expected prefix %s, got %s", net1PrefixAllocCreate.spec.Prefix, allocNet1PrefixCreateResp.Status.AllocatedPrefix)
-	}
-
-	// create parent network prefix
-	allocNet1PrefixWoCreateResp, err = ipam.AllocateIPPrefix(context.Background(), allocNet1PrefixWoCreate)
-	if err != nil {
-		t.Errorf("%v, cannot create ip prefix: %v", err, allocNet1PrefixCreateResp)
-		return
-	}
-	if allocNet1PrefixWoCreateResp.Status.AllocatedPrefix != net1PrefixAllocWoCreate.spec.Prefix {
-		t.Errorf("expected prefix %s, got %s", net1PrefixAllocWoCreate.spec.Prefix, allocNet1PrefixWoCreateResp.Status.AllocatedPrefix)
-	}
 	routes := ipam.GetPrefixes(niCr)
 	for _, route := range routes {
 		fmt.Println(route)

@@ -63,7 +63,8 @@ func validatePrefixOwner(route table.Route, alloc *ipamv1alpha1.IPAllocation) st
 		route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey] ||
 		route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerNsnNameKey] ||
 		route.Labels()[ipamv1alpha1.NephioOwnerGvkKey] != alloc.GetSpecLabels()[ipamv1alpha1.NephioOwnerGvkKey] {
-		return fmt.Sprintf("prefix was already allocated by owner gvk %s, owner nsn %s/%s with nsn %s/%s",
+		return fmt.Sprintf("%s by owner gvk %s, owner nsn %s/%s with nsn %s/%s",
+			errValidateDuplicatePrefix,
 			route.Labels()[ipamv1alpha1.NephioOwnerGvkKey],
 			route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey],
 			route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey],
