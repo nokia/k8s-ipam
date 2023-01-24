@@ -41,7 +41,7 @@ type Ipam interface {
 	DeleteWatch(ownerGvkKey, ownerGvk string)
 	// AllocateIPPrefix allocates an ip prefix
 	AllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
-	// DeAllocateIPPrefix
+	// DeAllocateIPPrefix deallocates the allocation based on owner selection. No errors are returned if no allocation was found
 	DeAllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) error
 	// GetPrefixes
 	GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes

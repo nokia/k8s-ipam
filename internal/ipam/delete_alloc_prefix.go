@@ -10,6 +10,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// Delete deletes the allocation based on the ownerslector and deletes all prefixes associated with the ownerseelctor
+// if no prefixes are found, no error is returned
 func (r *applicator) Delete(ctx context.Context) error {
 	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "kind", r.alloc.GetPrefixKind())
 	r.l.Info("delete")
