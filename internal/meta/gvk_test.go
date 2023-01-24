@@ -102,17 +102,29 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "empty string",
 			input: "",
-			want:  nil,
+			want:  &schema.GroupVersionKind{
+				Group:   "",
+				Version: "",
+				Kind:    "",
+			},
 		},
 		{
 			name:  "kind, empty version/group",
 			input: "a",
-			want:  nil,
+			want:  &schema.GroupVersionKind{
+				Group:   "",
+				Version: "",
+				Kind:    "",
+			},
 		},
 		{
 			name:  "kind, emoty group",
 			input: "a.v0",
-			want:  nil,
+			want:  &schema.GroupVersionKind{
+				Group:   "",
+				Version: "",
+				Kind:    "",
+			},
 		},
 		{
 			name:  "minimal",
