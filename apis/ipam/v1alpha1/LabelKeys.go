@@ -43,6 +43,8 @@ const (
 	NephioPurposeKey           = "nephio.org/purpose"
 	NephioApplicationPartOfKey = "app.kubernetes.io/part-of"
 	NephioIndexKey             = "nephio.org/index"
+	NephioSiteKey              = "nephio.org/site"
+	nephioRegionKey            = "nephio.org/region"
 	// ipam status
 	NephioAllocatedPrefix  = "nephio.org/allocated-prefix"
 	NephioAllocatedGateway = "nephio.org/allocated-gateway"

@@ -94,7 +94,7 @@ func TestNetworkInstance(t *testing.T) {
 	type ipamTests struct {
 		allocation *allocation
 		errString  string
-		gateway string
+		gateway    string
 	}
 
 	tests := []ipamTests{
@@ -210,7 +210,7 @@ func TestNetworkInstance(t *testing.T) {
 				},
 			},
 			errString: "",
-			gateway: "10.0.0.1",
+			gateway:   "10.0.0.1",
 		},
 	}
 

@@ -102,7 +102,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "empty string",
 			input: "",
-			want:  &schema.GroupVersionKind{
+			want: &schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",
@@ -111,7 +111,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "kind, empty version/group",
 			input: "a",
-			want:  &schema.GroupVersionKind{
+			want: &schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",
@@ -120,7 +120,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "kind, emoty group",
 			input: "a.v0",
-			want:  &schema.GroupVersionKind{
+			want: &schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",

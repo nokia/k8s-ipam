@@ -110,7 +110,7 @@ func main() {
 
 	reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
 		ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
-		ServiceDiscoveryNamespace: "ipam",
+		ServiceDiscoveryNamespace: os.Getenv("POD_NAMESPACE"),
 	})
 	if err != nil {
 		setupLog.Error(err, "Cannot create registrator")
