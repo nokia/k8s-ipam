@@ -98,19 +98,20 @@ func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
 
 // Initialize and create the ipam instance with the allocated prefixes
 func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
-	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
 
-	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(cr.GetName()))
+	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
 	// if the IPAM is not initialaized initialaize it
 	// this happens upon initialization or ipam restart
-	r.ipamRib.create(cr.GetName())
-	if !r.ipamRib.isInitialized(cr.GetName()) {
+	r.ipamRib.create(niRef)
+	if !r.ipamRib.isInitialized(niRef) {
 		if err := r.backend.Restore(ctx, cr); err != nil {
 			r.l.Error(err, "backend restore error")
 		}
 
 		r.l.Info("ipam create instance finished")
-		return r.ipamRib.setInitialized(cr.GetName())
+		return r.ipamRib.setInitialized(niRef)
 	}
 	r.l.Info("ipam create instance already initialized")
 	return nil
@@ -118,9 +119,11 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 
 // Delete the ipam instance
 func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
-	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
+
 	r.l.Info("ipam delete instance start")
-	r.ipamRib.delete(cr.GetName())
+	r.ipamRib.delete(niRef)
 
 	// delete the configmap
 	if err := r.backend.Delete(ctx, cr); err != nil {
@@ -185,7 +188,9 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 }
 
 func (r *ipam) GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes {
-	rib, err := r.ipamRib.getRIB(cr.GetName(), false)
+	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+
+	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {
 		r.l.Error(err, "cannpt get rib")
 		return []table.Route{}

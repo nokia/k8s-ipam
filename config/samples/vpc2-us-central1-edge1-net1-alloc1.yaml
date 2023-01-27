@@ -4,7 +4,9 @@ metadata:
   name: us-central1.edge1.net1.alloc1
 spec:
   kind: network
-  networkInstance: vpc2
+  networkInstanceRef: 
+    namespace: default
+    name: vpc2
   selector:
     matchLabels:
       nephio.org/region: us-central1

@@ -67,7 +67,7 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 			// this is an update where the labels changed
 			// only update when not initializing
 			// only update when the prefix is a non /32 or /128
-			if !r.initializing && !r.pi.IsAddressPrefix() && r.alloc.GetCreatePrefix() {
+			if r.pi != nil && !r.initializing && !r.pi.IsAddressPrefix() && r.alloc.GetCreatePrefix() {
 				r.l.Info("prefix allocation: route exists", "inform children of the change/update", route, "labels", r.alloc.GetFullLabels())
 				// delete the children from the rib
 				// update the once that have a nsn different from the origin

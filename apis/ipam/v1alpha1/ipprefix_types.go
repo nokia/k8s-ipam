@@ -29,8 +29,8 @@ type IPPrefixSpec struct {
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
 	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
-	// NetworkInstance identifies the network instance the IP prefix belongs to
-	NetworkInstance string `json:"networkInstance" yaml:"networkInstance"`
+	// NetworkInstanceRef identifies the networkInstance for this prefix
+	NetworkInstanceRef *NetworkInstanceReference `json:"networkInstanceRef"`
 	// Prefix defines the ip subnet of the ip prefix, it can also be an address if a /32 or /128 is specified
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix" yaml:"prefix"`

@@ -128,31 +128,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	/*
-		crName := types.NamespacedName{
-			Namespace: cr.Namespace,
-			Name:      cr.Name,
-		}
-		i := injector.New(&injector.Config{
-			InjectorHandler: r.injectIPs,
-			NamespacedName:  crName,
-			Client:          r.Client,
-		})
-
-		hasIpamReadinessGate := hasReadinessGate(cr.Spec.ReadinessGates, r.kind)
-		// if no IPAM readiness gate, delete the injector if it existed or not
-		// we can stop the reconciliation in this case since there is nothing more to do
-		if !hasIpamReadinessGate {
-			r.injectors.Stop(i)
-			r.l.Info("injector stopped", "pr", cr.GetName())
-			return ctrl.Result{}, nil
-		}
-
-		// run the injector when the ipam readiness gate is set
-		r.l.Info("injector running", "pr", cr.GetName())
-		r.injectors.Run(i)
-	*/
-
 	return ctrl.Result{}, nil
 }
 
@@ -177,28 +152,6 @@ func unsatisfiedConditions(conditions []porchv1alpha1.Condition, conditionType s
 	return uc
 }
 
-/*
-func hasReadinessGate(gates []porchv1alpha1.ReadinessGate, gate string) bool {
-	for i := range gates {
-		g := gates[i]
-		if g.ConditionType == gate {
-			return true
-		}
-	}
-	return false
-}
-
-func hasCondition(conditions []porchv1alpha1.Condition, conditionType string) (*porchv1alpha1.Condition, bool) {
-	for i := range conditions {
-		c := conditions[i]
-		if c.Type == conditionType {
-			return &c, true
-		}
-	}
-	return nil, false
-}
-*/
-
 func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.NamespacedName) error {
 	r.l = log.FromContext(ctx)
 	r.l.Info("injector function", "name", namespacedName.String())
@@ -210,7 +163,7 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 
 	pr := origPr.DeepCopy()
 
-	r.l.Info("injector function", "name", namespacedName.String(), "pr spec", pr.Spec)
+	//r.l.Info("injector function", "name", namespacedName.String(), "pr spec", pr.Spec)
 
 	prConditions := convertConditions(pr.Status.Conditions)
 
@@ -303,7 +256,7 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 
 			resp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, ipAlloc, nil)
 			if err != nil {
-				r.l.Error(err, "grpc ipam allocation request error")
+				r.l.Error(err, "grpc ipam allocation request error", "ipAlloc", ipAlloc)
 				return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
 			}
 
@@ -408,17 +361,6 @@ func unconvertConditions(conditions *[]metav1.Condition) []porchv1alpha1.Conditi
 	return prConditions
 }
 
-/*
-func isConditionSatisfied(conditions []porchv1alpha1.Condition, ct string) bool {
-	for _, c := range conditions {
-		if c.Type == ct {
-			return c.Status == porchv1alpha1.ConditionTrue
-		}
-	}
-	return false
-}
-*/
-
 type IpamAllocation struct {
 	Obj fn.KubeObject
 }
@@ -449,12 +391,23 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 	if err != nil {
 		return nil, err
 	}
+	networkInstanceRef := spec.GetMap("networkInstanceRef")
+
+	creatPrefix := false
+	prefixLength := uint8(spec.GetInt("prefixLength"))
+	if prefixLength > 0 {
+		creatPrefix = true
+	}
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
 		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
-		//AddressFamily: iputil.AddressFamily(spec.GetString("addressFamily")),
-		Prefix:       spec.GetString("prefix"),
-		PrefixLength: uint8(spec.GetInt("prefixLength")),
+		NetworkInstanceRef: &ipamv1alpha1.NetworkInstanceReference{
+			Namespace: networkInstanceRef.GetString("namespace"),
+			Name: networkInstanceRef.GetString("name"),
+		},
+		Prefix:          spec.GetString("prefix"),
+		PrefixLength:    prefixLength,
+		CreatePrefix:    creatPrefix,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: selectorLabels,
 		},

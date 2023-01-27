@@ -3,6 +3,7 @@ package proxycache
 import (
 	"context"
 	"errors"
+	"time"
 
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
@@ -58,7 +59,7 @@ func (r *proxycache) startWatch(ctx context.Context, gvk schema.GroupVersionKind
 						r.l.Error(err, "failed to subscribe")
 					}
 				}
-				//time.Sleep(time.Second * 1) //- resilience for server crash
+				time.Sleep(time.Second * 1) //- resilience for server crash
 				// retry on failure
 				continue
 			}
@@ -75,7 +76,7 @@ func (r *proxycache) startWatch(ctx context.Context, gvk schema.GroupVersionKind
 			}
 			// clearing the stream will force the client to resubscribe in the next iteration
 			stream = nil
-			//time.Sleep(time.Second * 1) //- resilience for server crash
+			time.Sleep(time.Second * 1) //- resilience for server crash
 			// retry on failure
 			continue
 		}

@@ -76,7 +76,11 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 
 	for _, alloc := range d.Items {
 		// only enqueue if the network-instance matches
-		if ni.GetName() == alloc.Spec.NetworkInstance {
+		allocNiNamespace := "default"
+		if alloc.Spec.NetworkInstanceRef.Namespace != "" {
+			allocNiNamespace = alloc.Spec.NetworkInstanceRef.Namespace
+		}
+		if ni.GetName() == alloc.Spec.NetworkInstanceRef.Name && ni.GetNamespace() == allocNiNamespace {
 			e.l.Info("event requeue allocation", "name", alloc.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: alloc.GetNamespace(),

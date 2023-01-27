@@ -60,21 +60,20 @@ type cm struct {
 
 func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
 	r.l.Info("store")
-	// TODO should this become a namespace name parameter
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), false)
+	niRef := alloc.GetNetworkInstanceRef()
+	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {
 		return err
 	}
+	
+	cm := buildConfigMap(niRef)
 
-	namespace := alloc.GetNamespace()
-	name := alloc.GetNetworkInstance()
-	cm := buildConfigMap(namespace, name)
-
-	if err := r.c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cm); err != nil {
+	// TODO how to get the network instance namespace
+	if err := r.c.Get(ctx, types.NamespacedName{Namespace: niRef.Namespace, Name: niRef.Name}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
 			return errors.Wrap(r.c.Create(ctx, cm), "cannot create configmap")
 		}
-		r.l.Error(err, "cannot get configmap", "name", fmt.Sprintf("%s/%s", namespace, name))
+		r.l.Error(err, "cannot get configmap", "niRef", niRef)
 	}
 
 	data := map[string]labels.Set{}
@@ -93,7 +92,8 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 
 func (r *cm) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
 	r.l = log.FromContext(ctx)
-	cm := buildConfigMap(cr.GetNamespace(), cr.GetName())
+	niRef := ipamv1alpha1.NetworkInstanceReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	cm := buildConfigMap(niRef)
 	if err := r.c.Delete(ctx, cm); err != nil {
 		if !kerrors.IsNotFound(err) {
 			r.l.Error(err, "ipam delete instance cm", "name", cr.GetName())
@@ -104,13 +104,11 @@ func (r *cm) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 
 func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
 	r.l = log.FromContext(ctx)
-	r.l.Info("restore")
+	niRef := ipamv1alpha1.NetworkInstanceReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	r.l.Info("restore", "niRef", niRef)
 
-	name := cr.GetName()
-	namespace := cr.GetNamespace()
-
-	cm := buildConfigMap(cr.GetNamespace(), cr.GetName())
-	if err := r.c.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, cm); err != nil {
+	cm := buildConfigMap(niRef)
+	if err := r.c.Get(ctx, types.NamespacedName{Name: niRef.Name, Namespace: niRef.Namespace}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
 			return errors.Wrap(r.c.Create(ctx, cm), "canno create configmap")
 		}
@@ -121,12 +119,12 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 		r.l.Error(err, "unmarshal error from configmap data")
 		return err
 	}
-	r.l.Info("restored data", "name", name, "allocations", allocations)
+	r.l.Info("restored data", "niRef", niRef, "allocations", allocations)
 
 	// INFO: dynamic allocations which dont come through the k8s api
 	// are resstored from the proxy cache, we assume the grpc client takes care of that
 
-	rib, err := r.ipamRib.getRIB(cr.GetName(), true)
+	rib, err := r.ipamRib.getRIB(niRef, true)
 	if err != nil {
 		return err
 	}
@@ -301,15 +299,15 @@ func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix str
 	}
 }
 
-func buildConfigMap(namespace, name string) *corev1.ConfigMap {
+func buildConfigMap(niRef ipamv1alpha1.NetworkInstanceReference) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Namespace: niRef.Namespace,
+			Name:      niRef.Name,
 			//ResourceVersion: "",
 		},
 	}

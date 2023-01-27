@@ -4,7 +4,9 @@ metadata:
   name: us-central1.edge3.net1.dynprefix1
 spec:
   kind: network
-  networkInstance: vpc2
+  networkInstanceRef: 
+    namespace: default
+    name: vpc2
   prefixLength: 24
   createPrefix: true
   labels:

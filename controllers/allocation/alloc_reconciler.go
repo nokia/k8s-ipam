@@ -150,8 +150,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// when a network instance get deleted
 	ni := &ipamv1alpha1.NetworkInstance{}
 	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.NetworkInstance,
+		Namespace: cr.Spec.NetworkInstanceRef.Namespace,
+		Name:      cr.Spec.NetworkInstanceRef.Name,
 	}, ni); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.

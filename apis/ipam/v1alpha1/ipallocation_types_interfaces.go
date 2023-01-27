@@ -42,8 +42,8 @@ func (r *IPAllocation) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
-func (r *IPAllocation) GetNetworkInstance() string {
-	return r.Spec.NetworkInstance
+func (r *IPAllocation) GetNetworkInstanceRef() NetworkInstanceReference {
+	return *r.Spec.NetworkInstanceRef
 }
 
 func (r *IPAllocation) GetPrefixKind() PrefixKind {
@@ -270,8 +270,8 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		return nil
 	}
 	spec := IPAllocationSpec{
-		PrefixKind:      cr.Spec.PrefixKind,
-		NetworkInstance: cr.Spec.NetworkInstance,
+		PrefixKind:         cr.Spec.PrefixKind,
+		NetworkInstanceRef: cr.Spec.NetworkInstanceRef,
 		//AddressFamily:   pi.GetAddressFamily(),
 		Prefix:       cr.Spec.Prefix,
 		PrefixLength: uint8(pi.GetPrefixLength().Int()),
@@ -293,8 +293,11 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		return nil
 	}
 	spec := IPAllocationSpec{
-		PrefixKind:      PrefixKindAggregate,
-		NetworkInstance: cr.GetName(),
+		PrefixKind: PrefixKindAggregate,
+		NetworkInstanceRef: &NetworkInstanceReference{
+			Name:      cr.GetName(),
+			Namespace: cr.GetNamespace(),
+		},
 		//AddressFamily:   pi.GetAddressFamily(),
 		Prefix:       prefix.Prefix,
 		PrefixLength: uint8(pi.GetPrefixLength().Int()),

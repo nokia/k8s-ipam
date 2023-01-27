@@ -25,6 +25,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// NetworkInstanceReference is used to refer to a networkInstance resource.
+type NetworkInstanceReference struct {
+	// Namespace defines the space within which the networkInstance name must be unique.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name is unique within a namespace to reference a networkInstance.
+	Name string `json:"name"`
+}
+
 // NetworkInstanceSpec defines the desired state of NetworkInstance
 type NetworkInstanceSpec struct {
 	Prefixes []*Prefix `json:"prefixes" yaml:"prefixes"`

@@ -4,7 +4,9 @@ metadata:
   name: us-central1.fabric1.node1.mgmt.ipv4
 spec:
   kind: loopback
-  networkInstance: vpc-mgmt
+  networkInstanceRef: 
+    namespace: default
+    name: vpc-mgmt
   selector:
     matchLabels:
       nephio.org/region: us-central1

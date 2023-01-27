@@ -30,8 +30,8 @@ type IPAllocationSpec struct {
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
 	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
-	// NetworkInstance identifies the network instance the IP allocation is allocated from
-	NetworkInstance string `json:"networkInstance" yaml:"networkInstance"`
+	// NetworkInstanceRef identifies the networkInstance for this prefix
+	NetworkInstanceRef *NetworkInstanceReference `json:"networkInstanceRef"`
 	// +kubebuilder:validation:Enum=`ipv4`;`ipv6`
 	AddressFamily iputil.AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`
 	// Prefix allows the client to indicate the prefix that was already allocated and validate if the allocation is still consistent

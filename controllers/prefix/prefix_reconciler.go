@@ -111,8 +111,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{}, nil
 	}
 	niName := types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.NetworkInstance,
+		Namespace: cr.Spec.NetworkInstanceRef.Namespace,
+		Name:      cr.Spec.NetworkInstanceRef.Name,
 	}
 
 	if meta.WasDeleted(cr) {

@@ -4,7 +4,9 @@ metadata:
   name: fabric1
 spec:
   kind: loopback
-  networkInstance:  vpc-mgmt2
+  networkInstanceRef: 
+    namespace: default
+    name: vpc-mgmt2
   prefix: 10.0.0.0/24
   labels:
     nephio.org/purpose: mgmt

@@ -4,7 +4,9 @@ metadata:
   name: us-central1.edge1.net1.prefix2
 spec:
   kind: network
-  networkInstance: vpc2
+  networkInstanceRef: 
+    namespace: default
+    name: vpc2
   prefix: 10.0.0.2/24
   labels:
     nephio.org/region: us-central1
