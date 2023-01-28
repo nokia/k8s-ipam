@@ -46,7 +46,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/serveripamproxy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -161,7 +161,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ipamServerProxy := ipamproxy.NewServerProxy(&ipamproxy.ServerConfig{
+	ipamServerProxy := serveripamproxy.New(&serveripamproxy.Config{
 		Ipam: ipam.New(mgr.GetClient()),
 	})
 	ah := allochandler.New(

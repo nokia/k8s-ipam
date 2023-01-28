@@ -1,4 +1,4 @@
-package ipamproxy
+package serveripamproxy
 
 import (
 	"context"

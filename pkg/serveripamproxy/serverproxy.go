@@ -1,4 +1,4 @@
-package ipamproxy
+package serveripamproxy
 
 import (
 	"context"
@@ -14,17 +14,17 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type IpamServerProxy interface {
+type Proxy interface {
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
 	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
 }
 
-type ServerConfig struct {
+type Config struct {
 	Ipam ipam.Ipam
 }
 
-func NewServerProxy(c *ServerConfig) IpamServerProxy {
+func New(c *Config) Proxy {
 	l := ctrl.Log.WithName("ipam-server-proxy")
 	return &serverproxy{
 		ipam:       c.Ipam,

@@ -1,4 +1,4 @@
-package ipamproxy
+package clientipamproxy
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type IpamClientProxy interface {
+type Proxy interface {
 	GetProxyCache() proxycache.ProxyCache
 	// Create creates the network instance in the ipam
 	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
@@ -35,11 +35,11 @@ type AllocatedPrefix struct {
 	Gateway string
 }
 
-type ClientConfig struct {
+type Config struct {
 	Registrator registrator.Registrator
 }
 
-func NewClientProxy(ctx context.Context, c *ClientConfig) IpamClientProxy {
+func New(ctx context.Context, c *Config) Proxy {
 	l := ctrl.Log.WithName("ipam-client-proxy")
 
 	pc := proxycache.New(&proxycache.Config{
@@ -175,9 +175,6 @@ func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, 
 	if err != nil {
 		return nil, err
 	}
-
-	//cr.Name = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
-
 	return buildAllocPb(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), string(b), "never", getIPAllocGVK(), ownerGvk), nil
 }
 
@@ -189,30 +186,13 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}
-	/*
-		nsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
-		// if the ownerNsn is in the labels we use this as ownerNsn
-		ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
-		ownerNameValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNameKey]
-		if ok {
-			ownerNsn.Name = ownerNameValue
-		}
-		ownerNamespaceValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey]
-		if ok {
-			ownerNsn.Namespace = ownerNamespaceValue
-		}
-	*/
 	newCr := ipamv1alpha1.BuildIPAllocationFromIPAllocation(cr)
-
-	//spec := cr.Spec
-	//spec.Labels = ipamv1alpha1.AddSpecLabelsWithTypeMeta(ownerGvk, ownerNsn, nsn, cr.Spec.Labels)
 
 	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), newCr.Spec, ipamv1alpha1.IPAllocationStatus{AllocatedPrefix: cr.Status.AllocatedPrefix})
 	b, err := json.Marshal(ipalloc)
 	if err != nil {
 		return nil, err
 	}
-
 	return buildAllocPb(cr, cr.GetName(), string(b), expiryTime, getIPAllocGVK(), ownerGvk), nil
 }
 

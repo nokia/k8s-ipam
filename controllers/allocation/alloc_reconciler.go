@@ -38,7 +38,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"github.com/pkg/errors"
 )
 
@@ -86,7 +86,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 type reconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
-	IpamClientProxy ipamproxy.IpamClientProxy
+	IpamClientProxy clientipamproxy.Proxy
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
 

@@ -27,13 +27,13 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/networkinstance"
 	"github.com/nokia/k8s-ipam/controllers/prefix"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 // Setup package controllers.
 func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
-	ipamproxyClient := ipamproxy.NewClientProxy(ctx, &ipamproxy.ClientConfig{
+	ipamproxyClient := clientipamproxy.New(ctx, &clientipamproxy.Config{
 		Registrator: opts.Registrator,
 	})
 	opts.IpamClientProxy = ipamproxyClient

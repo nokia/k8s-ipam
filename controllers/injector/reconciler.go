@@ -31,7 +31,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +87,7 @@ type reconciler struct {
 	kind string
 	client.Client
 	porchClient     client.Client
-	IpamClientProxy ipamproxy.IpamClientProxy
+	IpamClientProxy clientipamproxy.Proxy
 	Scheme          *runtime.Scheme
 	injectors       injectors.Injectors
 	pollInterval    time.Duration
@@ -345,7 +345,7 @@ func (r *IpamAllocation) GetIPAllocation() (*ipamv1alpha1.IPAllocation, error) {
 
 	return &ipamv1alpha1.IPAllocation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: ipamv1alpha1.IPAllocationKindAPIVersion,
+			APIVersion: ipamv1alpha1.GroupVersion.String(),
 			Kind:       ipamv1alpha1.IPAllocationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -400,7 +400,7 @@ func getIpAllocation(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocation, error) {
 	return ipAlloc.GetIPAllocation()
 }
 
-func GetUpdatedAllocation(resp *ipamproxy.AllocatedPrefix, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
+func GetUpdatedAllocation(resp *clientipamproxy.AllocatedPrefix, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
 	// update prefix status with the allocated prefix
 	ipAlloc := &ipamv1alpha1.IPAllocation{
 		Status: ipamv1alpha1.IPAllocationStatus{
