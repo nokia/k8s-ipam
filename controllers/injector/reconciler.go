@@ -260,34 +260,6 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 				return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
 			}
 
-			/*
-				// get the grpc format for the allocation
-				grpcAllocSpec, err := getGrpcAllocationSpec(ipAllocSpec)
-				if err != nil {
-					return prResources, pkgBuf, err
-				}
-				r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", grpcAllocSpec)
-
-				// grpc allocation request
-				// we always refresh the ipallocation even if it was already satisfied,
-				//since this allows to refresh the ipam
-			*/
-
-			/*
-				resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
-					Meta: &allocpb.Meta{
-						Namespace: namespace,
-						Name:      rn.GetName(),
-						Labels:    rn.GetLabels(),
-					},
-					Spec: grpcAllocSpec,
-				})
-				if err != nil {
-					r.l.Error(err, "grpc ipam allocation request error")
-					return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
-				}
-			*/
-
 			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
 
 			// update Allocation
@@ -403,11 +375,11 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
 		NetworkInstanceRef: &ipamv1alpha1.NetworkInstanceReference{
 			Namespace: networkInstanceRef.GetString("namespace"),
-			Name: networkInstanceRef.GetString("name"),
+			Name:      networkInstanceRef.GetString("name"),
 		},
-		Prefix:          spec.GetString("prefix"),
-		PrefixLength:    prefixLength,
-		CreatePrefix:    creatPrefix,
+		Prefix:       spec.GetString("prefix"),
+		PrefixLength: prefixLength,
+		CreatePrefix: creatPrefix,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: selectorLabels,
 		},
@@ -427,26 +399,6 @@ func getIpAllocation(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocation, error) {
 	}
 	return ipAlloc.GetIPAllocation()
 }
-
-/*
-func getGrpcAllocationSpec(ipAllocSpec *ipamv1alpha1.IPAllocationSpec) (*allocpb.Spec, error) {
-	allocSpec := &allocpb.Spec{
-		Attributes: map[string]string{
-			ipamv1alpha1.NephioPrefixKindKey: string(ipAllocSpec.PrefixKind),
-		},
-		Selector: ipAllocSpec.Selector.MatchLabels,
-	}
-	switch ipAllocSpec.PrefixKind {
-	case ipamv1alpha1.PrefixKindAggregate:
-	case ipamv1alpha1.PrefixKindNetwork:
-	case ipamv1alpha1.PrefixKindPool:
-		allocSpec.Attributes[ipamv1alpha1.NephioPrefixKindKey] = strconv.Itoa(int(ipAllocSpec.PrefixLength))
-	default:
-		return nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
-	}
-	return allocSpec, nil
-}
-*/
 
 func GetUpdatedAllocation(resp *ipamproxy.AllocatedPrefix, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
 	// update prefix status with the allocated prefix

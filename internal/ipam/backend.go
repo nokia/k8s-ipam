@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
-	//kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -65,7 +64,7 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 	if err != nil {
 		return err
 	}
-	
+
 	cm := buildConfigMap(niRef)
 
 	// TODO how to get the network instance namespace

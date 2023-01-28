@@ -98,7 +98,7 @@ func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
 
 // Initialize and create the ipam instance with the allocated prefixes
 func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
-	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
 
 	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
@@ -119,7 +119,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 
 // Delete the ipam instance
 func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
-	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
 
 	r.l.Info("ipam delete instance start")
@@ -188,7 +188,7 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 }
 
 func (r *ipam) GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes {
-	niRef:= ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 
 	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {
