@@ -119,23 +119,24 @@ func (r *applicator) getMutatedRoutesWithLabels() []table.Route {
 
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		if r.alloc.GetCreatePrefix() {
-			// expand
-			if r.pi.IsNorLastNorFirst() {
+			switch {
+			case r.pi.GetAddressFamily() == iputil.AddressFamilyIpv4 && r.pi.GetPrefixLength().Int() == 31,
+				r.pi.GetAddressFamily() == iputil.AddressFamilyIpv6 && r.pi.GetPrefixLength().Int() == 127:
+				routes = append(routes, r.mutateNetworkNetRoute(labels))
+				routes = append(routes, r.mutateNetworIPAddressRoute(labels))
+			case r.pi.IsNorLastNorFirst():
 				routes = append(routes, r.mutateNetworkNetRoute(labels))
 				routes = append(routes, r.mutateNetworIPAddressRoute(labels))
 				routes = append(routes, r.mutateNetworFirstAddressRoute(labels))
 				routes = append(routes, r.mutateNetworLastAddressRoute(labels))
-			}
-			if r.pi.IsFirst() {
+			case r.pi.IsFirst():
 				routes = append(routes, r.mutateNetworkNetRoute(labels))
 				routes = append(routes, r.mutateNetworIPAddressRoute(labels))
 				routes = append(routes, r.mutateNetworLastAddressRoute(labels))
-			}
-			if r.pi.IsLast() {
+			case r.pi.IsLast():
 				routes = append(routes, r.mutateNetworkNetRoute(labels))
 				routes = append(routes, r.mutateNetworIPAddressRoute(labels))
 				routes = append(routes, r.mutateNetworFirstAddressRoute(labels))
-				routes = append(routes, r.mutateNetworLastAddressRoute(labels))
 			}
 			return routes
 		} else {
