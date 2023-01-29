@@ -400,11 +400,11 @@ func getIpAllocation(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocation, error) {
 	return ipAlloc.GetIPAllocation()
 }
 
-func GetUpdatedAllocation(resp *clientipamproxy.AllocatedPrefix, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
+func GetUpdatedAllocation(resp *ipamv1alpha1.IPAllocation, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
 	// update prefix status with the allocated prefix
 	ipAlloc := &ipamv1alpha1.IPAllocation{
 		Status: ipamv1alpha1.IPAllocationStatus{
-			AllocatedPrefix: resp.Prefix,
+			AllocatedPrefix: resp.Status.AllocatedPrefix,
 		},
 	}
 
@@ -414,7 +414,7 @@ func GetUpdatedAllocation(resp *clientipamproxy.AllocatedPrefix, prefixKind ipam
 	case ipamv1alpha1.PrefixKindNetwork:
 		// update gateway status with the allocated gateway
 		// only relevant for prefixkind = network
-		ipAlloc.Status.Gateway = resp.Gateway
+		ipAlloc.Status.Gateway = resp.Status.Gateway
 
 	case ipamv1alpha1.PrefixKindPool:
 	}

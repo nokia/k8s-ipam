@@ -89,8 +89,8 @@ type reconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	IpamClientProxy clientipamproxy.Proxy
-	pollInterval time.Duration
-	finalizer    *resource.APIFinalizer
+	pollInterval    time.Duration
+	finalizer       *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -176,15 +176,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	allocatedPrefix, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
+	allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if allocatedPrefix.Prefix != cr.Spec.Prefix {
+	if allocResp.Status.AllocatedPrefix != cr.Spec.Prefix {
 		//we got a different prefix than requested
-		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
+		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", allocResp.Status.AllocatedPrefix)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}

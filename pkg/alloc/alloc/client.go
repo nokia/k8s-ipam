@@ -70,12 +70,13 @@ func (r *client) create() error {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	conn, err := grpc.DialContext(timeoutCtx, r.cfg.Address, opts...)
+	var err error
+	r.conn, err = grpc.DialContext(timeoutCtx, r.cfg.Address, opts...)
 	if err != nil {
 		return err
 	}
 	//defer conn.Close()
-	r.allocPbClient = allocpb.NewAllocationClient(conn)
+	r.allocPbClient = allocpb.NewAllocationClient(r.conn)
 
 	return nil
 }

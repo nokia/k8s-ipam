@@ -160,15 +160,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// if prefixes are provided from the network instance we treat them as
 	// aggregate prefixes.
 	for _, prefix := range cr.Spec.Prefixes {
-		allocatedPrefix, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, prefix)
+		allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, prefix)
 		if err != nil {
 			r.l.Info("cannot allocate prefix", "err", err)
 			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
 			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		if allocatedPrefix.Prefix != prefix.Prefix {
+		if allocResp.Status.AllocatedPrefix != prefix.Prefix {
 			//we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", *allocatedPrefix)
+			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.AllocatedPrefix)
 			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

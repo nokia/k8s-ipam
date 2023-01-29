@@ -205,7 +205,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	cr.Spec.Prefix = specPrefix
 
-	allocatedPrefix, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
+	allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 
@@ -218,16 +218,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	// if the prefix is allocated in the spec, we need to ensure we get the same allocation
 	if cr.Spec.Prefix != "" {
-		if allocatedPrefix.Prefix != cr.Spec.Prefix {
+		if allocResp.Status.AllocatedPrefix != cr.Spec.Prefix {
 			// we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
+			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "alloc Resp", allocResp.Status)
 			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
-	cr.Status.Gateway = allocatedPrefix.Gateway
-	cr.Status.AllocatedPrefix = allocatedPrefix.Prefix
-	r.l.Info("Successfully reconciled resource", "allocatedPrefix", *allocatedPrefix)
+	cr.Status.Gateway = allocResp.Status.Gateway
+	cr.Status.AllocatedPrefix = allocResp.Status.AllocatedPrefix
+	r.l.Info("Successfully reconciled resource", "allocResp",  allocResp.Status)
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

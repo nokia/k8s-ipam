@@ -25,15 +25,17 @@ type Proxy interface {
 	// Delete deletes the network instance in the ipam
 	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// AllocateIPPrefix allocates an ip prefix
-	AllocateIPPrefix(ctx context.Context, cr client.Object, d any) (*AllocatedPrefix, error)
+	AllocateIPPrefix(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
 	// DeAllocateIPPrefix
 	DeAllocateIPPrefix(ctx context.Context, cr client.Object, d any) error
 }
 
+/*
 type AllocatedPrefix struct {
 	Prefix  string
 	Gateway string
 }
+*/
 
 type Config struct {
 	Registrator registrator.Registrator
@@ -87,7 +89,7 @@ func (r *clientproxy) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 	return r.pc.DeAllocate(ctx, req)
 }
 
-func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d any) (*AllocatedPrefix, error) {
+func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
 	r.l.Info("allocate prefix", "cr", o)
 	// normalizes the input to the proxycache generalized allocation
 	req, err := NormalizeKRMToProxyCacheAllocation(o, d)
@@ -100,15 +102,18 @@ func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d a
 	if err != nil {
 		return nil, err
 	}
-	ipAlloc := ipamv1alpha1.IPAllocation{}
-	if err := json.Unmarshal([]byte(resp.Status), &ipAlloc); err != nil {
+	ipAlloc := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(resp.Status), ipAlloc); err != nil {
 		return nil, err
 	}
 	r.l.Info("allocate prefix done", "result", ipAlloc.Status)
-	return &AllocatedPrefix{
-		Prefix:  ipAlloc.Status.AllocatedPrefix,
-		Gateway: ipAlloc.Status.Gateway,
-	}, nil
+	return ipAlloc, nil
+	/*
+		return &AllocatedPrefix{
+			Prefix:  ipAlloc.Status.AllocatedPrefix,
+			Gateway: ipAlloc.Status.Gateway,
+		}, nil
+	*/
 
 }
 
