@@ -40,7 +40,7 @@ func New(c *Config) ProxyCache {
 	l := ctrl.Log.WithName("proxy-cache")
 
 	return &proxycache{
-		//informer:    NewInformer(c.EventChannels),
+		informer:    NewNopInformer(),
 		cache:       NewCache(),
 		validator:   NewResponseValidator(),
 		registrator: c.Registrator,

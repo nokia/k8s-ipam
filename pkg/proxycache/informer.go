@@ -19,6 +19,14 @@ type Informer interface {
 	GetGVK() []schema.GroupVersionKind
 }
 
+func NewNopInformer() Informer {
+	l := ctrl.Log.WithName("nopInformer")
+	return &informer{
+		eventCh: map[schema.GroupVersionKind]chan event.GenericEvent{},
+		l:       l,
+	}
+}
+
 func NewInformer(EventChannels map[schema.GroupVersionKind]chan event.GenericEvent) Informer {
 	l := ctrl.Log.WithName("informer")
 	return &informer{
