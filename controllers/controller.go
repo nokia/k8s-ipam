@@ -58,7 +58,7 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 		}
 	}
 
-	ipamproxyClient.GetProxyCache().AddEventChs(eventChs)
+	ipamproxyClient.AddEventChs(eventChs)
 
 	return nil
 }

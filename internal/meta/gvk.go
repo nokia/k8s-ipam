@@ -47,7 +47,6 @@ func GVKToString(gvk *schema.GroupVersionKind) string {
 	}
 	return sb.String()
 
-	//return fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group)
 }
 
 func AllocPbGVKTostring(gvk *allocpb.GVK) string {

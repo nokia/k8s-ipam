@@ -16,10 +16,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 type Proxy interface {
-	GetProxyCache() proxycache.ProxyCache
+	AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent)
+	//GetProxyCache() proxycache.ProxyCache
 	// Create creates the network instance in the ipam
 	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// Delete deletes the network instance in the ipam
@@ -64,6 +66,10 @@ type clientproxy struct {
 
 func (r *clientproxy) GetProxyCache() proxycache.ProxyCache {
 	return r.pc
+}
+
+func (r *clientproxy) AddEventChs(ec map[schema.GroupVersionKind]chan event.GenericEvent) {
+	r.pc.AddEventChs(ec)
 }
 
 func (r *clientproxy) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
