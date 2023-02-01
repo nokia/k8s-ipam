@@ -2,10 +2,11 @@ package ipam
 
 import (
 	"context"
-	"fmt"
+	"net/netip"
 	"strings"
 	"testing"
 
+	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -85,6 +86,109 @@ func buildIPAllocation(alloc *allocation) *ipamv1alpha1.IPAllocation {
 	}
 	return nil
 }
+
+var (
+	r0 = table.NewRoute(netip.MustParsePrefix("10.0.0.0/8"), map[string]string{
+		"nephio.org/nsn-namespace":       "dummy",
+		"nephio.org/owner-gvk":           "NetworkInstance.v1alpha1.ipam.nephio.org",
+		"nephio.org/owner-nsn-name":      "niName",
+		"nephio.org/prefix-kind":         "aggregate",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/nsn-name":            "niName-aggregate-10.0.0.0-8",
+		"nephio.org/owner-nsn-namespace": "dummy",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/subnet":              "10.0.0.0-8",
+	}, nil)
+
+	r1 = table.NewRoute(netip.MustParsePrefix("10.0.0.0/24"), map[string]string{
+		"nephio.org/owner-nsn-name":      "alloc-net1-prefix1",
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/prefix-kind":         "network",
+		"nephio.org/network-name":        "net1",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/subnet":              "10.0.0.0-24",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-name":            "alloc-net1-prefix1",
+		"nephio.org/region":              "us-central1",
+		"nephio.org/site":                "edge1",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-namespace":       "test",
+	}, nil)
+
+	r2 = table.NewRoute(netip.MustParsePrefix("10.0.0.0/32"), map[string]string{
+		"nephio.org/network-name":        "net1",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-name":            "alloc-net1-prefix1",
+		"nephio.org/region":              "us-central1",
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-namespace":       "test",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/prefix-kind":         "network",
+		"nephio.org/subnet":              "10.0.0.0-24",
+		"nephio.org/site":                "edge1",
+		"nephio.org/owner-nsn-name":      "alloc-net1-prefix1",
+	}, nil)
+
+	r3 = table.NewRoute(netip.MustParsePrefix("10.0.0.1/32"), map[string]string{
+		"nephio.org/owner-nsn-name":      "alloc-net1-prefix1",
+		"nephio.org/prefix-kind":         "network",
+		"nephio.org/subnet":              "10.0.0.0-24",
+		"nephio.org/region":              "us-central1",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/network-name":        "net1",
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-name":            "alloc-net1-prefix1",
+		"nephio.org/site":                "edge1",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/gateway":             "true",
+		"nephio.org/nsn-namespace":       "test",
+	}, nil)
+
+	r4 = table.NewRoute(netip.MustParsePrefix("10.0.0.2/32"), map[string]string{
+		"nephio.org/owner-nsn-name":      "alloc-net1-staticprefix",
+		"nephio.org/gateway":             "true",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/subnet":              "10.0.0.0-24",
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/nsn-name":            "alloc-net1-staticprefix",
+		"nephio.org/nsn-namespace":       "test",
+		"nephio.org/region":              "us-central1",
+		"nephio.org/site":                "edge1",
+		"nephio.org/network-name":        "net1",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/prefix-kind":         "network",
+	}, nil)
+
+	r5 = table.NewRoute(netip.MustParsePrefix("10.0.0.3/32"), map[string]string{
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/nsn-namespace":       "test",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/owner-nsn-name":      "alloc-net1-alloc1",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/nsn-name":            "alloc-net1-alloc1",
+		"nephio.org/prefix-kind":         "network",
+		"nephio.org/subnet":              "10.0.0.0-24",
+	}, nil)
+
+	r6 = table.NewRoute(netip.MustParsePrefix("10.0.0.255/32"), map[string]string{
+		"nephio.org/owner-nsn-name":      "alloc-net1-prefix1",
+		"nephio.org/subnet":              "10.0.0.0-24",
+		"nephio.org/gvk":                 "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/region":              "us-central1",
+		"nephio.org/site":                "edge1",
+		"nephio.org/owner-gvk":           "IPAllocation.v1alpha1.ipam.nephio.org",
+		"nephio.org/owner-nsn-namespace": "test",
+		"nephio.org/prefix-kind":         "network",
+		"nephio.org/nsn-name":            "alloc-net1-prefix1",
+		"nephio.org/address-family":      "ipv4",
+		"nephio.org/network-name":        "net1",
+		"nephio.org/nsn-namespace":       "test",
+	}, nil)
+)
 
 func TestNetworkInstance(t *testing.T) {
 	niRef := &ipamv1alpha1.NetworkInstanceReference{
@@ -254,8 +358,12 @@ func TestNetworkInstance(t *testing.T) {
 	}
 
 	routes := ipam.GetPrefixes(niCr)
-	for _, route := range routes {
-		fmt.Println(route)
+	comparationRoutes := []table.Route{r0, r1, r2, r3, r4, r5, r6}
+
+	for i, route := range routes {
+		if !route.Equal(comparationRoutes[i]) {
+			t.Errorf("route %d is not equal [%s] vs [%s]", i, route.String(), comparationRoutes[i].String())
+		}
 	}
 
 }
