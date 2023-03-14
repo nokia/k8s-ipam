@@ -20,40 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// WasDeleted returns true if the supplied object was deleted from the API server.
 func WasDeleted(o metav1.Object) bool {
 	return !o.GetDeletionTimestamp().IsZero()
-}
-
-// AddFinalizer to the supplied Kubernetes object's metadata.
-func AddFinalizer(o metav1.Object, finalizer string) {
-	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return
-		}
-	}
-	o.SetFinalizers(append(f, finalizer))
-}
-
-// RemoveFinalizer from the supplied Kubernetes object's metadata.
-func RemoveFinalizer(o metav1.Object, finalizer string) {
-	f := o.GetFinalizers()
-	for i, e := range f {
-		if e == finalizer {
-			f = append(f[:i], f[i+1:]...)
-		}
-	}
-	o.SetFinalizers(f)
-}
-
-// FinalizerExists checks whether given finalizer is already set.
-func FinalizerExists(o metav1.Object, finalizer string) bool {
-	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return true
-		}
-	}
-	return false
 }

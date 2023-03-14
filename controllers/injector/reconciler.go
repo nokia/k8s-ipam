@@ -26,13 +26,12 @@ import (
 	kptfile "github.com/GoogleContainerTools/kpt/pkg/api/kptfile/v1"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/henderiw-nephio/nf-injector-controller/pkg/ipam"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +39,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -60,20 +62,23 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func Setup(mgr ctrl.Manager, options *shared.Options) error {
+	ge := make(chan event.GenericEvent)
 	r := &reconciler{
-		kind:        "ipam",
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		porchClient: options.PorchClient,
-		allocCLient: options.AllocClient,
+		kind:            "ipam",
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		porchClient:     options.PorchClient,
+		IpamClientProxy: options.IpamClientProxy,
 
 		injectors:    options.Injectors,
 		pollInterval: options.Poll,
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
+	// TBD how does the proxy cache work with the injector for updates
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&porchv1alpha1.PackageRevision{}).
+		Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
@@ -81,12 +86,12 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	kind string
 	client.Client
-	porchClient  client.Client
-	allocCLient  allocpb.AllocationClient
-	Scheme       *runtime.Scheme
-	injectors    injectors.Injectors
-	pollInterval time.Duration
-	finalizer    *resource.APIFinalizer
+	porchClient     client.Client
+	IpamClientProxy clientipamproxy.Proxy
+	Scheme          *runtime.Scheme
+	injectors       injectors.Injectors
+	pollInterval    time.Duration
+	finalizer       *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -123,31 +128,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	/*
-		crName := types.NamespacedName{
-			Namespace: cr.Namespace,
-			Name:      cr.Name,
-		}
-		i := injector.New(&injector.Config{
-			InjectorHandler: r.injectIPs,
-			NamespacedName:  crName,
-			Client:          r.Client,
-		})
-
-		hasIpamReadinessGate := hasReadinessGate(cr.Spec.ReadinessGates, r.kind)
-		// if no IPAM readiness gate, delete the injector if it existed or not
-		// we can stop the reconciliation in this case since there is nothing more to do
-		if !hasIpamReadinessGate {
-			r.injectors.Stop(i)
-			r.l.Info("injector stopped", "pr", cr.GetName())
-			return ctrl.Result{}, nil
-		}
-
-		// run the injector when the ipam readiness gate is set
-		r.l.Info("injector running", "pr", cr.GetName())
-		r.injectors.Run(i)
-	*/
-
 	return ctrl.Result{}, nil
 }
 
@@ -172,28 +152,6 @@ func unsatisfiedConditions(conditions []porchv1alpha1.Condition, conditionType s
 	return uc
 }
 
-/*
-func hasReadinessGate(gates []porchv1alpha1.ReadinessGate, gate string) bool {
-	for i := range gates {
-		g := gates[i]
-		if g.ConditionType == gate {
-			return true
-		}
-	}
-	return false
-}
-
-func hasCondition(conditions []porchv1alpha1.Condition, conditionType string) (*porchv1alpha1.Condition, bool) {
-	for i := range conditions {
-		c := conditions[i]
-		if c.Type == conditionType {
-			return &c, true
-		}
-	}
-	return nil, false
-}
-*/
-
 func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.NamespacedName) error {
 	r.l = log.FromContext(ctx)
 	r.l.Info("injector function", "name", namespacedName.String())
@@ -205,7 +163,7 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 
 	pr := origPr.DeepCopy()
 
-	r.l.Info("injector function", "name", namespacedName.String(), "pr spec", pr.Spec)
+	//r.l.Info("injector function", "name", namespacedName.String(), "pr spec", pr.Spec)
 
 	prConditions := convertConditions(pr.Status.Conditions)
 
@@ -291,37 +249,21 @@ func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName type
 			}
 
 			// convert the yaml string to a typed IP allocation
-			ipAllocSpec, err := getIpAllocationSpec(rn)
+			ipAlloc, err := getIpAllocation(rn)
 			if err != nil {
 				return prResources, pkgBuf, fmt.Errorf("cannot convert ip allocation to a typed spec: %s", rn.GetName())
 			}
 
-			// get the grpc format for the allocation
-			grpcAllocSpec, err := getGrpcAllocationSpec(ipAllocSpec)
+			resp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, ipAlloc, nil)
 			if err != nil {
-				return prResources, pkgBuf, err
-			}
-			r.l.Info("grpc ipam allocation request", "Name", rn.GetName(), "Labels", rn.GetLabels(), "Spec", grpcAllocSpec)
-
-			// grpc allocation request
-			// we always refresh the ipallocation even if it was already satisfied,
-			//since this allows to refresh the ipam
-			resp, err := r.allocCLient.Allocation(ctx, &allocpb.Request{
-				Namespace: namespace,
-				Name:      rn.GetName(),
-				Kind:      "ipam",
-				Labels:    rn.GetLabels(),
-				Spec:      grpcAllocSpec,
-			})
-			if err != nil {
-				r.l.Error(err, "grpc ipam allocation request error")
+				r.l.Error(err, "grpc ipam allocation request error", "ipAlloc", ipAlloc)
 				return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
 			}
 
 			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
 
 			// update Allocation
-			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAllocSpec.PrefixKind))
+			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAlloc.Spec.PrefixKind))
 			if err != nil {
 				return prResources, pkgBuf, errors.Wrap(err, "cannot get updated allocation status")
 			}
@@ -391,61 +333,89 @@ func unconvertConditions(conditions *[]metav1.Condition) []porchv1alpha1.Conditi
 	return prConditions
 }
 
-/*
-func isConditionSatisfied(conditions []porchv1alpha1.Condition, ct string) bool {
-	for _, c := range conditions {
-		if c.Type == ct {
-			return c.Status == porchv1alpha1.ConditionTrue
-		}
-	}
-	return false
+type IpamAllocation struct {
+	Obj fn.KubeObject
 }
-*/
 
-func getIpAllocationSpec(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocationSpec, error) {
+func (r *IpamAllocation) GetIPAllocation() (*ipamv1alpha1.IPAllocation, error) {
+	spec, err := r.GetSpec()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ipamv1alpha1.IPAllocation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ipamv1alpha1.GroupVersion.String(),
+			Kind:       ipamv1alpha1.IPAllocationKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.Obj.GetNamespace(),
+			Name:      r.Obj.GetName(),
+			Labels:    r.Obj.GetLabels(),
+		},
+		Spec: *spec,
+	}, nil
+}
+
+func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
+	spec := r.Obj.GetMap("spec")
+	selectorLabels, _, err := spec.NestedStringMap("selector", "matchLabels")
+	if err != nil {
+		return nil, err
+	}
+	networkInstanceRef := spec.GetMap("networkInstanceRef")
+
+	creatPrefix := false
+	prefixLength := uint8(spec.GetInt("prefixLength"))
+	if prefixLength > 0 {
+		creatPrefix = true
+	}
+
+	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
+		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
+		NetworkInstanceRef: &ipamv1alpha1.NetworkInstanceReference{
+			Namespace: networkInstanceRef.GetString("namespace"),
+			Name:      networkInstanceRef.GetString("name"),
+		},
+		Prefix:       spec.GetString("prefix"),
+		PrefixLength: prefixLength,
+		CreatePrefix: creatPrefix,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: selectorLabels,
+		},
+	}
+
+	return ipAllocSpec, nil
+}
+
+func getIpAllocation(rn *kyaml.RNode) (*ipamv1alpha1.IPAllocation, error) {
 	o, err := fn.ParseKubeObject([]byte(rn.MustString()))
 	if err != nil {
 		return nil, err
 	}
 
-	ipAlloc := ipam.IpamAllocation{
+	ipAlloc := IpamAllocation{
 		Obj: *o,
 	}
-	return ipAlloc.GetSpec()
+	return ipAlloc.GetIPAllocation()
 }
 
-func getGrpcAllocationSpec(ipAllocSpec *ipamv1alpha1.IPAllocationSpec) (*allocpb.Spec, error) {
-	allocSpec := &allocpb.Spec{
-		Prefixkind: ipAllocSpec.PrefixKind,
-		Selector:   ipAllocSpec.Selector.MatchLabels,
-	}
-	switch ipAllocSpec.PrefixKind {
-	case string(ipamv1alpha1.PrefixKindAggregate):
-	case string(ipamv1alpha1.PrefixKindLoopback):
-	case string(ipamv1alpha1.PrefixKindNetwork):
-	case string(ipamv1alpha1.PrefixKindPool):
-		allocSpec.PrefixLength = uint32(ipAllocSpec.PrefixLength)
-	default:
-		return nil, fmt.Errorf("unknown prefixkind: %s", ipAllocSpec.PrefixKind)
-	}
-	return allocSpec, nil
-}
-
-func GetUpdatedAllocation(resp *allocpb.Response, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
+func GetUpdatedAllocation(resp *ipamv1alpha1.IPAllocation, prefixKind ipamv1alpha1.PrefixKind) (*kyaml.RNode, error) {
 	// update prefix status with the allocated prefix
 	ipAlloc := &ipamv1alpha1.IPAllocation{
 		Status: ipamv1alpha1.IPAllocationStatus{
-			AllocatedPrefix: resp.GetAllocatedPrefix(),
+			AllocatedPrefix: resp.Status.AllocatedPrefix,
 		},
 	}
 
 	switch prefixKind {
 	case ipamv1alpha1.PrefixKindAggregate:
-	case ipamv1alpha1.PrefixKindLoopback:
+	//case ipamv1alpha1.PrefixKindLoopback:
 	case ipamv1alpha1.PrefixKindNetwork:
 		// update gateway status with the allocated gateway
 		// only relevant for prefixkind = network
-		ipAlloc.Status.Gateway = resp.GetGateway()
+		ipAlloc.Status.Gateway = resp.Status.Gateway
+
 	case ipamv1alpha1.PrefixKindPool:
 	}
 

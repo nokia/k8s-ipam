@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"strconv"
@@ -25,6 +24,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
+	"github.com/henderiw-k8s-lcnc/discovery/discovery"
+	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
@@ -44,7 +46,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
+	"github.com/nokia/k8s-ipam/pkg/serveripamproxy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -72,6 +74,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
 		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -102,14 +105,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	allocClient, err := alloc.CreateClient(&alloc.Config{
-		Address:  "127.0.0.1:9999",
-		Insecure: true,
+	setupLog.Info("setup controller")
+	ctx := ctrl.SetupSignalHandler()
+
+	reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
+		ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
+		ServiceDiscoveryNamespace: os.Getenv("POD_NAMESPACE"),
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to create grpc ipam client")
+		setupLog.Error(err, "Cannot create registrator")
 		os.Exit(1)
 	}
+
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		podName = "local-ipam"
+	}
+	address := os.Getenv("POD_IP")
+	if address == "" {
+		address = "127.0.0.1"
+	}
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = "ipam"
+	}
+
+	// register the service
+	go func() {
+		reg.Register(ctx, &registrator.Service{
+			Name:         "ipam",
+			ID:           podName,
+			Port:         9999,
+			Address:      address,
+			Tags:         []string{discovery.GetPodServiceTag(namespace, podName)},
+			HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
+		})
+	}()
 
 	porchClient, err := porch.CreateClient()
 	if err != nil {
@@ -117,12 +148,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	ipam := ipam.New(mgr.GetClient())
 	// initialize controllers
-	if err := controllers.Setup(mgr, &shared.Options{
+	if err := controllers.Setup(ctx, mgr, &shared.Options{
+		Registrator: reg,
 		PorchClient: porchClient,
-		AllocClient: allocClient,
-		Ipam:        ipam,
 		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
@@ -132,23 +161,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	ah := allochandler.New(&allochandler.Options{
-		Ipam: ipam,
+	ipamServerProxy := serveripamproxy.New(&serveripamproxy.Config{
+		Ipam: ipam.New(mgr.GetClient()),
 	})
+	ah := allochandler.New(
+		allochandler.WithRoute(ipamv1alpha1.GroupVersion.Group, ipamServerProxy),
+	)
 	wh := healthhandler.New()
 
 	s := grpcserver.New(grpcserver.Config{
 		Address:  ":" + strconv.Itoa(9999),
 		Insecure: true,
 	},
-		grpcserver.WithAllocHandler(ah.Allocation),
-		grpcserver.WithDeAllocHandler(ah.DeAllocation),
+		grpcserver.WithAllocHandler(ah.Allocate),
+		grpcserver.WithDeAllocHandler(ah.DeAllocate),
+		grpcserver.WithWatchAllocHandler(ah.Watch),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)
 
 	go func() {
-		if err := s.Start(context.TODO()); err != nil {
+		if err := s.Start(ctx); err != nil {
 			setupLog.Error(err, "cannot start grpcserver")
 			os.Exit(1)
 		}
@@ -166,7 +199,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

@@ -18,34 +18,53 @@ package allochandler
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (s *subServer) Allocation(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
-	s.l = log.FromContext(ctx)
-	s.l.Info("allocate", "alloc", alloc)
+func (r *subServer) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+	r.l = log.FromContext(ctx)
+	r.l.Info("allocate", "alloc", alloc)
 
-	prefix, err := s.ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromGRPCAlloc(alloc))
-	if err != nil {
-		return nil, err
+	h := r.getHandler(alloc.Header.Gvk.Group)
+	if h == nil {
+		return nil, fmt.Errorf("unregistered route, route error, got %v", alloc.Header)
 	}
-	return &allocpb.Response{
-		AllocatedPrefix: prefix.AllocatedPrefix,
-		Gateway:         prefix.Gateway,
-	}, nil
+	return h.Allocate(ctx, alloc)
+
 }
 
-func (s *subServer) DeAllocation(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
-	s.l = log.FromContext(ctx)
-	s.l.Info("deallocate", "alloc", alloc)
+func (r *subServer) DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error) {
+	r.l = log.FromContext(ctx)
+	r.l.Info("deallocate", "alloc", alloc)
 
-	//allocs := []*ipamv1alpha1.IPAllocation{}
-	//allocs = append(allocs, buildAlloc(alloc))
-	if err := s.ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromGRPCAlloc(alloc)); err != nil {
-		return nil, err
+	h := r.getHandler(alloc.Header.Gvk.Group)
+	if h == nil {
+		return nil, fmt.Errorf("unregistered route, route error, got %v", alloc.Header)
 	}
-	return &allocpb.Response{}, nil
+	return h.DeAllocate(ctx, alloc)
+}
+
+func (r *subServer) getHandler(group string) AlloHandler {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.h[group]
+}
+
+func (r *subServer) Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error {
+	r.l = log.FromContext(stream.Context())
+	r.l.Info("watch", "watch", in)
+
+	if in.Header == nil && in.Header.Gvk == nil {
+		return fmt.Errorf("watch invalid header, %v", in)
+	}
+
+	h := r.getHandler(in.Header.Gvk.Group)
+	if h == nil {
+		return fmt.Errorf("watch unregistered route, route error, got %v", in.Header)
+	}
+	return h.Watch(in, stream)
+
 }

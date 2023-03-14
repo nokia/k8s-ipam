@@ -1,0 +1,13 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPPrefix
+metadata:
+  name: fabric1
+spec:
+  kind: loopback
+  networkInstanceRef: 
+    namespace: default
+    name: vpc-mgmt2
+  prefix: 10.0.0.0/24
+  labels:
+    nephio.org/purpose: mgmt
+    nephio.org/fabric: fabric1

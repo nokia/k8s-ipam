@@ -17,45 +17,90 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+// NetworkInstanceReference is used to refer to a networkInstance resource.
+type NetworkInstanceReference struct {
+	// Namespace defines the space within which the networkInstance name must be unique.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name is unique within a namespace to reference a networkInstance.
+	Name string `json:"name"`
+}
 
 // NetworkInstanceSpec defines the desired state of NetworkInstance
 type NetworkInstanceSpec struct {
+	Prefixes []*Prefix `json:"prefixes" yaml:"prefixes"`
+}
+
+type Prefix struct {
+	// Prefix defines the ip subnet of the ip prefix, it can also be an address if a /32 or /128 is specified
+	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
+	Prefix string `json:"prefix" yaml:"prefix"`
+	// Labels provide metadata to the prefix. They are part of the spec since the allocation
+	// selector will use these labels for finer grane selection
+	// As such we distinguish clearly between the metadata labels and the labels used in the spec
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
 // NetworkInstanceStatus defines the observed state of NetworkInstance
 type NetworkInstanceStatus struct {
-	ConditionedStatus `json:",inline"`
+	ConditionedStatus `json:",inline" yaml:",inline"`
+	// AllocatedPrefixes identifies the prefix that was allocated by the IPAM system from the ni spec
+	AllocatedPrefixes []*Prefix `json:"allocatedPrefixes,omitempty" yaml:"allocatedPrefixes,omitempty"`
 	// Allocations list the available alocations
-	Allocations map[string]labels.Set `json:"allocations,omitempty"`
+	Allocations map[string]labels.Set `json:"allocations,omitempty" yaml:"allocations,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".metadata.name"
+// +kubebuilder:printcolumn:name="PREFIX0",type="string",JSONPath=".spec.prefixes[0].prefix"
+// +kubebuilder:printcolumn:name="PREFIX1",type="string",JSONPath=".spec.prefixes[1].prefix"
+// +kubebuilder:printcolumn:name="PREFIX2",type="string",JSONPath=".spec.prefixes[2].prefix"
+// +kubebuilder:printcolumn:name="PREFIX3",type="string",JSONPath=".spec.prefixes[3].prefix"
+// +kubebuilder:printcolumn:name="PREFIX4",type="string",JSONPath=".spec.prefixes[4].prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:categories={nephio,ipam}
 // NetworkInstance is the Schema for the networkinstances API
 type NetworkInstance struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline" yaml:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	Spec   NetworkInstanceSpec   `json:"spec,omitempty"`
-	Status NetworkInstanceStatus `json:"status,omitempty"`
+	Spec   NetworkInstanceSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Status NetworkInstanceStatus `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
 // NetworkInstanceList contains a list of NetworkInstance
 type NetworkInstanceList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []NetworkInstance `json:"items"`
+	metav1.TypeMeta `json:",inline" yaml:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Items           []NetworkInstance `json:"items" yaml:"items"`
 }
 
 func init() {
 	SchemeBuilder.Register(&NetworkInstance{}, &NetworkInstanceList{})
 }
+
+var (
+	NetworkInstanceKind             = reflect.TypeOf(NetworkInstance{}).Name()
+	NetworkInstancegroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: NetworkInstanceKind}.String()
+	NetworkInstanceAPIVersion       = NetworkInstanceKind + "." + GroupVersion.String()
+	NetworkInstanceGroupVersionKind = GroupVersion.WithKind(NetworkInstanceKind)
+	NetworkInstanceKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+		Group:   GroupVersion.Group,
+		Version: GroupVersion.Version,
+		Kind:    NetworkInstanceKind,
+	})
+)

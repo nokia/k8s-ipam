@@ -3,3 +3,5 @@ kind: NetworkInstance
 metadata:
   name: vpc2
 spec:
+  prefixes:
+  - prefix: 10.0.0.0/8

@@ -14,11 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam
+package meta
 
-import ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-type ipamUsage struct {
-	PrefixKind ipamv1alpha1.PrefixKind
-	HasPrefix  bool
+func AddAnnotations(o metav1.Object, annotations map[string]string) {
+	a := o.GetAnnotations()
+	if a == nil {
+		o.SetAnnotations(annotations)
+		return
+	}
+	for k, v := range annotations {
+		a[k] = v
+	}
+	o.SetAnnotations(a)
+}
+
+func RemoveAnnotations(o metav1.Object, annotations ...string) {
+	a := o.GetAnnotations()
+	if a == nil {
+		return
+	}
+	for _, k := range annotations {
+		delete(a, k)
+	}
+	o.SetAnnotations(a)
 }

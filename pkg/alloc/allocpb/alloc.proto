@@ -22,28 +22,63 @@ package alloc;
 option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
 
 service Allocation {
-  rpc Allocation (Request) returns (Response) {}
-  rpc DeAllocation (Request) returns (Response) {}
+  rpc Allocate (Request) returns (Response) {}
+  rpc DeAllocate (Request) returns (EmptyResponse) {}
+  rpc WatchAlloc (WatchRequest) returns (stream WatchResponse) {}
+}
+
+message Instance {
+  NSN nsn = 1;
 }
 
 message Request {
-  string namespace = 1;
-  string name = 2;
-  string kind = 3; // ipam
-  map<string, string> labels  = 6;
-  Spec spec = 7;
+  Header header = 1;
+  string spec = 2;
+  string expiryTime = 3;
 }
 
-message Spec {
-  string prefixkind =1;
-  string prefix = 2;
-  uint32 prefixLength = 3;
-  string network = 4;
-  string addressFamily = 5;
-  map<string, string> selector  = 6;
-}
+message EmptyResponse{}
 
 message Response {
-  string allocatedPrefix = 1;
-  string gateway = 2;
+  Header header = 1;
+  string spec = 2;
+  string status = 3;
+  StatusCode statusCode = 4;
+  string expiryTime = 5;
+}
+
+message WatchResponse {
+  Header header = 1;
+  //string spec = 2;
+  //string status = 3;
+  StatusCode statusCode = 2;
+  //string expiryTime = 3;
+}
+
+message WatchRequest {
+  Header header = 1;
+}
+
+message Header {
+  GVK gvk = 1;
+  NSN nsn = 2;
+  GVK ownerGvk = 3;
+  NSN ownerNsn = 4;
+}
+
+message GVK {
+  string group = 1;
+  string version = 2;
+  string kind = 3; 
+}
+
+message NSN {
+  string namespace = 1;
+  string name = 2;
+}
+
+enum StatusCode {
+  Valid = 0; // the status is OK
+  InValid = 1; // the entry is no longer in the system
+  Unknown = 2; // means the client should refresh the status
 }

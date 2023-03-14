@@ -16,30 +16,11 @@ limitations under the License.
 
 package v1alpha1
 
-type AddressFamily string
-
 const (
-	AddressFamilyIpv4    AddressFamily = "ipv4"
-	AddressFamilyIpv6    AddressFamily = "ipv6"
-	AddressFamilyUnknown AddressFamily = "unknown"
-)
-
-func (s AddressFamily) String() string {
-	switch s {
-	case AddressFamilyIpv4:
-		return string(AddressFamilyIpv4)
-	case AddressFamilyIpv6:
-		return string(AddressFamilyIpv6)
-	}
-	return string(AddressFamilyUnknown)
-}
-
-type Origin string
-
-const (
-	OriginIPPrefix     Origin = "prefix"
-	OriginIPAllocation Origin = "allocation"
-	OriginIPSystem     Origin = "system"
+	OriginSystem       = "system"
+	SubnetPrefix       = "subnet"
+	SubnetFirstAddress = "first"
+	SubnetLastAddress  = "last"
 )
 
 type PrefixKind string

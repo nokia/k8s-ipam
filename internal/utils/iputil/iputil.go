@@ -17,90 +17,176 @@ limitations under the License.
 package iputil
 
 import (
+	"fmt"
+	"net/netip"
 	"strconv"
-	"strings"
 
-	"github.com/hansthienpondt/goipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"inet.af/netaddr"
+	"go4.org/netipx"
 )
 
-// GetAddressFamily returns an address family
-func GetAddressFamily(p netaddr.IPPrefix) ipamv1alpha1.AddressFamily {
-	if p.IP().Is6() {
-		return ipamv1alpha1.AddressFamilyIpv6
+type PrefixInfo interface {
+	GetSubnetName() string
+	GetIPPrefix() netip.Prefix
+	GetIPAddress() netip.Addr
+	GetIPAddressPrefix() netip.Prefix
+	GetIPSubnet() netip.Prefix
+	GetFirstIPAddress() netip.Addr
+	GetFirstIPPrefix() netip.Prefix
+	GetLastIPAddress() netip.Addr
+	GetLastIPPrefix() netip.Prefix
+	GetPrefixLength() PrefixLength
+	GetAddressPrefixLength() PrefixLength
+	IsFirst() bool
+	IsLast() bool
+	IsNorLastNorFirst() bool
+	IsIpv4() bool
+	IsIpv6() bool
+	GetAddressFamily() AddressFamily
+	IsAddressPrefix() bool
+	GetIPPrefixWithPrefixLength(pl int) netip.Prefix
+	IsPrefixPresentInSubnetMap(string) bool
+}
+
+type prefixInfo struct {
+	p netip.Prefix
+}
+
+func NewPrefixInfo(p netip.Prefix) PrefixInfo {
+	return &prefixInfo{p: p}
+}
+
+func New(prefix string) (PrefixInfo, error) {
+	p, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		return nil, err
 	}
-	if p.IP().Is4() {
-		return ipamv1alpha1.AddressFamilyIpv4
+	return &prefixInfo{
+		p: p,
+	}, nil
+}
+
+func (r *prefixInfo) GetIPPrefix() netip.Prefix {
+	return r.p
+}
+
+func (r *prefixInfo) GetIPAddress() netip.Addr {
+	return r.p.Addr()
+}
+
+func (r *prefixInfo) GetIPAddressPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.p.Addr(), r.p.Addr().BitLen())
+}
+
+func (r *prefixInfo) GetIPSubnet() netip.Prefix {
+	return r.p.Masked()
+}
+
+func (r *prefixInfo) GetSubnetName() string {
+	return fmt.Sprintf("%s-%s", r.GetFirstIPAddress().String(), r.GetPrefixLength().String())
+
+}
+
+func (r *prefixInfo) GetFirstIPAddress() netip.Addr {
+	return r.p.Masked().Addr()
+}
+
+func (r *prefixInfo) GetFirstIPPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.GetFirstIPAddress(), r.p.Addr().BitLen())
+}
+
+func (r *prefixInfo) GetLastIPAddress() netip.Addr {
+	return netipx.PrefixLastIP(r.p)
+}
+
+func (r *prefixInfo) GetLastIPPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.GetLastIPAddress(), r.p.Addr().BitLen())
+}
+
+func (r *prefixInfo) GetPrefixLength() PrefixLength {
+	return PrefixLength(r.p.Bits())
+}
+
+// return 32 or 128
+func (r *prefixInfo) GetAddressPrefixLength() PrefixLength {
+	return PrefixLength(r.p.Addr().BitLen())
+}
+
+func (r *prefixInfo) IsFirst() bool {
+	return r.GetFirstIPAddress().String() == r.GetIPAddress().String()
+}
+
+func (r *prefixInfo) IsLast() bool {
+	return r.GetLastIPAddress().String() == r.GetIPAddress().String()
+}
+
+func (r *prefixInfo) IsNorLastNorFirst() bool {
+	return !r.IsFirst() && !r.IsLast()
+}
+
+func (r *prefixInfo) IsIpv4() bool {
+	return r.p.Addr().Is4()
+}
+
+func (r *prefixInfo) IsIpv6() bool {
+	return r.p.Addr().Is6()
+}
+
+func (r *prefixInfo) GetAddressFamily() AddressFamily {
+	if r.IsIpv6() {
+		return AddressFamilyIpv6
 	}
-	return ipamv1alpha1.AddressFamilyUnknown
+	return AddressFamilyIpv4
 }
 
-// GetPrefixLength returns a prefix length in string format
-func GetPrefixLength(p netaddr.IPPrefix) string {
-	prefixSize, _ := p.IPNet().Mask.Size()
-	return strconv.Itoa(prefixSize)
+func (r *prefixInfo) IsAddressPrefix() bool {
+	return r.GetPrefixLength().String() == "32" ||
+		r.GetPrefixLength().String() == "128"
 }
 
-// GetPrefixLength returns a prefix length in int format
-func GetPrefixLengthAsInt(p netaddr.IPPrefix) int {
-	prefixSize, _ := p.IPNet().Mask.Size()
-	return prefixSize
+func (r *prefixInfo) GetIPPrefixWithPrefixLength(pl int) netip.Prefix {
+	return netip.PrefixFrom(r.GetLastIPAddress(), pl)
 }
 
-// GetAddressPrefixLength return the prefix lenght of the address in the prefix
-// used only for IP addresses
-func GetAddressPrefixLength(p netaddr.IPPrefix) string {
-	if p.IP().Is6() {
-		return "128"
+func (r *prefixInfo) IsPrefixPresentInSubnetMap(prefix string) bool {
+	if r.GetIPSubnet().String() == prefix {
+		return true
 	}
-	return "32"
-}
-
-// GetAddress return a string prefix notation for an address
-func GetAddress(p netaddr.IPPrefix) string {
-	addressPrefixLength := GetAddressPrefixLength(p)
-	return strings.Join([]string{p.IP().String(), addressPrefixLength}, "/")
-}
-
-// GetAddress return a string prefix notation for an address
-func GetFirstAddress(p netaddr.IPPrefix) string {
-	addressPrefixLength := GetAddressPrefixLength(p)
-	return strings.Join([]string{p.Masked().IP().String(), addressPrefixLength}, "/")
-}
-
-func IsAddress(p netaddr.IPPrefix) bool {
-	af := GetAddressFamily(p)
-	prefixLength := GetPrefixLength(p)
-	return (af == ipamv1alpha1.AddressFamilyIpv4 && (prefixLength == "32")) ||
-		(af == ipamv1alpha1.AddressFamilyIpv6) && (prefixLength == "128")
-}
-
-func GetPrefixLengthFromAlloc(route *table.Route, alloc *ipamv1alpha1.IPAllocation) uint8 {
-	if alloc.Spec.PrefixLength != 0 {
-		return alloc.Spec.PrefixLength
+	if r.GetFirstIPPrefix().String() == prefix {
+		return true
 	}
-	if route.IPPrefix().IP().Is4() {
-		return 32
+	if r.GetLastIPPrefix().String() == prefix {
+		return true
 	}
-	return 128
+	if r.GetIPAddressPrefix().String() == prefix {
+		return true
+	}
+	return false
 }
 
-func GetPrefixFromAlloc(p string, alloc *ipamv1alpha1.IPAllocation) string {
-	parentPrefixLength, ok := alloc.GetLabels()[ipamv1alpha1.NephioParentPrefixLengthKey]
-	if ok {
-		n := strings.Split(p, "/")
-		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
-	}
-	return p
+type PrefixLength int
+
+func (r PrefixLength) String() string {
+	return strconv.Itoa(int(r))
 }
 
-func GetPrefixFromRoute(route *table.Route) *string {
-	parentPrefixLength := route.GetLabels().Get(ipamv1alpha1.NephioParentPrefixLengthKey)
-	p := route.IPPrefix().String()
-	if parentPrefixLength != "" {
-		n := strings.Split(p, "/")
-		p = strings.Join([]string{n[0], parentPrefixLength}, "/")
+func (r PrefixLength) Int() int {
+	return int(r)
+}
+
+type AddressFamily string
+
+const (
+	AddressFamilyIpv4    AddressFamily = "ipv4"
+	AddressFamilyIpv6    AddressFamily = "ipv6"
+	AddressFamilyUnknown AddressFamily = "unknown"
+)
+
+func (s AddressFamily) String() string {
+	switch s {
+	case AddressFamilyIpv4:
+		return string(AddressFamilyIpv4)
+	case AddressFamilyIpv6:
+		return string(AddressFamilyIpv6)
 	}
-	return &p
+	return string(AddressFamilyUnknown)
 }

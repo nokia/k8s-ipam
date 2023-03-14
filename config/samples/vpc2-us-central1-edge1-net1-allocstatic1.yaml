@@ -1,0 +1,10 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: us-central1.edge1.net1.alloc1
+spec:
+  kind: network
+  networkInstanceRef: 
+    namespace: default
+    name: vpc2
+  prefix: 10.0.0.100/24

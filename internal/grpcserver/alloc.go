@@ -20,9 +20,11 @@ import (
 	"context"
 
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -37,7 +39,7 @@ func (s *GrpcServer) Allocation(ctx context.Context, req *allocpb.Request) (*all
 	return resp, nil
 }
 
-func (s *GrpcServer) DeAllocation(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) DeAllocate(ctx context.Context, req *allocpb.Request) (*allocpb.EmptyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -45,9 +47,22 @@ func (s *GrpcServer) DeAllocation(ctx context.Context, req *allocpb.Request) (*a
 		return nil, err
 	}
 	defer s.sem.Release(1)
-	resp, err := s.allocHandler(ctx, req)
+	resp, err := s.deallocHandler(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (s *GrpcServer) WatchAlloc(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error {
+	err := s.acquireSem(stream.Context())
+	if err != nil {
+		return err
+	}
+	defer s.sem.Release(1)
+
+	if s.watchHandler != nil {
+		return s.watchAllocHandler(in, stream)
+	}
+	return status.Error(codes.Unimplemented, "")
 }

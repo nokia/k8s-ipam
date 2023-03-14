@@ -1,6 +1,5 @@
 VERSION ?= latest
-REGISTRY ?= yndd
-#REGISTRY ?= gcr.io/jbelamaric-public
+REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
 PROJECT ?= ipam
 
 KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config
@@ -9,8 +8,6 @@ KPT_BLUEPRINT_PKG_DIR ?= blueprint/${PROJECT}
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(REGISTRY)/${PROJECT}-controller:$(VERSION)
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.25.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -20,6 +17,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
+# This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
@@ -77,7 +75,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
@@ -157,6 +155,8 @@ PROTOC_GO_FAST ?= $(LOCALBIN)/protoc-gen-gofast
 PROTOC_GO_GRPC ?= $(LOCALBIN)/protoc-gen-go-grpc
 
 ## Tool Versions
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.25.0
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.2
 KPT_VERSION ?= main
@@ -193,10 +193,10 @@ $(KPTGEN): $(LOCALBIN)
 .PHONY: protoc-gen-gofast
 protoc-gen-gofast: $(PROTOC_GO_FAST) ## Download protoc-gen-gofast locally if necessary.
 $(PROTOC_GO_FAST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/gogo/protobuf/protoc-gen-gofast@$(PROTOC_GO_FAST_VERSION)
+	test -s $(LOCALBIN)/protoc-gen-gofast || GOBIN=$(LOCALBIN) go install -v github.com/gogo/protobuf/protoc-gen-gofast@$(PROTOC_GO_FAST_VERSION)
 
 .PHONY: protoc-gen-go-grpc
 protoc-gen-gogrpc: $(PROTOC_GO_GRPC) ## Download protoc-gen-golang-grpc locally if necessary.
 $(PROTOC_GO_GRPC): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
+	test -s $(LOCALBIN)/protoc-gen-go-grpc || GOBIN=$(LOCALBIN) go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
 

@@ -26,13 +26,13 @@ spec:
       name: STATUS
       type: string
     - jsonPath: .spec.networkInstance
-      name: NETWORK
+      name: NETWORK-INSTANCE
       type: string
     - jsonPath: .spec.kind
       name: KIND
       type: string
-    - jsonPath: .spec.network
-      name: NETWORK
+    - jsonPath: .spec.subnetName
+      name: SUBNET
       type: string
     - jsonPath: .spec.prefix
       name: PREFIX-REQ
@@ -71,14 +71,30 @@ spec:
                 - pool
                 - aggregate
                 type: string
-              network:
-                description: Network is only relevant for prefix kind network. it
-                  is the unique name to reference all prefixes together within a network
-                type: string
-              networkInstance:
-                description: NetworkInstance identifies the network instance the IP
-                  prefix belongs to
-                type: string
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels provide metadata to the prefix. They are part
+                  of the spec since the allocation selector will use these labels
+                  for allocation more specific prefixes/addresses within this prefix
+                  As such we distinguish clearly between the metadata labels and the
+                  labels used in the spec
+                type: object
+              networkInstanceRef:
+                description: NetworkInstanceRef identifies the networkInstance for
+                  this prefix
+                properties:
+                  name:
+                    description: Name is unique within a namespace to reference a
+                      networkInstance.
+                    type: string
+                  namespace:
+                    description: Namespace defines the space within which the networkInstance
+                      name must be unique.
+                    type: string
+                required:
+                - name
+                type: object
               prefix:
                 description: Prefix defines the ip subnet of the ip prefix, it can
                   also be an address if a /32 or /128 is specified
@@ -86,7 +102,7 @@ spec:
                 type: string
             required:
             - kind
-            - networkInstance
+            - networkInstanceRef
             - prefix
             type: object
           status:
@@ -125,10 +141,6 @@ spec:
                   - status
                   type: object
                 type: array
-              network:
-                description: AllocatedNetwork identifies the network that was allocated
-                  by the IPAM system
-                type: string
               prefix:
                 description: AllocatedPrefix identifies the prefix that was allocated
                   by the IPAM system

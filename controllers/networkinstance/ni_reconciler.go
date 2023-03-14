@@ -18,20 +18,25 @@ package networkinstance
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"github.com/pkg/errors"
 )
 
@@ -50,27 +55,30 @@ const (
 //+kubebuilder:rbac:groups=*,resources=networkinstances,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) error {
+func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
+	ge := make(chan event.GenericEvent)
 	r := &reconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		Ipam:         options.Ipam,
-		pollInterval: options.Poll,
-		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		IpamClientProxy: options.IpamClientProxy,
+		pollInterval:    options.Poll,
+		finalizer:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&ipamv1alpha1.NetworkInstance{}).
-		Complete(r)
+	return ipamv1alpha1.NetworkInstanceGroupVersionKind, ge,
+		ctrl.NewControllerManagedBy(mgr).
+			For(&ipamv1alpha1.NetworkInstance{}).
+			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			Complete(r)
 }
 
 // reconciler reconciles a NetworkInstance object
 type reconciler struct {
 	client.Client
-	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
-	pollInterval time.Duration
-	finalizer    *resource.APIFinalizer
+	Scheme          *runtime.Scheme
+	IpamClientProxy clientipamproxy.Proxy
+	pollInterval    time.Duration
+	finalizer       *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -91,9 +99,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if meta.WasDeleted(cr) {
+
 		// When the network instance is deleted we can remove the network instance entry
 		// from th IPAM table
-		r.Ipam.Delete(req.NamespacedName.String())
+		if err := r.IpamClientProxy.Delete(ctx, cr); err != nil {
+			r.l.Error(err, "cannot delete networkInstance")
+			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
@@ -115,24 +128,53 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// create and initialize the IPAM with the network instance if it does not exist
-	if err := r.Ipam.Init(ctx, cr); err != nil {
-		r.l.Error(err, "cannot initialize finalizer")
-		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+	// the prefixes that are within the spec of the network-instance need to be allocated first
+	// since they serve as an aggregate
+	if err := r.IpamClientProxy.Create(ctx, cr); err != nil {
+		r.l.Error(err, "cannot initialize ipam")
+		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	/*
-		DEBUG the routing table
-		rt, ok := r.Ipam.Get(req.NamespacedName.String())
-		if ok {
-			fmt.Println(strings.Repeat("#", 64))
-			fmt.Println("Dumping route-table in JSON format:")
-			j, _ := json.MarshalIndent(rt.GetTable(), "", "  ")
-			fmt.Println(string(j))
-			// Printing the Stdout seperator
-			fmt.Println(strings.Repeat("#", 64))
+	// change handling for prefixes
+	for _, allocatedPrefix := range cr.Status.AllocatedPrefixes {
+		found := false
+		for _, prefix := range cr.Spec.Prefixes {
+			if allocatedPrefix.Prefix == prefix.Prefix {
+				found = true
+				break
+			}
 		}
-	*/
+		if !found {
+			// the prefix was deleted from the network instance, so we need to delete it
+			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, allocatedPrefix); err != nil {
+				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+					r.l.Error(err, "cannot delete resource")
+					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
+					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
+			}
+		}
+	}
+
+	// if prefixes are provided from the network instance we treat them as
+	// aggregate prefixes.
+	for _, prefix := range cr.Spec.Prefixes {
+		allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, prefix)
+		if err != nil {
+			r.l.Info("cannot allocate prefix", "err", err)
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
+			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		if allocResp.Status.AllocatedPrefix != prefix.Prefix {
+			//we got a different prefix than requested
+			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.AllocatedPrefix)
+			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+	}
+
+	cr.Status.AllocatedPrefixes = cr.Spec.Prefixes
 
 	// Update the status of the CR and end the reconciliation loop
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())

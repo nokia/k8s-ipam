@@ -23,18 +23,22 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
 	"github.com/pkg/errors"
 )
 
@@ -53,13 +57,16 @@ const (
 //+kubebuilder:rbac:groups=*,resources=networkinstances,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) error {
+func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
+
+	ge := make(chan event.GenericEvent)
+
 	r := &reconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		Ipam:         options.Ipam,
-		pollInterval: options.Poll,
-		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		IpamClientProxy: options.IpamClientProxy,
+		pollInterval:    options.Poll,
+		finalizer:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
 	/*
@@ -69,19 +76,21 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 		}
 	*/
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&ipamv1alpha1.IPPrefix{}).
-		//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
-		Complete(r)
+	return ipamv1alpha1.IPPrefixGroupVersionKind, ge,
+		ctrl.NewControllerManagedBy(mgr).
+			For(&ipamv1alpha1.IPPrefix{}).
+			//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
+			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			Complete(r)
 }
 
 // reconciler reconciles a IPPrefix object
 type reconciler struct {
 	client.Client
-	Scheme       *runtime.Scheme
-	Ipam         ipam.Ipam
-	pollInterval time.Duration
-	finalizer    *resource.APIFinalizer
+	Scheme          *runtime.Scheme
+	IpamClientProxy clientipamproxy.Proxy
+	pollInterval    time.Duration
+	finalizer       *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -101,15 +110,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{}, nil
 	}
 	niName := types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.NetworkInstance,
+		Namespace: cr.Spec.NetworkInstanceRef.Namespace,
+		Name:      cr.Spec.NetworkInstanceRef.Name,
 	}
 
 	if meta.WasDeleted(cr) {
-		// if the prefix condition is false it means the prefix was not supplied to the network
+		// if the prefix condition is false it means the prefix was not active in the ipam
 		// we can delete it w/o deleting it from the IPAM
 		if cr.GetCondition(ipamv1alpha1.ConditionKindReady).Status == corev1.ConditionTrue {
-			if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr)); err != nil {
+			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
 					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
@@ -148,7 +157,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// check deletion timestamp
+	// check deletion timestamp of the network instance
 	if meta.WasDeleted(ni) {
 		r.l.Info("cannot allocate prefix, network-intance not ready")
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("network-instance not ready"))
@@ -156,9 +165,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// The spec got changed we check the existing prefix against the status
-	if (cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix) ||
-		(cr.Status.AllocatedNetwork != "" && cr.Status.AllocatedNetwork != cr.Spec.Network) {
-		if err := r.Ipam.DeAllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr)); err != nil {
+	// if there is a difference, we need to delete the prefix
+	if cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix {
+		if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
@@ -166,23 +175,22 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	allocatedPrefix, err := r.Ipam.AllocateIPPrefix(ctx, ipam.BuildAllocationFromIPPrefix(cr))
+
+	allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if allocatedPrefix.AllocatedPrefix != cr.Spec.Prefix {
+	if allocResp.Status.AllocatedPrefix != cr.Spec.Prefix {
 		//we got a different prefix than requested
-		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", *allocatedPrefix)
+		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", allocResp.Status.AllocatedPrefix)
 		cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	r.l.Info("Successfully reconciled resource")
 	cr.Status.AllocatedPrefix = cr.Spec.Prefix
-	// only relevant for prefixkind network but does not harm
-	cr.Status.AllocatedNetwork = cr.Spec.Network
 	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

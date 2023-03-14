@@ -18,29 +18,50 @@ package allochandler
 
 import (
 	"context"
+	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
 
-type Options struct {
-	Ipam ipam.Ipam
+func WithRoute(group string, handler AlloHandler) func(SubServer) {
+	return func(s SubServer) {
+		s.WithRoute(group, handler)
+	}
 }
+
+type AlloHandler interface {
+	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
+	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
+	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
+}
+
+type Option func(SubServer)
 
 type SubServer interface {
-	Allocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
-	DeAllocation(context.Context, *allocpb.Request) (*allocpb.Response, error)
+	WithRoute(group string, handler AlloHandler)
+	Allocate(context.Context, *allocpb.Request) (*allocpb.Response, error)
+	DeAllocate(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
+	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
 }
 
-func New(o *Options) SubServer {
-	s := &subServer{
-		ipam: o.Ipam,
+func New(opts ...Option) SubServer {
+	r := &subServer{
+		h: map[string]AlloHandler{},
 	}
-	return s
+
+	for _, o := range opts {
+		o(r)
+	}
+	return r
 }
 
 type subServer struct {
-	l    logr.Logger
-	ipam ipam.Ipam
+	m sync.RWMutex
+	h map[string]AlloHandler
+	l logr.Logger
+}
+
+func (r *subServer) WithRoute(group string, handler AlloHandler) {
+	r.h[group] = handler
 }

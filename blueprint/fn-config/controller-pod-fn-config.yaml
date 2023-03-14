@@ -13,7 +13,10 @@ spec:
       scope: cluster
       permissions:
       - apiGroups: ["*"]
-        resources: [events]
+        resources: [events, configmaps]
+        verbs: [get, list, watch, update, patch, create, delete]
+      - apiGroups: ["coordination.k8s.io"]
+        resources: [leases]
         verbs: [get, list, watch, update, patch, create, delete]
     porch:
       scope: cluster
@@ -49,7 +52,7 @@ spec:
         - containerPort: 8443
           name: https
       - name: controller
-        image: yndd/ipam-controller:latest
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/ipam-controller:latest
         command:
         - /manager
         args:

@@ -1,0 +1,15 @@
+apiVersion: ipam.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: us-central1.fabric1.node100.mgmt.ipv4
+spec:
+  kind: loopback
+  networkInstanceRef: 
+    namespace: default
+    name: vpc-mgmt
+  prefix: 10.0.0.100/32
+  selector:
+    matchLabels:
+      nephio.org/region: us-central1
+      nephio.org/fabric: fabric1
+      nephio.org/purpose: mgmt

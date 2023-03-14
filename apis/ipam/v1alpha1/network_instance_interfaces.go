@@ -16,7 +16,12 @@ limitations under the License.
 
 package v1alpha1
 
-import "k8s.io/apimachinery/pkg/types"
+import (
+	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/types"
+)
 
 // GetCondition of this resource
 func (x *NetworkInstance) GetCondition(ck ConditionKind) Condition {
@@ -33,4 +38,12 @@ func (x *NetworkInstance) GetNamespacedName() types.NamespacedName {
 		Name:      x.Name,
 		Namespace: x.Namespace,
 	}
+}
+
+func (c *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string {
+	return fmt.Sprintf("%s-%s-%s", c.GetName(), "aggregate", strings.ReplaceAll(prefix, "/", "-"))
+}
+
+func (x *NetworkInstance) GetGenericNamespacedName() string {
+	return fmt.Sprintf("%s-%s", x.GetNamespace(), x.GetName())
 }
