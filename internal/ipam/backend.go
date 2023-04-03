@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,7 +60,7 @@ type cm struct {
 
 func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
 	r.l.Info("store")
-	niRef := alloc.GetNetworkInstanceRef()
+	niRef := alloc.GetNetworkInstance()
 	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {
 		return err
@@ -91,7 +92,7 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 
 func (r *cm) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
 	r.l = log.FromContext(ctx)
-	niRef := ipamv1alpha1.NetworkInstanceReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	niRef := corev1.ObjectReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
 	cm := buildConfigMap(niRef)
 	if err := r.c.Delete(ctx, cm); err != nil {
 		if !kerrors.IsNotFound(err) {
@@ -103,7 +104,7 @@ func (r *cm) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 
 func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
 	r.l = log.FromContext(ctx)
-	niRef := ipamv1alpha1.NetworkInstanceReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	niRef := corev1.ObjectReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
 	r.l.Info("restore", "niRef", niRef)
 
 	cm := buildConfigMap(niRef)
@@ -172,7 +173,7 @@ func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations ma
 	for prefix, labels := range allocations {
 		r.l.Info("restore allocation", "prefix", prefix, "labels", labels)
 		// handle the allocation owned by the network instance
-		if labels[ipamv1alpha1.NephioOwnerGvkKey] == ownerGVK {
+		if labels[allocv1alpha1.NephioOwnerGvkKey] == ownerGVK {
 			restoreFunc(ctx, rib, prefix, labels, input)
 		}
 	}
@@ -188,8 +189,8 @@ func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB,
 	for _, ipPrefix := range cr.Spec.Prefixes {
 		r.l.Info("restore ip prefixes", "niName", cr.GetName(), "ipPrefix", ipPrefix.Prefix)
 		// the prefix is implicitly checked based on the name
-		if labels[ipamv1alpha1.NephioNsnNameKey] == cr.GetNameFromNetworkInstancePrefix(ipPrefix.Prefix) &&
-			labels[ipamv1alpha1.NephioNsnNamespaceKey] == cr.Namespace {
+		if labels[allocv1alpha1.NephioNsnNameKey] == cr.GetNameFromNetworkInstancePrefix(ipPrefix.Prefix) &&
+			labels[allocv1alpha1.NephioNsnNamespaceKey] == cr.Namespace {
 
 			if prefix != ipPrefix.Prefix {
 				r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
@@ -213,8 +214,8 @@ func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix strin
 	}
 	for _, ipPrefix := range ipPrefixList.Items {
 		r.l.Info("restore ip prefixes", "ipPrefixName", ipPrefix.GetName(), "ipPrefix", ipPrefix.Spec.Prefix)
-		if labels[ipamv1alpha1.NephioNsnNameKey] == ipPrefix.GetName() &&
-			labels[ipamv1alpha1.NephioNsnNamespaceKey] == ipPrefix.GetNamespace() {
+		if labels[allocv1alpha1.NephioNsnNameKey] == ipPrefix.GetName() &&
+			labels[allocv1alpha1.NephioNsnNamespaceKey] == ipPrefix.GetNamespace() {
 
 			// prefixes of prefixkind network need to be expanded in the subnet
 			// we compare against the expanded list
@@ -256,8 +257,8 @@ func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix str
 	}
 	for _, alloc := range ipAllocationList.Items {
 		r.l.Info("restore ipAllocation", "alloc", alloc.GetName(), "prefix", alloc.Spec.Prefix)
-		if labels[ipamv1alpha1.NephioNsnNameKey] == alloc.GetName() &&
-			labels[ipamv1alpha1.NephioNsnNamespaceKey] == alloc.GetNamespace() {
+		if labels[allocv1alpha1.NephioNsnNameKey] == alloc.GetName() &&
+			labels[allocv1alpha1.NephioNsnNamespaceKey] == alloc.GetNamespace() {
 
 			// for allocations the prefix can be defined in the spec or in the status
 			// we want to make the next logic uniform
@@ -298,7 +299,7 @@ func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix str
 	}
 }
 
-func buildConfigMap(niRef ipamv1alpha1.NetworkInstanceReference) *corev1.ConfigMap {
+func buildConfigMap(niRef corev1.ObjectReference) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

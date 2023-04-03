@@ -47,7 +47,17 @@ func (r *VLANAllocation) GetGenericNamespacedName() string {
 
 // GetVlanID return the vlanID from the spec
 func (r *VLANAllocation) GetVlanID() uint16 {
-	return uint16(r.Spec.VlanID)
+	return r.Spec.VlanID
+}
+
+// GetVlanID return the vlanID from the spec
+func (r *VLANAllocation) GetVlanRange() *VLANRange {
+	return r.Spec.VLANRange
+}
+
+// GetVlanID return the vlanID from the spec
+func (r *VLANAllocation) GetVlanSize() uint16 {
+	return r.Spec.VLANSize
 }
 
 // GetLabels returns the user defined labels in the spec
@@ -93,11 +103,11 @@ func (r *VLANAllocation) GetLabelSelector() (labels.Selector, error) {
 // GetOwnerSelector returns a label selector to find the owner in the ipam backend
 func (r *VLANAllocation) GetOwnerSelector() (labels.Selector, error) {
 	l := map[string]string{
-		allocv1alpha1.NephioNsnNameKey: r.Spec.Labels[allocv1alpha1.NephioNsnNameKey],
-		allocv1alpha1.NephioNsnNamespaceKey:          r.Spec.Labels[allocv1alpha1.NephioNsnNamespaceKey],
-		allocv1alpha1.NephioOwnerGvkKey:              r.Spec.Labels[allocv1alpha1.NephioOwnerGvkKey],
-		allocv1alpha1.NephioOwnerNsnNameKey:          r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNameKey],
-		allocv1alpha1.NephioOwnerNsnNamespaceKey:     r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNamespaceKey],
+		allocv1alpha1.NephioNsnNameKey:           r.Spec.Labels[allocv1alpha1.NephioNsnNameKey],
+		allocv1alpha1.NephioNsnNamespaceKey:      r.Spec.Labels[allocv1alpha1.NephioNsnNamespaceKey],
+		allocv1alpha1.NephioOwnerGvkKey:          r.Spec.Labels[allocv1alpha1.NephioOwnerGvkKey],
+		allocv1alpha1.NephioOwnerNsnNameKey:      r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNameKey],
+		allocv1alpha1.NephioOwnerNsnNamespaceKey: r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNamespaceKey],
 	}
 
 	fullselector := labels.NewSelector()
@@ -122,4 +132,34 @@ func (r *VLANAllocation) GetFullLabels() map[string]string {
 		l[k] = v
 	}
 	return l
+}
+
+// GetAllocatedVlanID return the allocated vlanID from the status
+func (r *VLANAllocation) GetAllocatedVlanID() uint16 {
+	return r.Status.AllocatedVlanID
+}
+
+// GetAllocatedVlanRange return the allocated vlanRange from the status
+func (r *VLANAllocation) GetAllocatedVlanRange() *VLANRange {
+	return r.Status.AllocatedVlanRange
+}
+
+// GetAllocatedVlanIds return the allocated vlanIds from the status
+func (r *VLANAllocation) GetAllocatedVlanIds() string {
+	return r.Status.AllocatedVlanIds
+}
+
+// SetAllocatedVlanID updates the AllocatedVlanID status
+func (r *VLANAllocation) SetAllocatedVlanID(id uint16) {
+	r.Status.AllocatedVlanID = id
+}
+
+// SetAllocatedVlanID updates the AllocatedVlanID status
+func (r *VLANAllocation) SetAllocatedVlanRange(ra VLANRange) {
+	r.Status.AllocatedVlanRange = &ra
+}
+
+// GetAllocatedVlanIds return the allocated vlanIds from the status
+func (r *VLANAllocation) SetAllocatedVlanIds(ids string) {
+	r.Status.AllocatedVlanIds = ids
 }

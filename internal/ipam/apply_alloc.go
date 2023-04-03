@@ -6,7 +6,8 @@ import (
 	"net/netip"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -116,21 +117,21 @@ func (r *applicator) GetSelectedRouteWithPrefixLength(routes table.Routes, prefi
 		for _, route := range routes {
 			switch r.alloc.GetPrefixKind() {
 			case ipamv1alpha1.PrefixKindLoopback:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindNetwork:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindPool:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
 			default:

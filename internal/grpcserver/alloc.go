@@ -24,6 +24,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func (s *GrpcServer) Get(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
+	defer cancel()
+	err := s.acquireSem(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.sem.Release(1)
+	resp, err := s.allocGetHandler(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()

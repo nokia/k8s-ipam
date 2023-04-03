@@ -1,4 +1,4 @@
-package serveripamproxy
+package serverproxy
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
@@ -56,7 +56,7 @@ func (r *ProxyState) AddCallBackFn(ownerGvk string, stream allocpb.Allocation_Wa
 	}
 	r.m.Unlock()
 
-	r.ipam.AddWatch(ipamv1alpha1.NephioOwnerGvkKey, ownerGvk, r.CreateCallBackFn(stream))
+	r.ipam.AddWatch(allocv1alpha1.NephioOwnerGvkKey, ownerGvk, r.CreateCallBackFn(stream))
 
 	for range ctx.Done() {
 		r.DeleteCallBackFn(p.Addr.String(), ownerGvk)
@@ -69,7 +69,7 @@ func (r *ProxyState) AddCallBackFn(ownerGvk string, stream allocpb.Allocation_Wa
 func (r *ProxyState) DeleteCallBackFn(clientName, ownerGvk string) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.ipam.DeleteWatch(ipamv1alpha1.NephioOwnerGvkKey, ownerGvk)
+	r.ipam.DeleteWatch(allocv1alpha1.NephioOwnerGvkKey, ownerGvk)
 	delete(r.clients, clientName+":::"+ownerGvk)
 }
 
@@ -78,15 +78,15 @@ func (r *ProxyState) CreateCallBackFn(stream allocpb.Allocation_WatchAllocServer
 		for _, route := range routes {
 			if err := stream.Send(&allocpb.WatchResponse{
 				Header: &allocpb.Header{
-					Gvk: meta.StringToAllocPbGVK(route.Labels()[ipamv1alpha1.NephioGvkKey]),
+					Gvk: meta.StringToAllocPbGVK(route.Labels()[allocv1alpha1.NephioGvkKey]),
 					Nsn: &allocpb.NSN{
-						Namespace: route.Labels()[ipamv1alpha1.NephioNsnNamespaceKey],
-						Name:      route.Labels()[ipamv1alpha1.NephioNsnNameKey],
+						Namespace: route.Labels()[allocv1alpha1.NephioNsnNamespaceKey],
+						Name:      route.Labels()[allocv1alpha1.NephioNsnNameKey],
 					},
-					OwnerGvk: meta.StringToAllocPbGVK(route.Labels()[ipamv1alpha1.NephioOwnerGvkKey]),
+					OwnerGvk: meta.StringToAllocPbGVK(route.Labels()[allocv1alpha1.NephioOwnerGvkKey]),
 					OwnerNsn: &allocpb.NSN{
-						Namespace: route.Labels()[ipamv1alpha1.NephioOwnerNsnNamespaceKey],
-						Name:      route.Labels()[ipamv1alpha1.NephioOwnerNsnNameKey],
+						Namespace: route.Labels()[allocv1alpha1.NephioOwnerNsnNamespaceKey],
+						Name:      route.Labels()[allocv1alpha1.NephioOwnerNsnNameKey],
 					},
 				},
 				StatusCode: statusCode,
@@ -96,7 +96,7 @@ func (r *ProxyState) CreateCallBackFn(stream allocpb.Allocation_WatchAllocServer
 				if p != nil {
 					addr = p.Addr.String()
 				}
-				r.l.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[ipamv1alpha1.NephioOwnerGvkKey])
+				r.l.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[allocv1alpha1.NephioOwnerGvkKey])
 			}
 		}
 	}

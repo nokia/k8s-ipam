@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,8 +37,8 @@ func (r *applicator) Delete(ctx context.Context) error {
 			childRoutesToBeUpdated := []table.Route{}
 			for _, childRoute := range route.Children(r.rib) {
 				r.l.Info("route exists", "handle update for route", route, "child route", childRoute)
-				if childRoute.Labels()[ipamv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNameKey] ||
-					childRoute.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNamespaceKey] {
+				if childRoute.Labels()[allocv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNameKey] ||
+					childRoute.Labels()[allocv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNamespaceKey] {
 					childRoutesToBeUpdated = append(childRoutesToBeUpdated, childRoute)
 					if err := r.rib.Delete(childRoute); err != nil {
 						r.l.Error(err, "cannot delete route from rib", "route", childRoute)

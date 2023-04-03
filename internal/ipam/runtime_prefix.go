@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -38,6 +38,21 @@ type prefixRuntime struct {
 	fnc          *PrefixValidatorFunctionConfig
 	watcher      Watcher
 	l            logr.Logger
+}
+
+func (r *prefixRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l.Info("get")
+	g := NewGetter(&GetterConfig{
+		alloc: r.alloc,
+		rib:   r.rib,
+	})
+	if err := g.GetIPAllocation(ctx); err != nil {
+		return nil, err
+	}
+
+	r.l.Info("get allocation done", "status", r.alloc.Status)
+	return r.alloc, nil
 }
 
 func (r *prefixRuntime) Validate(ctx context.Context) (string, error) {

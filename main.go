@@ -39,14 +39,14 @@ import (
 	"github.com/henderiw-k8s-lcnc/discovery/discovery"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/internal/allochandler"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/serveripamproxy"
+	"github.com/nokia/k8s-ipam/pkg/ipam/serverproxy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -161,11 +161,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	ipamServerProxy := serveripamproxy.New(&serveripamproxy.Config{
+	ipamServerProxy := serverproxy.New(&serverproxy.Config{
 		Ipam: ipam.New(mgr.GetClient()),
 	})
 	ah := allochandler.New(
-		allochandler.WithRoute(ipamv1alpha1.GroupVersion.Group, ipamServerProxy),
+		allochandler.WithRoutes(map[string]allochandler.AlloHandler{
+			ipamv1alpha1.GroupVersion.Group: ipamServerProxy,
+		}),
 	)
 	wh := healthhandler.New()
 

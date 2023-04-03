@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,8 +25,8 @@ func buildNetworkInstance(alloc *allocation) *ipamv1alpha1.NetworkInstance {
 			Kind:       ipamv1alpha1.NetworkInstanceKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: alloc.spec.NetworkInstanceRef.Namespace,
-			Name:      alloc.spec.NetworkInstanceRef.Name,
+			Namespace: alloc.spec.NetworkInstance.Namespace,
+			Name:      alloc.spec.NetworkInstance.Name,
 		},
 	}
 }
@@ -61,10 +62,10 @@ func buildIPAllocation(alloc *allocation) *ipamv1alpha1.IPAllocation {
 					Name:      alloc.name,
 				},
 				Spec: ipamv1alpha1.IPPrefixSpec{
-					NetworkInstanceRef: alloc.spec.NetworkInstanceRef,
-					PrefixKind:         alloc.spec.PrefixKind,
-					Prefix:             alloc.spec.Prefix,
-					Labels:             alloc.spec.Labels,
+					NetworkInstance: alloc.spec.NetworkInstance,
+					PrefixKind:      alloc.spec.PrefixKind,
+					Prefix:          alloc.spec.Prefix,
+					Labels:          alloc.spec.Labels,
 				},
 			},
 		)
@@ -87,12 +88,12 @@ func buildIPAllocation(alloc *allocation) *ipamv1alpha1.IPAllocation {
 }
 
 func TestNetworkInstance(t *testing.T) {
-	niRef := &ipamv1alpha1.NetworkInstanceReference{
+	niRef := &corev1.ObjectReference{
 		Namespace: "dummy",
 		Name:      "niName",
 	}
 	allocNamespace := "test"
-	niCreate := &allocation{spec: ipamv1alpha1.IPAllocationSpec{NetworkInstanceRef: niRef}}
+	niCreate := &allocation{spec: ipamv1alpha1.IPAllocationSpec{NetworkInstance: niRef}}
 
 	type ipamTests struct {
 		allocation *allocation
@@ -107,8 +108,8 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: niRef.Namespace,
 				name:      niRef.Name,
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					Prefix:             "10.0.0.0/8",
+					NetworkInstance: niRef,
+					Prefix:          "10.0.0.0/8",
 				},
 			},
 			errString: "",
@@ -120,9 +121,9 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: allocNamespace,
 				name:      "alloc-net1-prefix1",
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					PrefixKind:         ipamv1alpha1.PrefixKindNetwork,
-					Prefix:             "10.0.0.2/24",
+					NetworkInstance: niRef,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.2/24",
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
 						"nephio.org/region":       "us-central1",
@@ -140,10 +141,10 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: allocNamespace,
 				name:      "alloc-net1-prefix1",
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					PrefixKind:         ipamv1alpha1.PrefixKindNetwork,
-					Prefix:             "10.0.0.1/24",
-					CreatePrefix:       true,
+					NetworkInstance: niRef,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.1/24",
+					CreatePrefix:    true,
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
 						"nephio.org/region":       "us-central1",
@@ -160,9 +161,9 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: allocNamespace,
 				name:      "alloc-net1-staticprefix",
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					PrefixKind:         ipamv1alpha1.PrefixKindNetwork,
-					Prefix:             "10.0.0.2/24",
+					NetworkInstance: niRef,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.2/24",
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
 						"nephio.org/region":       "us-central1",
@@ -180,10 +181,10 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: allocNamespace,
 				name:      "alloc-net1-prefix2",
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					PrefixKind:         ipamv1alpha1.PrefixKindNetwork,
-					Prefix:             "10.0.0.10/24",
-					CreatePrefix:       true,
+					NetworkInstance: niRef,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Prefix:          "10.0.0.10/24",
+					CreatePrefix:    true,
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
 						"nephio.org/region":       "us-central1",
@@ -201,8 +202,8 @@ func TestNetworkInstance(t *testing.T) {
 				namespace: allocNamespace,
 				name:      "alloc-net1-alloc1",
 				spec: ipamv1alpha1.IPAllocationSpec{
-					NetworkInstanceRef: niRef,
-					PrefixKind:         ipamv1alpha1.PrefixKindNetwork,
+					NetworkInstance: niRef,
+					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"nephio.org/region":       "us-central1",

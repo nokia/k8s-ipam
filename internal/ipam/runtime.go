@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 )
 
 type Runtimes interface {
@@ -41,6 +41,7 @@ type runtime interface {
 }
 
 type Runtime interface {
+	Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
 	Validate(ctx context.Context) (string, error)
 	Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
 	Delete(ctx context.Context) error
@@ -107,7 +108,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstanceRef(), initializing)
+	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +155,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstanceRef(), initializing)
+	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}

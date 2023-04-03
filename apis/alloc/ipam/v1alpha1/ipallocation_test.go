@@ -22,13 +22,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 )
 
 func TestIPAllocationCondition(t *testing.T) {
 
-	conditionSynced := allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindSynced, Status: v1.ConditionTrue, Message: "synced"}
-	conditionReady := allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindReady, Status: v1.ConditionTrue, Message: "ready"}
+	conditionSynced := allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindSynced, Status: corev1.ConditionTrue, Message: "synced"}
+	conditionReady := allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindReady, Status: corev1.ConditionTrue, Message: "ready"}
 
 	cases := map[string]struct {
 		cs   []allocv1alpha1.Condition
@@ -38,7 +37,7 @@ func TestIPAllocationCondition(t *testing.T) {
 		"ConditionExists": {
 			cs:   []allocv1alpha1.Condition{conditionSynced, conditionReady},
 			t:    allocv1alpha1.ConditionKindSynced,
-			want: allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindSynced, Status: v1.ConditionTrue, Message: "synced"},
+			want: allocv1alpha1.Condition{Kind: allocv1alpha1.ConditionKindSynced, Status: corev1.ConditionTrue, Message: "synced"},
 		},
 		"ConditionDoesNotExist": {
 			cs:   []allocv1alpha1.Condition{conditionSynced, conditionReady},

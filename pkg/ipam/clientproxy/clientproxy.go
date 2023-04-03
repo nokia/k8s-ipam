@@ -1,4 +1,4 @@
-package clientipamproxy
+package clientproxy
 
 import (
 	"context"
@@ -9,7 +9,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
@@ -26,18 +27,13 @@ type Proxy interface {
 	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// Delete deletes the network instance in the ipam
 	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
+	// Get returns the allocated prefix
+	Get(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
 	// AllocateIPPrefix allocates an ip prefix
 	AllocateIPPrefix(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
 	// DeAllocateIPPrefix
 	DeAllocateIPPrefix(ctx context.Context, cr client.Object, d any) error
 }
-
-/*
-type AllocatedPrefix struct {
-	Prefix  string
-	Gateway string
-}
-*/
 
 type Config struct {
 	Registrator registrator.Registrator
@@ -95,6 +91,27 @@ func (r *clientproxy) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 	return r.pc.DeAllocate(ctx, req)
 }
 
+func (r *clientproxy) Get(ctx context.Context, o client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
+	r.l.Info("get allocated prefix", "cr", o)
+	// normalizes the input to the proxycache generalized allocation
+	req, err := NormalizeKRMToProxyCacheAllocation(o, d)
+	if err != nil {
+		return nil, err
+	}
+	r.l.Info("get allocated prefix", "allobrequest", req)
+	resp, err := r.pc.Get(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	ipAlloc := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(resp.Status), ipAlloc); err != nil {
+		return nil, err
+	}
+	r.l.Info("allocate prefix done", "result", ipAlloc.Status)
+	return ipAlloc, nil
+
+}
+
 func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
 	r.l.Info("allocate prefix", "cr", o)
 	// normalizes the input to the proxycache generalized allocation
@@ -114,13 +131,6 @@ func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d a
 	}
 	r.l.Info("allocate prefix done", "result", ipAlloc.Status)
 	return ipAlloc, nil
-	/*
-		return &AllocatedPrefix{
-			Prefix:  ipAlloc.Status.AllocatedPrefix,
-			Gateway: ipAlloc.Status.Gateway,
-		}, nil
-	*/
-
 }
 
 func (r *clientproxy) DeAllocateIPPrefix(ctx context.Context, o client.Object, d any) error {
@@ -193,7 +203,7 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 	// if the ownerGvk is in the labels we use this as ownerGVK
-	ownerGVKValue, ok := cr.GetLabels()[ipamv1alpha1.NephioOwnerGvkKey]
+	ownerGVKValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerGvkKey]
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}

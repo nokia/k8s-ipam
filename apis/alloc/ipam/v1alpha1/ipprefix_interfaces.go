@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	"k8s.io/apimachinery/pkg/types"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // GetCondition of this resource
@@ -48,8 +48,8 @@ func (r *IPPrefix) GetPrefixKind() PrefixKind {
 }
 
 // GetNetworkInstance returns the networkinstance of the ipprefix
-func (r *IPPrefix) GetNetworkInstance() types.NamespacedName {
-	nsn := types.NamespacedName{}
+func (r *IPPrefix) GetNetworkInstance() corev1.ObjectReference {
+	nsn := corev1.ObjectReference{}
 	if r.Spec.NetworkInstance != nil {
 		nsn.Name = r.Spec.NetworkInstance.Name
 		nsn.Namespace = r.Spec.NetworkInstance.Namespace

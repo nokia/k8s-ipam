@@ -22,6 +22,7 @@ package alloc;
 option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
 
 service Allocation {
+  rpc Get (Request) returns (Response) {}
   rpc Allocate (Request) returns (Response) {}
   rpc DeAllocate (Request) returns (EmptyResponse) {}
   rpc WatchAlloc (WatchRequest) returns (stream WatchResponse) {}

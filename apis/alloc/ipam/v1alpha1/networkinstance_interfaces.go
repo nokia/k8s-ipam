@@ -55,7 +55,7 @@ func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string
 // as string, compliant to the k8s api naming convention
 func (r *NetworkInstance) GetGenericNamespacedName() string {
 	if r.GetNamespace() == "" {
-		fmt.Sprintf("%s", r.GetName())
+		return r.GetName()
 	}
 	return fmt.Sprintf("%s-%s", r.GetNamespace(), r.GetName())
 }

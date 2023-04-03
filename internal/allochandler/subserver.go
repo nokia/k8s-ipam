@@ -24,13 +24,14 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
 
-func WithRoute(group string, handler AlloHandler) func(SubServer) {
+func WithRoutes(ahs map[string]AlloHandler) func(SubServer) {
 	return func(s SubServer) {
-		s.WithRoute(group, handler)
+		s.WithRoutes(ahs)
 	}
 }
 
 type AlloHandler interface {
+	Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
 	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
@@ -39,7 +40,8 @@ type AlloHandler interface {
 type Option func(SubServer)
 
 type SubServer interface {
-	WithRoute(group string, handler AlloHandler)
+	WithRoutes(ahs map[string]AlloHandler)
+	Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	Allocate(context.Context, *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
 	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
@@ -62,6 +64,11 @@ type subServer struct {
 	l logr.Logger
 }
 
-func (r *subServer) WithRoute(group string, handler AlloHandler) {
-	r.h[group] = handler
+func (r *subServer) WithRoutes(ahs map[string]AlloHandler) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	for group, handler := range ahs {
+		r.h[group] = handler
+	}
+
 }

@@ -59,8 +59,8 @@ func (r *IPAllocation) GetPrefixKind() PrefixKind {
 }
 
 // GetNetworkInstance returns the networkinstance of the ip allocation
-func (r *IPAllocation) GetNetworkInstance() types.NamespacedName {
-	nsn := types.NamespacedName{}
+func (r *IPAllocation) GetNetworkInstance() corev1.ObjectReference {
+	nsn := corev1.ObjectReference{}
 	if r.Spec.NetworkInstance != nil {
 		nsn.Name = r.Spec.NetworkInstance.Name
 		nsn.Namespace = r.Spec.NetworkInstance.Namespace

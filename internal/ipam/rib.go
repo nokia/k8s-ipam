@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // newRibContext holds the rib/patricia tree context
@@ -32,25 +32,25 @@ func (r *ribContext) IsInitialized() bool {
 }
 
 type ipamRib interface {
-	isInitialized(niRef ipamv1alpha1.NetworkInstanceReference) bool
-	setInitialized(niRef ipamv1alpha1.NetworkInstanceReference) error
-	getRIB(niRef ipamv1alpha1.NetworkInstanceReference, initializing bool) (*table.RIB, error)
-	create(niRef ipamv1alpha1.NetworkInstanceReference)
-	delete(niRef ipamv1alpha1.NetworkInstanceReference)
+	isInitialized(niRef corev1.ObjectReference) bool
+	setInitialized(niRef corev1.ObjectReference) error
+	getRIB(niRef corev1.ObjectReference, initializing bool) (*table.RIB, error)
+	create(niRef corev1.ObjectReference)
+	delete(niRef corev1.ObjectReference)
 }
 
 func newIpamRib() ipamRib {
 	return &ipamrib{
-		r: map[ipamv1alpha1.NetworkInstanceReference]*ribContext{},
+		r: map[corev1.ObjectReference]*ribContext{},
 	}
 }
 
 type ipamrib struct {
 	m sync.RWMutex
-	r map[ipamv1alpha1.NetworkInstanceReference]*ribContext
+	r map[corev1.ObjectReference]*ribContext
 }
 
-func (r *ipamrib) create(niRef ipamv1alpha1.NetworkInstanceReference) {
+func (r *ipamrib) create(niRef corev1.ObjectReference) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	_, ok := r.r[niRef]
@@ -59,7 +59,7 @@ func (r *ipamrib) create(niRef ipamv1alpha1.NetworkInstanceReference) {
 	}
 }
 
-func (r *ipamrib) delete(niRef ipamv1alpha1.NetworkInstanceReference) {
+func (r *ipamrib) delete(niRef corev1.ObjectReference) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	delete(r.r, niRef)
@@ -68,7 +68,7 @@ func (r *ipamrib) delete(niRef ipamv1alpha1.NetworkInstanceReference) {
 // init initializes the ipamrib
 // return true -> isInitialized
 // return false -> not initialized
-func (r *ipamrib) isInitialized(niRef ipamv1alpha1.NetworkInstanceReference) bool {
+func (r *ipamrib) isInitialized(niRef corev1.ObjectReference) bool {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ribCtx, ok := r.r[niRef]
@@ -79,7 +79,7 @@ func (r *ipamrib) isInitialized(niRef ipamv1alpha1.NetworkInstanceReference) boo
 }
 
 // initialized sets the status in the ribCtxt to initialized
-func (r *ipamrib) setInitialized(niRef ipamv1alpha1.NetworkInstanceReference) error {
+func (r *ipamrib) setInitialized(niRef corev1.ObjectReference) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ribCtx, ok := r.r[niRef]
@@ -92,7 +92,7 @@ func (r *ipamrib) setInitialized(niRef ipamv1alpha1.NetworkInstanceReference) er
 
 // getRIB returns the RIB
 // you can ignore the fact the rib is initialized or not using the init flag
-func (r *ipamrib) getRIB(niRef ipamv1alpha1.NetworkInstanceReference, ignoreInitializing bool) (*table.RIB, error) {
+func (r *ipamrib) getRIB(niRef corev1.ObjectReference, ignoreInitializing bool) (*table.RIB, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ii, ok := r.r[niRef]

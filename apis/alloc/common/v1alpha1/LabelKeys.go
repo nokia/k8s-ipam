@@ -25,11 +25,11 @@ const (
 	NephioNsnNameKey           = "nephio.org/nsn-name"
 	NephioNsnNamespaceKey      = "nephio.org/nsn-namespace"
 	// system defined ipam
-	NephioPrefixKindKey        = "nephio.org/prefix-kind"
-	NephioAddressFamilyKey     = "nephio.org/address-family"
-	NephioSubnetKey            = "nephio.org/subnet" // this is the subnet in prefix annotation used for GW selection
-	NephioPoolKey              = "nephio.org/pool"
-	NephioGatewayKey           = "nephio.org/gateway"
+	NephioPrefixKindKey    = "nephio.org/prefix-kind"
+	NephioAddressFamilyKey = "nephio.org/address-family"
+	NephioSubnetKey        = "nephio.org/subnet" // this is the subnet in prefix annotation used for GW selection
+	NephioPoolKey          = "nephio.org/pool"
+	NephioGatewayKey       = "nephio.org/gateway"
 	// user defined common
 	NephioSiteKey              = "nephio.org/site"
 	NephioRegionKey            = "nephio.org/region"

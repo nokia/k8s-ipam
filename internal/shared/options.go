@@ -20,9 +20,8 @@ import (
 	"time"
 
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
-	"github.com/nokia/k8s-ipam/internal/injectors"
 	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -30,9 +29,8 @@ import (
 type Options struct {
 	PorchClient     client.Client
 	Registrator     registrator.Registrator
-	IpamClientProxy clientipamproxy.Proxy
+	IpamClientProxy clientproxy.Proxy
 	Poll            time.Duration
 	Copts           controller.Options
 	Ipam            ipam.Ipam
-	Injectors       injectors.Injectors
 }

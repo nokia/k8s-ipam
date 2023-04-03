@@ -32,11 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
 	"github.com/pkg/errors"
 )
 
@@ -76,7 +77,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 type reconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
-	IpamClientProxy clientipamproxy.Proxy
+	IpamClientProxy clientproxy.Proxy
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
 
@@ -104,13 +105,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// from th IPAM table
 		if err := r.IpamClientProxy.Delete(ctx, cr); err != nil {
 			r.l.Error(err, "cannot delete networkInstance")
-			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+			cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
-			cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+			cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
@@ -123,7 +124,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// implicitly when we update our status with the new error condition. If
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
-		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Unknown())
+		cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -132,7 +133,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// since they serve as an aggregate
 	if err := r.IpamClientProxy.Create(ctx, cr); err != nil {
 		r.l.Error(err, "cannot initialize ipam")
-		cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
+		cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -150,7 +151,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, allocatedPrefix); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
-					cr.SetConditions(ipamv1alpha1.ReconcileError(err), ipamv1alpha1.Failed(err.Error()))
+					cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Failed(err.Error()))
 					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 				}
 			}
@@ -163,13 +164,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, prefix)
 		if err != nil {
 			r.l.Info("cannot allocate prefix", "err", err)
-			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed(err.Error()))
+			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		if allocResp.Status.AllocatedPrefix != prefix.Prefix {
 			//we got a different prefix than requested
 			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.AllocatedPrefix)
-			cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Unknown())
+			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
@@ -177,6 +178,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cr.Status.AllocatedPrefixes = cr.Spec.Prefixes
 
 	// Update the status of the CR and end the reconciliation loop
-	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Ready())
+	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

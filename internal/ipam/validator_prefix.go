@@ -6,7 +6,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -90,8 +91,8 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		// in the subnet
 		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 			// if parent is prefixkind network
-			if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
-				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[ipamv1alpha1.NephioPrefixKindKey]), nil
+			if route.Labels()[allocv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
+				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[allocv1alpha1.NephioPrefixKindKey]), nil
 			}
 			route, ok = dryrunRib.Get(r.pi.GetIPAddressPrefix())
 			if !ok {

@@ -23,7 +23,6 @@ package v1alpha1
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -387,23 +386,6 @@ func (in *NetworkInstanceStatus) DeepCopyInto(out *NetworkInstanceStatus) {
 				*out = new(Prefix)
 				(*in).DeepCopyInto(*out)
 			}
-		}
-	}
-	if in.Allocations != nil {
-		in, out := &in.Allocations, &out.Allocations
-		*out = make(map[string]labels.Set, len(*in))
-		for key, val := range *in {
-			var outVal map[string]string
-			if val == nil {
-				(*out)[key] = nil
-			} else {
-				in, out := &val, &outVal
-				*out = make(labels.Set, len(*in))
-				for key, val := range *in {
-					(*out)[key] = val
-				}
-			}
-			(*out)[key] = outVal
 		}
 	}
 }

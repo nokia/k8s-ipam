@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/pkg/errors"
@@ -74,8 +75,8 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 				childRoutesToBeUpdated := []table.Route{}
 				for _, childRoute := range route.Children(r.rib) {
 					r.l.Info("prefix allocation: route exists", "inform children of the change/update", route, "child route", childRoute)
-					if childRoute.Labels()[ipamv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNameKey] ||
-						childRoute.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNamespaceKey] {
+					if childRoute.Labels()[allocv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNameKey] ||
+						childRoute.Labels()[allocv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNamespaceKey] {
 						childRoutesToBeUpdated = append(childRoutesToBeUpdated, childRoute)
 						if err := r.rib.Delete(childRoute); err != nil {
 							r.l.Error(err, "cannot delete route from rib", "route", childRoute)
@@ -110,10 +111,10 @@ func (r *applicator) getMutatedRoutesWithLabels() []table.Route {
 	routes := []table.Route{}
 
 	labels := r.alloc.GetSpecLabels()
-	labels[ipamv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(r.pi.GetAddressFamily())
+	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
+	labels[allocv1alpha1.NephioAddressFamilyKey] = string(r.pi.GetAddressFamily())
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
-	labels[ipamv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+	labels[allocv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
 
 	prefix := r.pi.GetIPPrefix()
 
@@ -154,7 +155,7 @@ func (r *applicator) mutateNetworkNetRoute(l map[string]string) table.Route {
 	for k, v := range l {
 		labels[k] = v
 	}
-	delete(labels, ipamv1alpha1.NephioGatewayKey)
+	delete(labels, allocv1alpha1.NephioGatewayKey)
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
 	return table.NewRoute(r.pi.GetIPSubnet(), labels, map[string]any{})
 }
@@ -173,7 +174,7 @@ func (r *applicator) mutateNetworFirstAddressRoute(l map[string]string) table.Ro
 	for k, v := range l {
 		labels[k] = v
 	}
-	delete(labels, ipamv1alpha1.NephioGatewayKey)
+	delete(labels, allocv1alpha1.NephioGatewayKey)
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 	return table.NewRoute(r.pi.GetFirstIPPrefix(), labels, map[string]any{})
 }
@@ -183,7 +184,7 @@ func (r *applicator) mutateNetworLastAddressRoute(l map[string]string) table.Rou
 	for k, v := range l {
 		labels[k] = v
 	}
-	delete(labels, ipamv1alpha1.NephioGatewayKey)
+	delete(labels, allocv1alpha1.NephioGatewayKey)
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetAddressPrefixLength().String()
 	return table.NewRoute(r.pi.GetLastIPPrefix(), labels, map[string]any{})
 }
@@ -191,10 +192,10 @@ func (r *applicator) mutateNetworLastAddressRoute(l map[string]string) table.Rou
 func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 	pi := iputil.NewPrefixInfo(route.Prefix())
 	labels := r.alloc.GetSpecLabels()
-	labels[ipamv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
-	labels[ipamv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
+	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
+	labels[allocv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = pi.GetPrefixLength().String()
-	labels[ipamv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
+	labels[allocv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
 	// for network based prefixes the prefixlength in the fib can be /32 but the representation
 	// to the user is parent prefix based
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
@@ -205,22 +206,22 @@ func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 			r.pi = iputil.NewPrefixInfo(netip.PrefixFrom(pi.GetIPAddress(), parentRoutes[0].Prefix().Bits()))
 			// delete the gateway if not the first or last address
 			if pi.GetIPPrefix() == r.pi.GetFirstIPPrefix() || pi.GetIPPrefix() == r.pi.GetLastIPPrefix() {
-				delete(labels, ipamv1alpha1.NephioGatewayKey)
+				delete(labels, allocv1alpha1.NephioGatewayKey)
 			}
 			// overwirite the subnet key
-			labels[ipamv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+			labels[allocv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
 		} else {
 			// no gateway allowed for non address based prefixes
-			delete(labels, ipamv1alpha1.NephioGatewayKey)
+			delete(labels, allocv1alpha1.NephioGatewayKey)
 			// overwirite the subnet key
-			labels[ipamv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
+			labels[allocv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
 			//labels[ipamv1alpha1.NephioParentPrefixLengthKey] = pi.GetPrefixLength().String()
 		}
 	}
 
 	// add ip pool labelKey if present
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
-		labels[ipamv1alpha1.NephioPoolKey] = "true"
+		labels[allocv1alpha1.NephioPoolKey] = "true"
 	}
 	return labels
 }

@@ -1,4 +1,4 @@
-package serveripamproxy
+package serverproxy
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
@@ -15,6 +15,7 @@ import (
 )
 
 type Proxy interface {
+	Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	DeAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.EmptyResponse, error)
 	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
@@ -38,6 +39,35 @@ type serverproxy struct {
 	proxyState *ProxyState
 	//logger
 	l logr.Logger
+}
+
+func (r *serverproxy) Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+	getResp := &allocpb.Response{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
+	switch alloc.Header.Gvk.Kind {
+	case ipamv1alpha1.IPAllocationKind:
+		r.l.Info("get allocation", "kind", alloc.Header.Gvk.Kind)
+		// this is an ip allocation
+		cr := &ipamv1alpha1.IPAllocation{}
+		if err := json.Unmarshal([]byte(alloc.Spec), cr); err != nil {
+			return getResp, err
+		}
+		// TO BE UPDATED
+		ipallocStatus, err := r.ipam.GetAllocatedPrefix(ctx, cr)
+		if err != nil {
+			return getResp, err
+		}
+		b, err := json.Marshal(ipallocStatus)
+		if err != nil {
+			return getResp, err
+		}
+		getResp.Status = string(b)
+		getResp.StatusCode = allocpb.StatusCode_Valid
+		r.l.Info("allocate prefix done", "status", string(b))
+		return getResp, nil
+	default:
+		r.l.Info("unexpected kind in get", "kind", alloc.Header.Gvk.Kind)
+		return getResp, fmt.Errorf("unexpected kind in ipam server proxy, got: %s", alloc.Header.Gvk.Kind)
+	}
 }
 
 func (r *serverproxy) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {

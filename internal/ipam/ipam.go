@@ -22,7 +22,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -39,6 +40,8 @@ type Ipam interface {
 	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
 	// Delete a dynamic watch with callback to the ipam rib
 	DeleteWatch(ownerGvkKey, ownerGvk string)
+	//GetAllocatedPrefix return the requested allocated prefix
+	GetAllocatedPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
 	// AllocateIPPrefix allocates an ip prefix
 	AllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
 	// DeAllocateIPPrefix deallocates the allocation based on owner selection. No errors are returned if no allocation was found
@@ -98,10 +101,10 @@ func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
 
 // Initialize and create the ipam instance with the allocated prefixes
 func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
-	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
 
-	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
+	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
 	// if the IPAM is not initialaized initialaize it
 	// this happens upon initialization or ipam restart
 	r.ipamRib.create(niRef)
@@ -119,7 +122,7 @@ func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) err
 
 // Delete the ipam instance
 func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
-	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
 
 	r.l.Info("ipam delete instance start")
@@ -131,6 +134,29 @@ func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
 	}
 
 	r.l.Info("ipam delete instance finished")
+
+}
+
+// GetAllocatedPrefix return the allocated prefic if found
+func (r *ipam) GetAllocatedPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", alloc.GetName())
+	r.l.Info("get allocated prefix", "prefix", alloc.GetPrefix())
+
+	// get the runtime based the following parameters
+	// prefixkind
+	// hasprefix -> if prefix parsing is nok we return an error
+	// networkinstance -> if not initialized we get an error
+	// initialized with alloc, rib and prefix if present
+	op, err := r.runtimes.Get(alloc, false)
+	if err != nil {
+		return nil, err
+	}
+	allocatedPrefix, err := op.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r.l.Info("get allocated prefix done", "allocatedPrefix", allocatedPrefix)
+	return alloc, nil
 
 }
 
@@ -188,7 +214,7 @@ func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 }
 
 func (r *ipam) GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes {
-	niRef := ipamv1alpha1.NetworkInstanceReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
+	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
 
 	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {

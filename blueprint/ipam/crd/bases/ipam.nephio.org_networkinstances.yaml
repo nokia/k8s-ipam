@@ -100,14 +100,6 @@ spec:
                   - prefix
                   type: object
                 type: array
-              allocations:
-                additionalProperties:
-                  additionalProperties:
-                    type: string
-                  description: Set is a map of label:value. It implements Labels.
-                  type: object
-                description: Allocations list the available alocations
-                type: object
               conditions:
                 description: Conditions of the resource.
                 items:

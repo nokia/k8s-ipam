@@ -24,6 +24,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+func (r *subServer) Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+	r.l = log.FromContext(ctx)
+	r.l.Info("allocate", "alloc", alloc)
+
+	h := r.getHandler(alloc.Header.Gvk.Group)
+	if h == nil {
+		return nil, fmt.Errorf("unregistered route, route error, got %v", alloc.Header)
+	}
+	return h.Allocate(ctx, alloc)
+
+}
+
 func (r *subServer) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
 	r.l = log.FromContext(ctx)
 	r.l.Info("allocate", "alloc", alloc)

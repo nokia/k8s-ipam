@@ -27,12 +27,23 @@ import (
 
 // VLANSpec defines the desired state of VLAN
 type VLANSpec struct {
-	// VlanID defines a request for a specifc vlan
+	// VlanID defines a specific vlan id
 	VlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANRange defines a range of vlans
+	VLANRange *VLANRange `json:"range,omitempty" yaml:"range,omitempty"`
+	// VLANSize defines a size of vlans
+	VLANSize uint16 `json:"size,omitempty" yaml:"size,omitempty"`
 	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
 	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
 	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+}
+
+// VLANRange defines a vlan range by identifying the start and end of the range
+// the start needs to be smaller than the end
+type VLANRange struct {
+	Start uint16 `json:"start" yaml:"start"`
+	End   uint16 `json:"end" yaml:"end"`
 }
 
 // VLANStatus defines the observed state of VLAN
@@ -44,9 +55,11 @@ type VLANStatus struct {
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 	// AllocatedVlan identifies the vlan that was allocated by the VLAN backend
-	AllocatedVlanID string `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
-	// expiryTime indicated when the allocation expires
-	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
+	AllocatedVlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
+	AllocatedVlanRange *VLANRange `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
+	// AllocatedVlan identifies the vlans allocated through a vlan size
+	AllocatedVlanIds string `json:"vlanIDs,omitempty" yaml:"vlanIDs,omitempty"`
 }
 
 // +kubebuilder:object:root=true
