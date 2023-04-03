@@ -15,6 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.24.0
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/grpc v1.49.0
 	k8s.io/api v0.26.0

@@ -30,9 +30,7 @@ type VLANSpec struct {
 	// VlanID defines a specific vlan id
 	VlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines a range of vlans
-	VLANRange *VLANRange `json:"range,omitempty" yaml:"range,omitempty"`
-	// VLANSize defines a size of vlans
-	VLANSize uint16 `json:"size,omitempty" yaml:"size,omitempty"`
+	VLANRange string `json:"range,omitempty" yaml:"range,omitempty"`
 	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
 	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
 	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec

@@ -14,9 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam
+package vlanbackend
 
-const (
-	errValidateDuplicatePrefix              = "cannot create prefix duplicate"
-	errValidateNetworkPrefixWoNetworkParent = "cannot create network prefix w/o parent network prefix"
+import (
+	"context"
+
+	"github.com/hansthienpondt/nipam/pkg/table"
+	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
+
+type CallbackFn func(table.Routes, allocpb.StatusCode)
+
+type Watcher interface {
+	addWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
+	deleteWatch(ownerGvkKey, ownerGvk string)
+	handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode)
+}

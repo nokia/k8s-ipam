@@ -48,13 +48,8 @@ func (r *VLAN) GetVlanID() uint16 {
 }
 
 // GetVlanID return the vlanID from the spec
-func (r *VLAN) GetVlanRange() *VLANRange {
+func (r *VLAN) GetVlanRange() string {
 	return r.Spec.VLANRange
-}
-
-// GetVlanID return the vlanID from the spec
-func (r *VLAN) GetVlanSize() uint16 {
-	return r.Spec.VLANSize
 }
 
 // GetLabels returns the user defined labels in the spec

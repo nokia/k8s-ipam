@@ -156,7 +156,7 @@ func (r *ipam) GetAllocatedPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 		return nil, err
 	}
 	r.l.Info("get allocated prefix done", "allocatedPrefix", allocatedPrefix)
-	return alloc, nil
+	return allocatedPrefix, nil
 
 }
 

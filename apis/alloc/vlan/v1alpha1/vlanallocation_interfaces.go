@@ -51,13 +51,8 @@ func (r *VLANAllocation) GetVlanID() uint16 {
 }
 
 // GetVlanID return the vlanID from the spec
-func (r *VLANAllocation) GetVlanRange() *VLANRange {
+func (r *VLANAllocation) GetVlanRange() string {
 	return r.Spec.VLANRange
-}
-
-// GetVlanID return the vlanID from the spec
-func (r *VLANAllocation) GetVlanSize() uint16 {
-	return r.Spec.VLANSize
 }
 
 // GetLabels returns the user defined labels in the spec
@@ -140,13 +135,8 @@ func (r *VLANAllocation) GetAllocatedVlanID() uint16 {
 }
 
 // GetAllocatedVlanRange return the allocated vlanRange from the status
-func (r *VLANAllocation) GetAllocatedVlanRange() *VLANRange {
+func (r *VLANAllocation) GetAllocatedVlanRange() string {
 	return r.Status.AllocatedVlanRange
-}
-
-// GetAllocatedVlanIds return the allocated vlanIds from the status
-func (r *VLANAllocation) GetAllocatedVlanIds() string {
-	return r.Status.AllocatedVlanIds
 }
 
 // SetAllocatedVlanID updates the AllocatedVlanID status
@@ -154,12 +144,7 @@ func (r *VLANAllocation) SetAllocatedVlanID(id uint16) {
 	r.Status.AllocatedVlanID = id
 }
 
-// SetAllocatedVlanID updates the AllocatedVlanID status
-func (r *VLANAllocation) SetAllocatedVlanRange(ra VLANRange) {
-	r.Status.AllocatedVlanRange = &ra
-}
-
-// GetAllocatedVlanIds return the allocated vlanIds from the status
-func (r *VLANAllocation) SetAllocatedVlanIds(ids string) {
-	r.Status.AllocatedVlanIds = ids
+// SetAllocatedVlanID updates the AllocatedVlanRange status
+func (r *VLANAllocation) SetAllocatedVlanRange(ra string) {
+	r.Status.AllocatedVlanRange = ra
 }

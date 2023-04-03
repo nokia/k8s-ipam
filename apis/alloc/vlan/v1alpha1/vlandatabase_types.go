@@ -25,8 +25,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+type VLANDBKind string
+
+const (
+	VLANDBKindESG    VLANDBKind = "esg"
+	VLANDBKindDevice VLANDBKind = "device"
+)
+
 // VLANDatabaseSpec defines the desired state of VLANDatabase
 type VLANDatabaseSpec struct {
+	// VLANDBKind defines the kind of vlan database we want to create
+	// esg kind is used for ethernet segment groups
+	// device kind is used for devices: vlan per device or vlan per interface
+	// +kubebuilder:validation:Enum=`esg`;`device`
+	// +kubebuilder:default=esg
+	VLANDBKind VLANDBKind `json:"kind" yaml:"kind"`
 	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
 	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
 	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
@@ -54,8 +67,8 @@ type VLANDatabase struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	Spec   VLANAllocationSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Status VLANAllocationStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Spec   VLANDatabaseSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Status VLANDatabaseStatus `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

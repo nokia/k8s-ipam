@@ -30,9 +30,7 @@ type VLANAllocationSpec struct {
 	// VlanID defines a request for a specifc vlan
 	VlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines a range of vlans
-	VLANRange *VLANRange `json:"range,omitempty" yaml:"range,omitempty"`
-	// VLANSize defines a size of vlans
-	VLANSize uint16 `json:"size,omitempty" yaml:"size,omitempty"`
+	VLANRange string `json:"range,omitempty" yaml:"range,omitempty"`
 	// Selector defines the selector criterias by which the vlan should be allocated
 	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
 	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
@@ -52,9 +50,7 @@ type VLANAllocationStatus struct {
 	// AllocatedVlan identifies the vlan that was allocated by the VLAN backend
 	AllocatedVlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
-	AllocatedVlanRange *VLANRange `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
-	// AllocatedVlan identifies the vlans allocated through a vlan size
-	AllocatedVlanIds string `json:"vlanIDs,omitempty" yaml:"vlanIDs,omitempty"`
+	AllocatedVlanRange string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
 	// expiryTime indicated when the allocation expires
 	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }
