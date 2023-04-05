@@ -27,7 +27,6 @@ type DBConfig[T constraints.Ordered] struct {
 	DeleteValidation ValidationFn[T]
 }
 
-type InitFn[T constraints.Ordered] func(e Entries[T])
 type ValidationFn[T constraints.Ordered] func(id T) error
 
 func NewDB[T constraints.Ordered](c *DBConfig[T]) DB[T] {
@@ -144,6 +143,5 @@ func (r *db[T]) Iterate() *Iterator[T] {
 		return keys[i] < keys[j]
 	})
 
-	fmt.Println(keys)
 	return &Iterator[T]{current: -1, keys: keys, db: r.store}
 }

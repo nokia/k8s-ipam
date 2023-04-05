@@ -6,18 +6,6 @@ import (
 	"github.com/nokia/k8s-ipam/internal/db"
 )
 
-/*
-	vlanDB.Set(db.NewEntry("9", map[string]string{"cluster": "cluster1"}))
-	vlanDB.Set(db.NewEntry("10", map[string]string{"cluster": "cluster1"}))
-	vlanDB.Set(db.NewEntry("11", map[string]string{"cluster": "cluster1"}))
-
-	entries := vlanDB.GetAll()
-
-	for _, e := range entries {
-		fmt.Println("entry:", e.ID(), e.Labels())
-	}
-*/
-
 func New[T uint16]() db.DB[T] {
 	return db.NewDB(&db.DBConfig[T]{
 		InitEntries: db.Entries[T]{
