@@ -18,126 +18,159 @@ package vlanbackend
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/nokia/k8s-ipam/internal/db/vlandb"
+	"github.com/nokia/k8s-ipam/pkg/backend"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Option can be used to manipulate Options.
-type Option func(Vlan)
+func New(c client.Client) (backend.Backend[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation, db.Entries[uint16]], error) {
 
-type Vlan interface {
-	// Create and initialize the VLAN Database
-	Create(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error
-	// Delete the vlan database
-	Delete(ctx context.Context, cr *vlanv1alpha1.VLANDatabase)
-	// Add a dynamic watch with callback to the ipam rib
-	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
-	// Delete a dynamic watch with callback to the ipam rib
-	DeleteWatch(ownerGvkKey, ownerGvk string)
-	//GetAllocatedVLAN returns the requested allocated vlan if founf
-	GetAllocatedVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error)
-	// AllocateVLAN allocates a vlan
-	AllocateVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error)
-	// DeAllocateVLAN deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-	DeAllocateVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) error
-	// GetVlans
-	GetVlans(cr *vlanv1alpha1.VLANDatabase) db.DB[uint16]
-}
+	ca := backend.NewCache[db.DB[uint16]]()
 
-func New(c client.Client, opts ...Option) Vlan {
-	db := newDB()
+	s, err := newCMStorage(&storageConfig{
+		client: c,
+		cache:  ca,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return &be{
-		db: db,
-	}
+		cache: ca,
+		store: s,
+	}, nil
 }
 
 type be struct {
-	c       client.Client
 	watcher Watcher
-	db      database
-	// to add backend
-	// tbd if we need runtimes here
-	l logr.Logger
+	cache   backend.Cache[db.DB[uint16]]
+	store   Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+	l       logr.Logger
 }
 
-func (r *be) AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn) {
+func (r *be) AddWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn) {
 	r.watcher.addWatch(ownerGvkKey, ownerGvk, fn)
 }
 func (r *be) DeleteWatch(ownerGvkKey, ownerGvk string) {
 	r.watcher.deleteWatch(ownerGvkKey, ownerGvk)
 }
 
-// Create the DB and or restore the DB
+// Create the cache instance and/or restore the cache instance
 func (r *be) Create(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
-	id := corev1.ObjectReference{Kind: string(cr.Spec.VLANDBKind), Name: cr.GetName(), Namespace: cr.GetNamespace()}
-	r.l = log.FromContext(ctx).WithValues("niRef", id)
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
-	r.l.Info("db create instance start", "isInitialized", r.db.isInitialized(corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
-	// if the DB is not initialaized initialized
-	// this happens upon initialization or ipam restart
-	r.db.create(id)
-	if !r.db.isInitialized(id) {
-		if err := r.backend.Restore(ctx, cr); err != nil {
-			r.l.Error(err, "backend restore error")
+	r.l.Info("create cache instance start", "isInitialized", r.cache.IsInitialized(cacheID))
+	// if the Cache is not initialaized initialized
+	// this happens upon initialization or backend restart
+	r.cache.Create(cacheID, vlandb.New())
+	if !r.cache.IsInitialized(cacheID) {
+		if err := r.store.Get().Restore(ctx, cacheID); err != nil {
+			r.l.Error(err, "backend cache restore error")
+			return err
 		}
 
-		r.l.Info("db create instance finished")
-		return r.db.setInitialized(id)
+		r.l.Info("create cache instance finished")
+		return r.cache.SetInitialized(cacheID)
 	}
-	r.l.Info("db create instance already initialized")
+	r.l.Info("create cache instance already initialized")
 	return nil
 }
 
-// Delete the db instance
-func (r *be) Delete(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) {
-	id := corev1.ObjectReference{Kind: string(cr.Spec.VLANDBKind), Name: cr.GetName(), Namespace: cr.GetNamespace()}
-	r.l = log.FromContext(ctx).WithValues("niRef", id)
+// Delete the cache instance
+func (r *be) Delete(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
-	r.l.Info("db delete instance start")
-	r.db.delete(id)
+	r.l.Info("delete cache instance start")
+	r.cache.Delete(cacheID)
 
 	// delete the data from the backend
-	if err := r.backend.Delete(ctx, cr); err != nil {
-		r.l.Error(err, "backend delete error")
+	if err := r.store.Get().Destroy(ctx, cacheID); err != nil {
+		r.l.Error(err, "delete cache instance error")
+		return err
 	}
-
-	r.l.Info("db delete instance finished")
+	r.l.Info("delete cache instance finished")
+	return nil
 }
 
-// GetAllocatedPrefix return the allocated prefic if found
-func (r *be) GetAllocatedVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("get allocated vlan", "selectors", cr.GetSelectorLabels())
+// List entries in the db instance
+func (r *be) List(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) (db.Entries[uint16], error) {
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
-	// get the runtime based the following parameters
-	// prefixkind
-	// hasprefix -> if prefix parsing is nok we return an error
-	// networkinstance -> if not initialized we get an error
-	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(cr, false)
+	d, err := r.cache.Get(cacheID, false)
+	if err != nil {
+		r.l.Error(err, "cannpt get cache instance")
+		return db.Entries[uint16]{}, nil
+	}
+	return d.GetAll(), err
+}
+
+// Gwt return the allocated entry if found
+func (r *be) Get(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+	r.l.Info("get allocated entry", "selectors", a.GetSelectorLabels())
+
+	al, err := r.newApplogic(a, false)
 	if err != nil {
 		return nil, err
 	}
-	allocatedVLAN, err := op.Get(ctx)
+	a, err = al.Get(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	r.l.Info("get allocated vlan done", "allocatedVLAN", allocatedVLAN)
-	return allocatedVLAN, nil
 
+	r.l.Info("get allocated entry done", "allocatedVLAN", a.Status)
+	return a, nil
 }
 
-func (r *be) AllocateVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
+func (r *be) Allocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+	r.l.Info("allocate")
+
+	al, err := r.newApplogic(a, false)
+	if err != nil {
+		return nil, err
+	}
+	msg, err := al.Validate(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	if msg != "" {
+		r.l.Error(fmt.Errorf("%s", msg), "validation failed")
+		return nil, fmt.Errorf("validation failed: %s", msg)
+	}
+	a, err = al.Apply(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	r.l.Info("allocate  done", "updatedAlloc", a)
+	return a, nil
+	//r.store.Get().SaveAll(ctx, *a.Spec.VLANDatabases[0])
 }
 
 // DeAllocateVLAN deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-func (r *be) DeAllocateVLAN(ctx context.Context, cr *vlanv1alpha1.VLANAllocation) error {}
+func (r *be) DeAllocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) error {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+	r.l.Info("deallocate")
 
-// GetVlans
-func (r *be) GetVlans(cr *vlanv1alpha1.VLANDatabase) db.DB[uint16] {}
+	al, err := r.newApplogic(a, false)
+	if err != nil {
+		return err
+	}
+	if err := al.Delete(ctx, a); err != nil {
+		r.l.Error(err, "cannot deallocate prefix")
+		return err
+	}
+
+	return r.store.Get().SaveAll(ctx, *a.Spec.VLANDatabases[0])
+}

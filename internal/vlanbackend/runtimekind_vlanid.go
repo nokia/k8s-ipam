@@ -16,18 +16,3 @@ limitations under the License.
 
 package vlanbackend
 
-import (
-	"context"
-
-	"github.com/hansthienpondt/nipam/pkg/table"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
-	"github.com/nokia/k8s-ipam/pkg/backend"
-)
-
-type CallbackFn func(table.Routes, allocpb.StatusCode)
-
-type Watcher interface {
-	addWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn)
-	deleteWatch(ownerGvkKey, ownerGvk string)
-	handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode)
-}
