@@ -18,11 +18,16 @@ package v1alpha1
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -47,7 +52,7 @@ func (r *VLANAllocation) GetGenericNamespacedName() string {
 
 // GetVlanID return the vlanID from the spec
 func (r *VLANAllocation) GetVlanID() uint16 {
-	return r.Spec.VlanID
+	return r.Spec.VLANID
 }
 
 // GetVlanID return the vlanID from the spec
@@ -147,4 +152,96 @@ func (r *VLANAllocation) SetAllocatedVlanID(id uint16) {
 // SetAllocatedVlanID updates the AllocatedVlanRange status
 func (r *VLANAllocation) SetAllocatedVlanRange(ra string) {
 	r.Status.AllocatedVlanRange = ra
+}
+
+type VLANAllocationCtx struct {
+	Kind  VLANAllocKind
+	Start uint16
+	Size  uint16
+}
+
+func (r *VLANAllocation) GetAllocationKind() (*VLANAllocationCtx, error) {
+	vlanAllocCtx := &VLANAllocationCtx{
+		Kind: VLANAllocKindDynamic,
+	}
+	switch {
+	case r.Spec.VLANID != 0:
+		vlanAllocCtx.Kind = VLANAllocKindStatic
+		vlanAllocCtx.Start = r.Spec.VLANID
+	case r.Spec.VLANRange != "":
+		split := strings.Split(r.Spec.VLANRange, ":")
+		switch {
+		case len(split) == 1:
+			vlanAllocCtx.Kind = VLANAllocKindSize
+			s, err := strconv.Atoi(split[0])
+			if err != nil {
+				return nil, err
+			}
+			vlanAllocCtx.Size = uint16(s)
+		case len(split) == 2:
+			vlanAllocCtx.Kind = VLANAllocKindRange
+			s, err := strconv.Atoi(split[0])
+			if err != nil {
+				return nil, err
+			}
+			e, err := strconv.Atoi(split[1])
+			if err != nil {
+				return nil, err
+			}
+			if e < s {
+				return nil, fmt.Errorf("VLAN range %s end %d can not be smaller than start %d", r.Spec.VLANRange, e, s)
+			}
+			vlanAllocCtx.Start = uint16(s)
+			vlanAllocCtx.Size = uint16(e) - uint16(s) + 1
+		default:
+			return nil, fmt.Errorf("VLAN range can either be start:end or size, got: %s", r.Spec.VLANRange)
+		}
+	}
+	return vlanAllocCtx, nil
+}
+
+// BuildIPAllocationFromIPAllocation returns a vlan allocation from a vlan allocation
+// by augmenting the owner GVK/NSN in the user defined labels
+func BuildVLANAllocationFromVLANAllocation(cr *VLANAllocation) *VLANAllocation {
+	newcr := cr.DeepCopy()
+	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
+	// if the ownerGvk is in the labels we use this as ownerGVK
+	ownerGVKValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerGvkKey]
+	if ok {
+		ownerGvk = meta.StringToGVK(ownerGVKValue)
+	}
+	// if the ownerNsn is in the labels we use this as ownerNsn
+	ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
+	ownerNameValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerNsnNameKey]
+	if ok {
+		ownerNsn.Name = ownerNameValue
+	}
+	ownerNamespaceValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerNsnNamespaceKey]
+	if ok {
+		ownerNsn.Namespace = ownerNamespaceValue
+	}
+
+	newcr.Spec.Labels = AddSpecLabelsWithTypeMeta(
+		ownerGvk,
+		types.NamespacedName{Namespace: ownerNsn.Namespace, Name: ownerNsn.Name},
+		types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+		cr.Spec.Labels,
+	) // added the owner label in it
+	return newcr
+}
+
+// AddSpecLabelsWithTypeMeta returns a map based on the owner GVK/NSN
+func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
+	labels := map[string]string{
+		allocv1alpha1.NephioOwnerGvkKey:          meta.GVKToString(ownerGvk),
+		allocv1alpha1.NephioOwnerNsnNameKey:      ownerNsn.Name,
+		allocv1alpha1.NephioOwnerNsnNamespaceKey: ownerNsn.Namespace,
+		allocv1alpha1.NephioGvkKey:               VLANAllocationKindGVKString,
+		allocv1alpha1.NephioNsnNameKey:           nsn.Name,
+		allocv1alpha1.NephioNsnNamespaceKey:      nsn.Namespace,
+	}
+	for k, v := range specLabels {
+		labels[k] = v
+	}
+	return labels
 }

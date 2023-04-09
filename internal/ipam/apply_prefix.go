@@ -18,7 +18,6 @@ package ipam
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
@@ -71,9 +70,9 @@ func (r *applicator) ApplyPrefix(ctx context.Context) error {
 
 		// get all the routes from the routing table using the owner
 		// to provide a common mechanism between dynamic allocation and prefix allocations
-		routes, msg := r.getRoutesByOwner()
-		if msg != "" {
-			return fmt.Errorf(msg)
+		routes, err := r.getRoutesByOwner()
+		if err != nil {
+			return err
 		}
 		if err := r.updateRib(ctx, routes); err != nil {
 			return err

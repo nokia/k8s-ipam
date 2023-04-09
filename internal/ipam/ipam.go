@@ -23,131 +23,115 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/nokia/k8s-ipam/pkg/backend"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Option can be used to manipulate Options.
-type Option func(Ipam)
-
-type Ipam interface {
-	// Create and initialize the IPAM instance
-	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
-	// Delete the ipam instance
-	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance)
-	// Add a dynamic watch with callback to the ipam rib
-	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
-	// Delete a dynamic watch with callback to the ipam rib
-	DeleteWatch(ownerGvkKey, ownerGvk string)
-	//GetAllocatedPrefix return the requested allocated prefix
-	GetAllocatedPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
-	// AllocateIPPrefix allocates an ip prefix
-	AllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error)
-	// DeAllocateIPPrefix deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-	DeAllocateIPPrefix(ctx context.Context, cr *ipamv1alpha1.IPAllocation) error
-	// GetPrefixes
-	GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes
-}
-
-func New(c client.Client, opts ...Option) Ipam {
-	ipamRib := newIpamRib()
+func New(c client.Client) (backend.Backend[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation, table.Routes], error) {
+	//ipamRib := newIpamRib()
+	cache := backend.NewCache[*table.RIB]()
 	watcher := newWatcher()
 	runtimes := NewRuntimes(&RuntimeConfig{
-		ipamRib: ipamRib,
+		cache: cache,
 		watcher: watcher,
 	})
 
-	backend := NewNopBackend()
-	if c != nil {
-		backend = NewConfigMapBackend(&BackendConfig{
-			client:   c,
-			ipamRib:  ipamRib,
-			runtimes: runtimes,
-		})
-	}
-
-	i := &ipam{
-		ipamRib:  ipamRib,
+	s, err := newCMStorage(&storageConfig{
+		client:   c,
+		cache:  cache,
 		runtimes: runtimes,
-		backend:  backend,
-		c:        c,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &be{
+		cache:    cache,
+		runtimes: runtimes,
+		store:    s,
 		watcher:  watcher,
-	}
-
-	for _, opt := range opts {
-		opt(i)
-	}
-
-	return i
+	}, nil
 }
 
-type ipam struct {
-	c        client.Client
+type be struct {
 	watcher  Watcher
-	ipamRib  ipamRib
+	cache    backend.Cache[*table.RIB]
 	runtimes Runtimes
-	backend  Backend
+	store    Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set]
 
 	l logr.Logger
 }
 
-func (r *ipam) AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn) {
+func (r *be) AddWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn) {
 	r.watcher.addWatch(ownerGvkKey, ownerGvk, fn)
 }
-func (r *ipam) DeleteWatch(ownerGvkKey, ownerGvk string) {
+func (r *be) DeleteWatch(ownerGvkKey, ownerGvk string) {
 	r.watcher.deleteWatch(ownerGvkKey, ownerGvk)
 }
 
-// Initialize and create the ipam instance with the allocated prefixes
-func (r *ipam) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
-	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
-	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
+// Create the cache instance and/or restore the cache instance
+func (r *be) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
-	r.l.Info("ipam create instance start", "isInitialized", r.ipamRib.isInitialized(corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}))
-	// if the IPAM is not initialaized initialaize it
-	// this happens upon initialization or ipam restart
-	r.ipamRib.create(niRef)
-	if !r.ipamRib.isInitialized(niRef) {
-		if err := r.backend.Restore(ctx, cr); err != nil {
-			r.l.Error(err, "backend restore error")
+	r.l.Info("create cache instance start", "isInitialized", r.cache.IsInitialized(cacheID))
+	// if the Cache is not initialaized initialized
+	// this happens upon initialization or backend restart
+	r.cache.Create(cacheID, table.NewRIB())
+	if !r.cache.IsInitialized(cacheID) {
+		if err := r.store.Get().Restore(ctx, cacheID); err != nil {
+			r.l.Error(err, "backend cache restore error")
+			return err
 		}
-
-		r.l.Info("ipam create instance finished")
-		return r.ipamRib.setInitialized(niRef)
+		r.l.Info("create cache instance finished")
+		return r.cache.SetInitialized(cacheID)
 	}
-	r.l.Info("ipam create instance already initialized")
+	r.l.Info("create cache instance already initialized")
 	return nil
 }
 
-// Delete the ipam instance
-func (r *ipam) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) {
-	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
-	r.l = log.FromContext(ctx).WithValues("niRef", niRef)
+// Delete the cache instance
+func (r *be) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
-	r.l.Info("ipam delete instance start")
-	r.ipamRib.delete(niRef)
+	r.l.Info("delete cache instance start")
+	r.cache.Delete(cacheID)
 
-	// delete the configmap
-	if err := r.backend.Delete(ctx, cr); err != nil {
-		r.l.Error(err, "backend delete error")
+	// delete the data from the backend
+	if err := r.store.Get().Destroy(ctx, cacheID); err != nil {
+		r.l.Error(err, "delete cache instance error")
+		return err
 	}
-
-	r.l.Info("ipam delete instance finished")
-
+	r.l.Info("delete cache instance finished")
+	return nil
 }
 
-// GetAllocatedPrefix return the allocated prefic if found
-func (r *ipam) GetAllocatedPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", alloc.GetName())
-	r.l.Info("get allocated prefix", "prefix", alloc.GetPrefix())
+func (r *be) List(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) (table.Routes, error) {
+	cacheID := cr.GetCacheID()
+	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
+
+	rib, err := r.cache.Get(cacheID, false)
+	if err != nil {
+		r.l.Error(err, "cannpt get cache instance")
+		return []table.Route{}, err
+	}
+	return rib.GetTable(), nil
+}
+
+// List entries in the cache instance
+func (r *be) Get(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+	r.l.Info("get allocated entry", "selectors", a.GetSelectorLabels())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(alloc, false)
+	op, err := r.runtimes.Get(a, false)
 	if err != nil {
 		return nil, err
 	}
@@ -155,22 +139,22 @@ func (r *ipam) GetAllocatedPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAll
 	if err != nil {
 		return nil, err
 	}
-	r.l.Info("get allocated prefix done", "allocatedPrefix", allocatedPrefix)
+	r.l.Info("get allocated entry done", "allocatedPrefix", allocatedPrefix)
 	return allocatedPrefix, nil
 
 }
 
 // AllocateIPPrefix allocates the prefix
-func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", alloc.GetName())
-	r.l.Info("allocate prefix", "prefix", alloc.GetPrefix())
+func (r *be) Allocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+	r.l.Info("allocate entry", "prefix", a.GetPrefix())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(alloc, false)
+	op, err := r.runtimes.Get(a, false)
 	if err != nil {
 		return nil, err
 	}
@@ -189,37 +173,26 @@ func (r *ipam) AllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAlloc
 	}
 	r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
 	//return updatedAlloc, r.updateConfigMap(ctx, alloc)
-	return updatedAlloc, r.backend.Store(ctx, alloc)
+	return updatedAlloc, r.store.Get().SaveAll(ctx, a.GetNetworkInstance())
 }
 
-func (r *ipam) DeAllocateIPPrefix(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
-	r.l = log.FromContext(ctx)
+func (r *be) DeAllocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) error {
+	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(alloc, false)
+	rt, err := r.runtimes.Get(a, false)
 	if err != nil {
-		r.l.Error(err, "cannot get ipam operation map")
+		r.l.Error(err, "cannot get runtime")
 		return err
 	}
 	// we trust the create prefix since it was already allocated
-	if err := op.Delete(ctx); err != nil {
+	if err := rt.Delete(ctx); err != nil {
 		r.l.Error(err, "cannot deallocate prefix")
 		return err
 	}
-	return r.backend.Store(ctx, alloc)
-}
-
-func (r *ipam) GetPrefixes(cr *ipamv1alpha1.NetworkInstance) table.Routes {
-	niRef := corev1.ObjectReference{Name: cr.GetName(), Namespace: cr.GetNamespace()}
-
-	rib, err := r.ipamRib.getRIB(niRef, false)
-	if err != nil {
-		r.l.Error(err, "cannpt get rib")
-		return []table.Route{}
-	}
-	return rib.GetTable()
+	return r.store.Get().SaveAll(ctx, a.GetNetworkInstance())
 }

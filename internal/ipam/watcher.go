@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/backend"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -30,34 +31,34 @@ type CallbackFn func(table.Routes, allocpb.StatusCode)
 
 type updateContext struct {
 	routes     []table.Route
-	callBackFn CallbackFn
+	callBackFn backend.CallbackFn
 }
 
 type Watcher interface {
-	addWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
+	addWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn)
 	deleteWatch(ownerGvkKey, ownerGvk string)
 	handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode)
 }
 
 func newWatcher() Watcher {
 	return &watcher{
-		d: map[string]map[string]CallbackFn{},
+		d: map[string]map[string]backend.CallbackFn{},
 	}
 }
 
 type watcher struct {
 	m sync.RWMutex
 	// 1st key is ownerGvk key, 2nd key is ownerGVK
-	d map[string]map[string]CallbackFn
+	d map[string]map[string]backend.CallbackFn
 	l logr.Logger
 }
 
-func (r *watcher) addWatch(ownerGvkKey, ownerGvk string, fn CallbackFn) {
+func (r *watcher) addWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	if _, ok := r.d[ownerGvkKey]; !ok {
-		r.d[ownerGvkKey] = map[string]CallbackFn{}
+		r.d[ownerGvkKey] = map[string]backend.CallbackFn{}
 	}
 	r.d[ownerGvkKey][ownerGvk] = fn
 }

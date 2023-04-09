@@ -22,6 +22,7 @@ import (
 
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/pkg/backend"
 )
 
 type Runtimes interface {
@@ -29,7 +30,7 @@ type Runtimes interface {
 }
 
 type RuntimeConfig struct {
-	ipamRib ipamRib
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 }
 
@@ -81,7 +82,7 @@ type AllocRuntimeConfig struct {
 
 func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamPrefixRuntime{
-		ipamRib: c.ipamRib,
+		cache: c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -113,7 +114,7 @@ func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamPrefixRuntime struct {
-	ipamRib ipamRib
+	cache backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
@@ -124,7 +125,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
+	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +142,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 
 func newAllocRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamAllocRuntime{
-		ipamRib: c.ipamRib,
+		cache: c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -161,7 +162,7 @@ func newAllocRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamAllocRuntime struct {
-	ipamRib ipamRib
+	cache backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
@@ -171,7 +172,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstance(), initializing)
+	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -183,5 +184,4 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 		watcher:      r.watcher,
 		fnc:          r.oc[alloc.GetPrefixKind()],
 	})
-
 }

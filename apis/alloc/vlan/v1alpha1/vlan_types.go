@@ -37,13 +37,6 @@ type VLANSpec struct {
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
-// VLANRange defines a vlan range by identifying the start and end of the range
-// the start needs to be smaller than the end
-type VLANRange struct {
-	Start uint16 `json:"start" yaml:"start"`
-	End   uint16 `json:"end" yaml:"end"`
-}
-
 // VLANStatus defines the observed state of VLAN
 type VLANStatus struct {
 	// ConditionedStatus provides the status of the VLAN allocation using conditions
@@ -55,9 +48,7 @@ type VLANStatus struct {
 	// AllocatedVlan identifies the vlan that was allocated by the VLAN backend
 	AllocatedVlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
-	AllocatedVlanRange *VLANRange `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
-	// AllocatedVlan identifies the vlans allocated through a vlan size
-	AllocatedVlanIds string `json:"vlanIDs,omitempty" yaml:"vlanIDs,omitempty"`
+	AllocatedVlanRange string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
 }
 
 // +kubebuilder:object:root=true

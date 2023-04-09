@@ -8,6 +8,7 @@ import (
 
 func New[T uint16]() db.DB[T] {
 	return db.NewDB(&db.DBConfig[T]{
+		MaxEntries: 4096,
 		InitEntries: db.Entries[T]{
 			db.NewEntry(T(0), map[string]string{"type": "untagged", "status": "reserved"}),
 			db.NewEntry(T(1), map[string]string{"type": "default", "status": "reserved"}),

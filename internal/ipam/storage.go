@@ -16,6 +16,7 @@ limitations under the License.
 
 package ipam
 
+/*
 import (
 	"context"
 	"fmt"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	"github.com/nokia/k8s-ipam/pkg/backend"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -46,37 +48,29 @@ const (
 	BackendTypeConfigMap BackendType = "configmap"
 )
 
-type Backend interface {
-	Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
-	Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error
-	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
-}
-
 type BackendConfig struct {
 	client   client.Client
 	ipamRib  ipamRib
 	runtimes Runtimes
 }
 
-func NewConfigMapBackend(c *BackendConfig) Backend {
-	return &cm{
+func NewConfigMapBackend[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set](c *BackendConfig) backend.Backend[alloc, entry] {
+	return &cm[alloc, entry]{
 		c:        c.client,
 		ipamRib:  c.ipamRib,
 		runtimes: c.runtimes,
 	}
 }
 
-type cm struct {
+type cm[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set] struct {
 	c        client.Client
 	ipamRib  ipamRib
 	runtimes Runtimes
 	l        logr.Logger
-	//m             sync.Mutex
 }
 
-func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error {
-	r.l.Info("store")
-	niRef := alloc.GetNetworkInstance()
+func (r *cm[alloc, entry]) SaveAll(ctx context.Context, niRef corev1.ObjectReference) error {
+	r.l = log.FromContext(ctx)
 	rib, err := r.ipamRib.getRIB(niRef, false)
 	if err != nil {
 		return err
@@ -84,7 +78,6 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 
 	cm := buildConfigMap(niRef)
 
-	// TODO how to get the network instance namespace
 	if err := r.c.Get(ctx, types.NamespacedName{Namespace: niRef.Namespace, Name: niRef.Name}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
 			return errors.Wrap(r.c.Create(ctx, cm), "cannot create configmap")
@@ -106,21 +99,31 @@ func (r *cm) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error 
 	return r.c.Update(ctx, cm)
 }
 
-func (r *cm) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+func (r *cm[alloc, entry]) Destroy(ctx context.Context, niRef corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
-	niRef := corev1.ObjectReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
 	cm := buildConfigMap(niRef)
 	if err := r.c.Delete(ctx, cm); err != nil {
 		if !kerrors.IsNotFound(err) {
-			r.l.Error(err, "ipam delete instance cm", "name", cr.GetName())
+			r.l.Error(err, "ipam delete instance cm", "name", niRef.Name)
 		}
 	}
 	return nil
 }
 
-func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+func (r *cm[alloc, entry]) Get(ctx context.Context, a alloc) ([]entry, error) {
+	return nil, nil
+}
+
+func (r *cm[alloc, entry]) Set(ctx context.Context, a alloc) error {
+	return nil
+}
+
+func (r *cm[alloc, entry]) Delete(ctx context.Context, a alloc) error {
+	return nil
+}
+
+func (r *cm[alloc, entry]) Restore(ctx context.Context, niRef corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
-	niRef := corev1.ObjectReference{Namespace: cr.GetNamespace(), Name: cr.GetName()}
 	r.l.Info("restore", "niRef", niRef)
 
 	cm := buildConfigMap(niRef)
@@ -129,7 +132,6 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 			return errors.Wrap(r.c.Create(ctx, cm), "canno create configmap")
 		}
 	}
-	//allocations := map[string]map[string]string{}
 	allocations := map[string]labels.Set{}
 	if err := yaml.Unmarshal([]byte(cm.Data["ipam"]), &allocations); err != nil {
 		r.l.Error(err, "unmarshal error from configmap data")
@@ -148,7 +150,12 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 	// 1st network instance
 	// 2nd prefixes
 	// 3rd allocations
-	r.restorePrefixes(ctx, rib, allocations, cr)
+	r.restorePrefixes(ctx, rib, allocations, &ipamv1alpha1.NetworkInstance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      niRef.Name,
+			Namespace: niRef.Namespace,
+		},
+	})
 
 	// get the prefixes from the k8s api system
 	ipPrefixList := &ipamv1alpha1.IPPrefixList{}
@@ -168,7 +175,7 @@ func (r *cm) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) erro
 	return nil
 }
 
-func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations map[string]labels.Set, input any) {
+func (r *cm[alloc, entry]) restorePrefixes(ctx context.Context, rib *table.RIB, allocations map[string]labels.Set, input any) {
 	var ownerGVK string
 	var restoreFunc func(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, specData any)
 	switch input.(type) {
@@ -195,7 +202,7 @@ func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations ma
 	}
 }
 
-func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm[alloc, entry]) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "niPrefixes", "prefix", prefix)
 	cr, ok := input.(*ipamv1alpha1.NetworkInstance)
 	if !ok {
@@ -221,7 +228,7 @@ func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB,
 	}
 }
 
-func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipprefixes", "prefix", prefix)
 	ipPrefixList, ok := input.(*ipamv1alpha1.IPPrefixList)
 	if !ok {
@@ -264,7 +271,7 @@ func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix strin
 	}
 }
 
-func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipAllocations", "prefix", prefix)
 	ipAllocationList, ok := input.(*ipamv1alpha1.IPAllocationList)
 	if !ok {
@@ -324,17 +331,7 @@ func buildConfigMap(niRef corev1.ObjectReference) *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: niRef.Namespace,
 			Name:      niRef.Name,
-			//ResourceVersion: "",
 		},
 	}
 }
-
-func NewNopBackend() Backend {
-	return &nopBackend{}
-}
-
-type nopBackend struct{}
-
-func (r *nopBackend) Restore(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error { return nil }
-func (r *nopBackend) Store(ctx context.Context, alloc *ipamv1alpha1.IPAllocation) error   { return nil }
-func (r *nopBackend) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error  { return nil }
+*/

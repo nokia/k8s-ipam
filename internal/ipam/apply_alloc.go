@@ -35,9 +35,9 @@ func (r *applicator) ApplyAlloc(ctx context.Context) error {
 
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
-	routes, msg := r.getRoutesByOwner()
-	if msg != "" {
-		return fmt.Errorf(msg)
+	routes, err := r.getRoutesByOwner()
+	if err != nil {
+		return err
 	}
 	if len(routes) > 0 {
 		r.l.Info("dynamic allocation: route exist")
@@ -171,26 +171,26 @@ func (r *applicator) GetSelectedRouteWithPrefixLength(routes table.Routes, prefi
 	return nil
 }
 
-func (r *applicator) getRoutesByOwner() (table.Routes, string) {
+func (r *applicator) getRoutesByOwner() (table.Routes, error) {
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
 	//routes := []table.Route{}
 	ownerSelector, err := r.alloc.GetOwnerSelector()
 	if err != nil {
-		return []table.Route{}, err.Error()
+		return []table.Route{}, err
 	}
 	routes := r.rib.GetByLabel(ownerSelector)
 	if len(routes) != 0 {
 		// for a prefixkind network with create prefix flag set it is possible that multiple
 		// routes are returned since they were expanded
 		if len(routes) > 1 && !(r.alloc.GetCreatePrefix() && r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork) {
-			return []table.Route{}, fmt.Sprintf("multiple prefixes match the nsn labelselector, %v", routes)
+			return []table.Route{}, fmt.Errorf("multiple prefixes match the nsn labelselector, %v", routes)
 		}
 		// route found
-		return routes, ""
+		return routes, nil
 	}
 	// no route found
-	return []table.Route{}, ""
+	return []table.Route{}, nil
 }
 
 func (r *applicator) getRoutesByLabel() table.Routes {

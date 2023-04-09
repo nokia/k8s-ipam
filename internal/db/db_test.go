@@ -383,11 +383,11 @@ func TestCount(t *testing.T) {
 		expectedEntries int
 	}{
 		"Count": {
-			initEntries: initEntries,
+			initEntries:     initEntries,
 			expectedEntries: 3,
 		},
 		"CountEmpty": {
-			initEntries: Entries[uint16]{},
+			initEntries:     Entries[uint16]{},
 			expectedEntries: 0,
 		},
 	}
@@ -396,7 +396,7 @@ func TestCount(t *testing.T) {
 			d := NewDB(&DBConfig[uint16]{
 				InitEntries: tc.initEntries,
 			})
-			
+
 			if d.Count() != tc.expectedEntries {
 				t.Errorf("TestCount: unexpected result, got %d, want: %d\n", d.Count(), tc.expectedEntries)
 			}
@@ -412,16 +412,16 @@ func TestIterate(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		initEntries     Entries[uint16]
-		keys []uint16
+		initEntries Entries[uint16]
+		keys        []uint16
 	}{
 		"Iterate": {
 			initEntries: initEntries,
-			keys: []uint16{0, 1, 4095},
+			keys:        []uint16{0, 1, 4095},
 		},
 		"IterateEmpty": {
 			initEntries: Entries[uint16]{},
-			keys: []uint16{},
+			keys:        []uint16{},
 		},
 	}
 	for name, tc := range cases {
@@ -429,10 +429,285 @@ func TestIterate(t *testing.T) {
 			d := NewDB(&DBConfig[uint16]{
 				InitEntries: tc.initEntries,
 			})
-			
-			i :=  d.Iterate()
+
+			i := d.Iterate()
 			if diff := cmp.Diff(tc.keys, i.keys); diff != "" {
 				t.Errorf("TestIterate: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIterateFree(t *testing.T) {
+	initEntries := Entries[uint16]{
+		NewEntry(uint16(2), map[string]string{"a": "b", "x": "y"}),
+		NewEntry(uint16(5), map[string]string{"a": "b", "x": "y"}),
+		NewEntry(uint16(11), map[string]string{"a": "b", "x": "y"}),
+	}
+
+	cases := map[string]struct {
+		maxEntries  uint64
+		initEntries Entries[uint16]
+		keys        []uint16
+	}{
+		"IterateFree": {
+			maxEntries:  10,
+			initEntries: initEntries,
+			keys:        []uint16{0, 1, 3, 4, 6, 7, 8, 9},
+		},
+		"IterateFreeEmpty": {
+			maxEntries:  10,
+			initEntries: Entries[uint16]{},
+			keys:        []uint16{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewDB(&DBConfig[uint16]{
+				MaxEntries:  tc.maxEntries,
+				InitEntries: tc.initEntries,
+			})
+
+			i := d.IterateFree()
+			if diff := cmp.Diff(tc.keys, i.keys); diff != "" {
+				t.Errorf("TestIterateFree: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFindFree(t *testing.T) {
+	cases := map[string]struct {
+		maxEntries  uint64
+		initEntries Entries[uint16]
+		errExpected bool
+		expectedId  uint16
+	}{
+		"FindFree": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(5), map[string]string{}),
+				NewEntry(uint16(11), map[string]string{}),
+			},
+			errExpected: false,
+			expectedId:  0,
+		},
+		"FindFreeAllOccupied": {
+			maxEntries: 5,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(0), map[string]string{}),
+				NewEntry(uint16(1), map[string]string{}),
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(3), map[string]string{}),
+				NewEntry(uint16(4), map[string]string{}),
+			},
+			errExpected: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewDB(&DBConfig[uint16]{
+				MaxEntries:  tc.maxEntries,
+				InitEntries: tc.initEntries,
+			})
+
+			e, err := d.FindFree()
+			if tc.errExpected {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if tc.expectedId != e.ID() {
+					t.Errorf("TestFindFree: expected id %d got id %d\n", tc.expectedId, e.ID())
+				}
+			}
+		})
+	}
+}
+
+func TestFindFreeID(t *testing.T) {
+	cases := map[string]struct {
+		maxEntries  uint64
+		initEntries Entries[uint16]
+		id          uint16
+		errExpected bool
+	}{
+		"FindFreeIDFree": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(5), map[string]string{}),
+				NewEntry(uint16(11), map[string]string{}),
+			},
+			id:          7,
+			errExpected: false,
+		},
+		"FindFreeIDOccupied": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(5), map[string]string{}),
+				NewEntry(uint16(11), map[string]string{}),
+			},
+			id:          5,
+			errExpected: true,
+		},
+		"FindFreeIDMax": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(5), map[string]string{}),
+				NewEntry(uint16(11), map[string]string{}),
+			},
+			id:          10,
+			errExpected: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewDB(&DBConfig[uint16]{
+				MaxEntries:  tc.maxEntries,
+				InitEntries: tc.initEntries,
+			})
+
+			e, err := d.FindFreeID(tc.id)
+			if tc.errExpected {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if e.ID() != tc.id {
+					t.Errorf("TestFindFree: expected id %d got id %d\n", tc.id, e.ID())
+				}
+			}
+		})
+	}
+}
+
+func TestFindFreeRange(t *testing.T) {
+	cases := map[string]struct {
+		maxEntries  uint64
+		initEntries Entries[uint16]
+		start       uint16
+		size        uint16
+		errExpected bool
+	}{
+		"FindFreeRange": {
+			maxEntries:  10,
+			initEntries: nil,
+			start:       2,
+			size:        5,
+			errExpected: false,
+		},
+		"FindFreeRangeoccupied": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(4), map[string]string{}),
+			},
+			start:       2,
+			size:        5,
+			errExpected: true,
+		},
+		"FindFreeRangeMaxStart": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(4), map[string]string{}),
+			},
+			start:       10,
+			size:        5,
+			errExpected: true,
+		},
+		"FindFreeRangeMaxSize": {
+			maxEntries:  10,
+			initEntries: nil,
+			start:       2,
+			size:        8,
+			errExpected: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewDB(&DBConfig[uint16]{
+				MaxEntries:  tc.maxEntries,
+				InitEntries: tc.initEntries,
+			})
+
+			end := tc.start + tc.size - 1
+
+			e, err := d.FindFreeRange(tc.start, tc.size)
+			if tc.errExpected {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if int(tc.size) != len(e) {
+					t.Errorf("TestFindFreeRange: expected size %d got %d\n", tc.size, len(e))
+				}
+				if tc.start != e[0].ID() {
+					t.Errorf("TestFindFreeRange: expected start %d got %d\n", tc.start, e[0].ID())
+				}
+				if end != e[len(e)-1].ID() {
+					t.Errorf("TestFindFreeRange: expected end %d got %d\n", end, e[len(e)-1].ID())
+				}
+			}
+		})
+	}
+}
+
+func TestFindFreeSize(t *testing.T) {
+	cases := map[string]struct {
+		maxEntries  uint64
+		initEntries Entries[uint16]
+		size        uint16
+		errExpected bool
+	}{
+		"FindFreeSize": {
+			maxEntries:  10,
+			initEntries: nil,
+			size:        5,
+			errExpected: false,
+		},
+		"FindFreeSizeWitjAllocation": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(4), map[string]string{}),
+			},
+			size:        5,
+			errExpected: false,
+		},
+		"FindFreeRangeOccupied": {
+			maxEntries: 10,
+			initEntries: Entries[uint16]{
+				NewEntry(uint16(1), map[string]string{}),
+				NewEntry(uint16(2), map[string]string{}),
+				NewEntry(uint16(4), map[string]string{}),
+				NewEntry(uint16(5), map[string]string{}),
+				NewEntry(uint16(6), map[string]string{}),
+				NewEntry(uint16(8), map[string]string{}),
+			},
+			size:        5,
+			errExpected: true,
+		},
+		"FindFreeRangeMaxSize": {
+			maxEntries:  10,
+			initEntries: nil,
+			size:        10,
+			errExpected: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewDB(&DBConfig[uint16]{
+				MaxEntries:  tc.maxEntries,
+				InitEntries: tc.initEntries,
+			})
+
+			e, err := d.FindFreeSize(tc.size)
+			if tc.errExpected {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if int(tc.size) != len(e) {
+					t.Errorf("TestFindFreeRange: expected size %d got %d\n", tc.size, len(e))
+				}
 			}
 		})
 	}

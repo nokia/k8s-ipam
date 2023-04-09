@@ -23,13 +23,18 @@ import (
 	"github.com/nokia/k8s-ipam/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // VLANAllocationSpec defines the desired state of VLANAllocation
 type VLANAllocationSpec struct {
-	// VlanID defines a request for a specifc vlan
-	VlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
-	// VLANRange defines a range of vlans
+	// VLANDatabases defines the vlan database contexts from which this vlan must be allocated
+	// For Local vlan allocation a single vlan database has to be used, for global vlan allocations
+	// all vlan databases from which this vlan must be alloctaed must be specified
+	VLANDatabases []*corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
+	// VlanID allows the client to define the vlan id they want to allocate
+	VLANID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANRange allows the client to define the vlan range they want to allocate
 	VLANRange string `json:"range,omitempty" yaml:"range,omitempty"`
 	// Selector defines the selector criterias by which the vlan should be allocated
 	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`

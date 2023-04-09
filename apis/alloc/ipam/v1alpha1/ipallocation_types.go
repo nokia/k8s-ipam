@@ -39,7 +39,7 @@ type IPAllocationSpec struct {
 	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
 	// NetworkInstance defines the networkInstance context used to allocate this prefix
 	// Name and optionally Namespace is used here
-	NetworkInstance *corev1.ObjectReference `json:"networkInstanceReference" yaml:"networkReference"`
+	NetworkInstance *corev1.ObjectReference `json:"networkInstance" yaml:"networkInstance"`
 	// AddressFamily defines the address family this prefix
 	// +kubebuilder:validation:Enum=`ipv4`;`ipv6`
 	AddressFamily iputil.AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`

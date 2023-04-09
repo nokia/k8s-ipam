@@ -235,16 +235,20 @@ func TestNetworkInstance(t *testing.T) {
 	}
 
 	// create new rib
-	ipam := New(nil)
+	be, err := New(nil)
+	if err != nil {
+		t.Errorf("cannot initialize ipam")
+	}
+	ctx := context.Background()
 	// create new networkinstance
 	niCr := buildNetworkInstance(niCreate)
-	if err := ipam.Create(context.Background(), niCr); err != nil {
+	if err := be.Create(ctx, niCr); err != nil {
 		t.Errorf("%v occured, cannot create network instance: %s/%s", err, niCr.GetNamespace(), niCr.GetName())
 	}
 
 	for _, test := range tests {
 		allocReq := buildIPAllocation(test.allocation)
-		allocResp, err := ipam.AllocateIPPrefix(context.Background(), allocReq)
+		allocResp, err := be.Allocate(ctx, allocReq)
 		if err != nil {
 			if test.errString == "" {
 				t.Errorf("%v, cannot create ip prefix: %v", err, allocResp)
@@ -270,7 +274,10 @@ func TestNetworkInstance(t *testing.T) {
 		}
 	}
 
-	routes := ipam.GetPrefixes(niCr)
+	routes, err := be.List(ctx, niCr)
+	if err != nil {
+		fmt.Println(err)
+	}
 	for _, route := range routes {
 		fmt.Println(route)
 	}

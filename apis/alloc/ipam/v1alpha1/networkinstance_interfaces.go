@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -79,4 +80,8 @@ func (r *Prefix) GetPrefixLabels() map[string]string {
 // allocated to this IPPrefix
 func (r *NetworkInstance) GetAllocatedPrefixes() []*Prefix {
 	return r.Status.AllocatedPrefixes
+}
+
+func (r *NetworkInstance) GetCacheID() corev1.ObjectReference {
+	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
 }

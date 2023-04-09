@@ -13,6 +13,7 @@ require (
 	github.com/henderiw-k8s-lcnc/discovery v0.0.5
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.24.0
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
@@ -54,6 +55,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect

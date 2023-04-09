@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -57,4 +58,8 @@ func (r *VLANDatabase) GetSpecLabels() map[string]string {
 		r.Spec.Labels = map[string]string{}
 	}
 	return r.Spec.Labels
+}
+
+func (r *VLANDatabase) GetCacheID() corev1.ObjectReference {
+	return corev1.ObjectReference{Kind: string(r.Spec.VLANDBKind), Name: r.GetName(), Namespace: r.GetNamespace()}
 }
