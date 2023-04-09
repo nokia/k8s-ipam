@@ -41,64 +41,25 @@ spec:
           metadata:
             type: object
           spec:
-            description: VLANAllocationSpec defines the desired state of VLANAllocation
+            description: VLANDatabaseSpec defines the desired state of VLANDatabase
             properties:
+              kind:
+                default: esg
+                description: 'VLANDBKind defines the kind of vlan database we want to create esg kind is used for ethernet segment groups device kind is used for devices: vlan per device or vlan per interface'
+                enum:
+                - esg
+                - device
+                type: string
               labels:
                 additionalProperties:
                   type: string
                 description: Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation selector will use these labels for allocation more specific prefixes/addresses within this prefix As such we distinguish clearly between the metadata labels and the user defined labels in the spec
                 type: object
-              range:
-                description: VLANRange defines a range of vlans
-                properties:
-                  end:
-                    type: integer
-                  start:
-                    type: integer
-                required:
-                - end
-                - start
-                type: object
-              selector:
-                description: Selector defines the selector criterias by which the vlan should be allocated
-                properties:
-                  matchExpressions:
-                    description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                    items:
-                      description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                      properties:
-                        key:
-                          description: key is the label key that the selector applies to.
-                          type: string
-                        operator:
-                          description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                          type: string
-                        values:
-                          description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                          items:
-                            type: string
-                          type: array
-                      required:
-                      - key
-                      - operator
-                      type: object
-                    type: array
-                  matchLabels:
-                    additionalProperties:
-                      type: string
-                    description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                    type: object
-                type: object
-                x-kubernetes-map-type: atomic
-              size:
-                description: VLANSize defines a size of vlans
-                type: integer
-              vlanID:
-                description: VlanID defines a request for a specifc vlan
-                type: integer
+            required:
+            - kind
             type: object
           status:
-            description: VLANAllocationStatus defines the observed state of VLANAllocation
+            description: VLANDatabaseStatus defines the observed state of VLANDatabase
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -128,26 +89,6 @@ spec:
                   - status
                   type: object
                 type: array
-              expiryTime:
-                description: expiryTime indicated when the allocation expires
-                type: string
-              vlanID:
-                description: AllocatedVlan identifies the vlan that was allocated by the VLAN backend
-                type: integer
-              vlanIDs:
-                description: AllocatedVlan identifies the vlans allocated through a vlan size
-                type: string
-              vlanRange:
-                description: AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
-                properties:
-                  end:
-                    type: integer
-                  start:
-                    type: integer
-                required:
-                - end
-                - start
-                type: object
             type: object
         type: object
     served: true

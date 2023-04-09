@@ -82,7 +82,7 @@ type AllocRuntimeConfig struct {
 
 func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamPrefixRuntime{
-		cache: c.cache,
+		cache:   c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -114,7 +114,7 @@ func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamPrefixRuntime struct {
-	cache backend.Cache[*table.RIB]
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
@@ -142,7 +142,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 
 func newAllocRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamAllocRuntime{
-		cache: c.cache,
+		cache:   c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -162,7 +162,7 @@ func newAllocRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamAllocRuntime struct {
-	cache backend.Cache[*table.RIB]
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig

@@ -19,7 +19,7 @@ type entry[T constraints.Integer] struct {
 }
 type Entries[T constraints.Integer] []Entry[T]
 
-func (v entry[T]) ID() T         { return v.id }
+func (v entry[T]) ID() T              { return v.id }
 func (v entry[T]) Labels() labels.Set { return v.labels }
 func (v entry[T]) String() string     { return fmt.Sprintf("%v %s", v.ID(), v.Labels().String()) }
 

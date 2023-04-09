@@ -34,13 +34,13 @@ func New(c client.Client) (backend.Backend[*ipamv1alpha1.NetworkInstance, *ipamv
 	cache := backend.NewCache[*table.RIB]()
 	watcher := newWatcher()
 	runtimes := NewRuntimes(&RuntimeConfig{
-		cache: cache,
+		cache:   cache,
 		watcher: watcher,
 	})
 
 	s, err := newCMStorage(&storageConfig{
 		client:   c,
-		cache:  cache,
+		cache:    cache,
 		runtimes: runtimes,
 	})
 	if err != nil {

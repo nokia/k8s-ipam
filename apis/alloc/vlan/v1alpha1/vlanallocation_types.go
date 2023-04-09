@@ -21,9 +21,9 @@ import (
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // VLANAllocationSpec defines the desired state of VLANAllocation

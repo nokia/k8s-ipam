@@ -65,18 +65,7 @@ spec:
                 type: object
               range:
                 description: VLANRange defines a range of vlans
-                properties:
-                  end:
-                    type: integer
-                  start:
-                    type: integer
-                required:
-                - end
-                - start
-                type: object
-              size:
-                description: VLANSize defines a size of vlans
-                type: integer
+                type: string
               vlanID:
                 description: VlanID defines a specific vlan id
                 type: integer
@@ -121,22 +110,10 @@ spec:
                 description: AllocatedVlan identifies the vlan that was allocated
                   by the VLAN backend
                 type: integer
-              vlanIDs:
-                description: AllocatedVlan identifies the vlans allocated through
-                  a vlan size
-                type: string
               vlanRange:
                 description: AllocatedVlan identifies the vlan range that was allocated
                   by the VLAN backend
-                properties:
-                  end:
-                    type: integer
-                  start:
-                    type: integer
-                required:
-                - end
-                - start
-                type: object
+                type: string
             type: object
         type: object
     served: true

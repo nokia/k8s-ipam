@@ -25,12 +25,12 @@ import (
 
 // newCacheContext holds the cache instance context
 // with a status to indicate if it is initialized or not
-// initialized false: means it is NOT initialized, 
+// initialized false: means it is NOT initialized,
 // initialized true means it is initialized
 func newCacheContext[T1 any](i T1) *cacheContext[T1] {
 	return &cacheContext[T1]{
 		initialized: false,
-		instance:    i, 
+		instance:    i,
 	}
 }
 
