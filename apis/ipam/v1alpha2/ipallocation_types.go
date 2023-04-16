@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	"github.com/nokia/k8s-ipam/internal/meta"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"github.com/nokia/k8s-ipam/pkg/iputil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

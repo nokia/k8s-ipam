@@ -24,7 +24,7 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/iputil"
+	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
