@@ -24,130 +24,105 @@ import (
 	"go4.org/netipx"
 )
 
-type PrefixInfo interface {
-	GetSubnetName() string
-	GetIPPrefix() netip.Prefix
-	GetIPAddress() netip.Addr
-	GetIPAddressPrefix() netip.Prefix
-	GetIPSubnet() netip.Prefix
-	GetFirstIPAddress() netip.Addr
-	GetFirstIPPrefix() netip.Prefix
-	GetLastIPAddress() netip.Addr
-	GetLastIPPrefix() netip.Prefix
-	GetPrefixLength() PrefixLength
-	GetAddressPrefixLength() PrefixLength
-	IsFirst() bool
-	IsLast() bool
-	IsNorLastNorFirst() bool
-	IsIpv4() bool
-	IsIpv6() bool
-	GetAddressFamily() AddressFamily
-	IsAddressPrefix() bool
-	GetIPPrefixWithPrefixLength(pl int) netip.Prefix
-	IsPrefixPresentInSubnetMap(string) bool
+type Prefix struct {
+	netip.Prefix
 }
 
-type prefixInfo struct {
-	p netip.Prefix
+func NewPrefixInfo(p netip.Prefix) *Prefix {
+	return &Prefix{p}
 }
 
-func NewPrefixInfo(p netip.Prefix) PrefixInfo {
-	return &prefixInfo{p: p}
-}
-
-func New(prefix string) (PrefixInfo, error) {
+func New(prefix string) (*Prefix, error) {
 	p, err := netip.ParsePrefix(prefix)
 	if err != nil {
 		return nil, err
 	}
-	return &prefixInfo{
-		p: p,
-	}, nil
+	return &Prefix{p}, nil
 }
 
-func (r *prefixInfo) GetIPPrefix() netip.Prefix {
-	return r.p
+func (r *Prefix) GetIPPrefix() netip.Prefix {
+	return r.Prefix
 }
 
-func (r *prefixInfo) GetIPAddress() netip.Addr {
-	return r.p.Addr()
+func (r *Prefix) GetIPAddress() netip.Addr {
+	return r.Prefix.Addr()
 }
 
-func (r *prefixInfo) GetIPAddressPrefix() netip.Prefix {
-	return netip.PrefixFrom(r.p.Addr(), r.p.Addr().BitLen())
+func (r *Prefix) GetIPAddressPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.Prefix.Addr(), r.Prefix.Addr().BitLen())
 }
 
-func (r *prefixInfo) GetIPSubnet() netip.Prefix {
-	return r.p.Masked()
+func (r *Prefix) GetIPSubnet() netip.Prefix {
+	return r.Prefix.Masked()
 }
 
-func (r *prefixInfo) GetSubnetName() string {
+func (r *Prefix) GetSubnetName() string {
 	return fmt.Sprintf("%s-%s", r.GetFirstIPAddress().String(), r.GetPrefixLength().String())
 
 }
 
-func (r *prefixInfo) GetFirstIPAddress() netip.Addr {
-	return r.p.Masked().Addr()
+func (r *Prefix) GetFirstIPAddress() netip.Addr {
+	return r.Prefix.Masked().Addr()
 }
 
-func (r *prefixInfo) GetFirstIPPrefix() netip.Prefix {
-	return netip.PrefixFrom(r.GetFirstIPAddress(), r.p.Addr().BitLen())
+func (r *Prefix) GetFirstIPPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.GetFirstIPAddress(), r.Prefix.Addr().BitLen())
 }
 
-func (r *prefixInfo) GetLastIPAddress() netip.Addr {
-	return netipx.PrefixLastIP(r.p)
+func (r *Prefix) GetLastIPAddress() netip.Addr {
+	return netipx.PrefixLastIP(r.Prefix)
 }
 
-func (r *prefixInfo) GetLastIPPrefix() netip.Prefix {
-	return netip.PrefixFrom(r.GetLastIPAddress(), r.p.Addr().BitLen())
+func (r *Prefix) GetLastIPPrefix() netip.Prefix {
+	return netip.PrefixFrom(r.GetLastIPAddress(), r.Prefix.Addr().BitLen())
 }
 
-func (r *prefixInfo) GetPrefixLength() PrefixLength {
-	return PrefixLength(r.p.Bits())
+func (r *Prefix) GetPrefixLength() PrefixLength {
+	return PrefixLength(r.Prefix.Bits())
 }
 
 // return 32 or 128
-func (r *prefixInfo) GetAddressPrefixLength() PrefixLength {
-	return PrefixLength(r.p.Addr().BitLen())
+func (r *Prefix) GetAddressPrefixLength() PrefixLength {
+	return PrefixLength(r.Prefix.Addr().BitLen())
 }
 
-func (r *prefixInfo) IsFirst() bool {
+func (r *Prefix) IsFirst() bool {
 	return r.GetFirstIPAddress().String() == r.GetIPAddress().String()
 }
 
-func (r *prefixInfo) IsLast() bool {
+func (r *Prefix) IsLast() bool {
 	return r.GetLastIPAddress().String() == r.GetIPAddress().String()
 }
 
-func (r *prefixInfo) IsNorLastNorFirst() bool {
+func (r *Prefix) IsNorLastNorFirst() bool {
 	return !r.IsFirst() && !r.IsLast()
 }
 
-func (r *prefixInfo) IsIpv4() bool {
-	return r.p.Addr().Is4()
+func (r *Prefix) IsIpv4() bool {
+	return r.Prefix.Addr().Is4()
 }
 
-func (r *prefixInfo) IsIpv6() bool {
-	return r.p.Addr().Is6()
+func (r *Prefix) IsIpv6() bool {
+	return r.Prefix.Addr().Is6()
 }
 
-func (r *prefixInfo) GetAddressFamily() AddressFamily {
+func (r *Prefix) GetAddressFamily() AddressFamily {
 	if r.IsIpv6() {
 		return AddressFamilyIpv6
 	}
 	return AddressFamilyIpv4
 }
 
-func (r *prefixInfo) IsAddressPrefix() bool {
+func (r *Prefix) IsAddressPrefix() bool {
 	return r.GetPrefixLength().String() == "32" ||
 		r.GetPrefixLength().String() == "128"
 }
 
-func (r *prefixInfo) GetIPPrefixWithPrefixLength(pl int) netip.Prefix {
+func (r *Prefix) GetIPPrefixWithPrefixLength(pl int) netip.Prefix {
 	return netip.PrefixFrom(r.GetLastIPAddress(), pl)
 }
 
-func (r *prefixInfo) IsPrefixPresentInSubnetMap(prefix string) bool {
+func (r *Prefix) IsPrefixPresentInSubnetMap(prefix string) bool {
 	if r.GetIPSubnet().String() == prefix {
 		return true
 	}
