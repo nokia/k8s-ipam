@@ -397,7 +397,7 @@ func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn 
 func BuildIPAllocation(meta metav1.ObjectMeta, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
 	return &IPAllocation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: IPAllocationKindAPIVersion,
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
 			Kind:       IPAllocationKind,
 		},
 		ObjectMeta: meta,
