@@ -26,8 +26,25 @@ const (
 type PrefixKind string
 
 const (
+	PrefixKindUnknown   PrefixKind = "unknown"
 	PrefixKindNetwork   PrefixKind = "network"
 	PrefixKindLoopback  PrefixKind = "loopback"
 	PrefixKindPool      PrefixKind = "pool"
 	PrefixKindAggregate PrefixKind = "aggregate"
 )
+
+func GetPrefixKindFromString(s string) PrefixKind {
+	switch s {
+	case string(PrefixKindNetwork):
+		return PrefixKindNetwork
+	case string(PrefixKindLoopback):
+		return PrefixKindLoopback
+	case string(PrefixKindPool):
+		return PrefixKindPool
+	case string(PrefixKindAggregate):
+		return PrefixKindAggregate
+	default:
+		return PrefixKindUnknown
+	}
+
+}
