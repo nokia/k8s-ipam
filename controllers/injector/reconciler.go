@@ -27,12 +27,12 @@ import (
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/injectors"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/clientipamproxy"
+	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,7 +70,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 		porchClient:     options.PorchClient,
 		IpamClientProxy: options.IpamClientProxy,
 
-		injectors:    options.Injectors,
+		//injectors:    options.Injectors,
 		pollInterval: options.Poll,
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
@@ -87,9 +87,8 @@ type reconciler struct {
 	kind string
 	client.Client
 	porchClient     client.Client
-	IpamClientProxy clientipamproxy.Proxy
+	IpamClientProxy clientproxy.Proxy
 	Scheme          *runtime.Scheme
-	injectors       injectors.Injectors
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
 
@@ -113,7 +112,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// we just check for ipam conditions and we dont care if it is satisfied already
 	// this allows us to refresh the ipam allocation status
-	ipamConditions := unsatisfiedConditions(cr.Status.Conditions, ipamConditionType)
+	ipamConditions := hasIPAMConditions(cr.Status.Conditions, ipamConditionType)
 
 	if len(ipamConditions) > 0 {
 		crName := types.NamespacedName{
@@ -121,7 +120,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Name:      cr.Name,
 		}
 
-		r.l.Info("injector running", "pr", cr.GetName())
+		r.l.Info("run injector", "pr", cr.GetName())
 		if err := r.injectIPs(ctx, crName); err != nil {
 			r.l.Error(err, "injection error")
 			return ctrl.Result{}, err
@@ -131,24 +130,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, nil
 }
 
-func unsatisfiedConditions(conditions []porchv1alpha1.Condition, conditionType string) []porchv1alpha1.Condition {
+// hasIPAMConditions checks if the kptfile has ipam conditions
+// we dont care if the conditions are true or false as we refresh the ipam allocations
+// in this way
+func hasIPAMConditions(conditions []porchv1alpha1.Condition, conditionType string) []porchv1alpha1.Condition {
 	var uc []porchv1alpha1.Condition
 	for _, c := range conditions {
-
-		// TODO: make this smarter
-		// for now, just check if it is True. It means we won't re-inject if some input changes,
-		// unless someone flips the state
-		/*
-			if c.Status != porchv1alpha1.ConditionTrue && strings.HasPrefix(c.Type, conditionType+".") {
-				uc = append(uc, c)
-			}
-		*/
-		// TBD: for now it is good to refresh the ipam status since it allows to refresh the status of the ipam
 		if strings.HasPrefix(c.Type, conditionType+".") {
 			uc = append(uc, c)
 		}
 	}
-
 	return uc
 }
 
@@ -220,9 +211,12 @@ func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.Namespa
 	return nil
 }
 
-func (r *reconciler) injectAllocatedIPs(ctx context.Context, namespacedName types.NamespacedName,
+func (r *reconciler) injectAllocatedIPs(
+	ctx context.Context,
+	namespacedName types.NamespacedName,
 	prConditions *[]metav1.Condition,
-	pr *porchv1alpha1.PackageRevision) (*porchv1alpha1.PackageRevisionResources, *kio.PackageBuffer, error) {
+	pr *porchv1alpha1.PackageRevision,
+) (*porchv1alpha1.PackageRevisionResources, *kio.PackageBuffer, error) {
 
 	prResources := &porchv1alpha1.PackageRevisionResources{}
 	if err := r.porchClient.Get(ctx, namespacedName, prResources); err != nil {
@@ -373,7 +367,7 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
 		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
-		NetworkInstanceRef: &ipamv1alpha1.NetworkInstanceReference{
+		NetworkInstance: &corev1.ObjectReference{
 			Namespace: networkInstanceRef.GetString("namespace"),
 			Name:      networkInstanceRef.GetString("name"),
 		},

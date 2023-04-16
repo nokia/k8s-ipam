@@ -40,6 +40,7 @@ type GrpcServer struct {
 	l logr.Logger
 
 	//Alloc Handlers
+	allocGetHandler   AllocGetHandler
 	allocHandler      AllocHandler
 	deallocHandler    DeAllocHandler
 	watchAllocHandler WatchAllocHandler
@@ -58,6 +59,8 @@ type CheckHandler func(context.Context, *healthpb.HealthCheckRequest) (*healthpb
 type WatchHandler func(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer) error
 
 // Alloc Handlers
+type AllocGetHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
+
 type AllocHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
 
 type DeAllocHandler func(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
@@ -126,6 +129,12 @@ func WithCheckHandler(h CheckHandler) func(*GrpcServer) {
 func WithWatchHandler(h WatchHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
 		s.watchHandler = h
+	}
+}
+
+func WithAllocGetHandler(h AllocGetHandler) func(*GrpcServer) {
+	return func(s *GrpcServer) {
+		s.allocGetHandler = h
 	}
 }
 

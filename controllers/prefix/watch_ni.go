@@ -21,7 +21,7 @@ import (
 
 	//ndddvrv1 "github.com/yndd/ndd-core/apis/dvr/v1"
 	"github.com/go-logr/logr"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -78,10 +78,10 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 	for _, p := range d.Items {
 		// only enqueue if the network-instance matches
 		prefixNiNamespace := "default"
-		if p.Spec.NetworkInstanceRef.Namespace != "" {
-			prefixNiNamespace = p.Spec.NetworkInstanceRef.Namespace
+		if p.GetNetworkInstance().Namespace != "" {
+			prefixNiNamespace = p.GetNetworkInstance().Namespace
 		}
-		if ni.GetName() == p.Spec.NetworkInstanceRef.Name && ni.GetNamespace() == prefixNiNamespace {
+		if ni.GetName() == p.GetNetworkInstance().Name && ni.GetNamespace() == prefixNiNamespace {
 			e.l.Info("event requeue prefix", "name", p.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: p.GetNamespace(),

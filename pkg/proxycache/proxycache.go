@@ -23,6 +23,8 @@ type ProxyCache interface {
 	// registers a response validator to validate the content of the response
 	// given the proxy cache is content agnostic it needs a helper to execute this task
 	RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn)
+	// Get returns the allocated prefix
+	Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	// Allocate -> lookup in local cache based on (ipam, etc) gvknsn
 	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
 	// DeAllocate removes the cache data
@@ -186,6 +188,19 @@ func (r *proxycache) Start(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func (r *proxycache) Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+	allocClient, err := r.getClient()
+	if err != nil {
+		return nil, err
+	}
+	// TBD if we need to use the cache here
+	allocResp, err := allocClient.Get(ctx, alloc)
+	if err != nil || allocResp.GetStatusCode() != allocpb.StatusCode_Valid {
+		return allocResp, err
+	}
+	return allocResp, err
 }
 
 func (r *proxycache) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {

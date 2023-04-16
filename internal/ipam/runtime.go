@@ -1,3 +1,19 @@
+/*
+Copyright 2022 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ipam
 
 import (
@@ -5,7 +21,8 @@ import (
 	"sync"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/pkg/backend"
 )
 
 type Runtimes interface {
@@ -13,7 +30,7 @@ type Runtimes interface {
 }
 
 type RuntimeConfig struct {
-	ipamRib ipamRib
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 }
 
@@ -41,6 +58,7 @@ type runtime interface {
 }
 
 type Runtime interface {
+	Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
 	Validate(ctx context.Context) (string, error)
 	Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
 	Delete(ctx context.Context) error
@@ -64,7 +82,7 @@ type AllocRuntimeConfig struct {
 
 func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamPrefixRuntime{
-		ipamRib: c.ipamRib,
+		cache:   c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -96,7 +114,7 @@ func newPrefixRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamPrefixRuntime struct {
-	ipamRib ipamRib
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
@@ -107,7 +125,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstanceRef(), initializing)
+	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +142,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 
 func newAllocRuntime(c *RuntimeConfig) Runtimes {
 	return &ipamAllocRuntime{
-		ipamRib: c.ipamRib,
+		cache:   c.cache,
 		watcher: c.watcher,
 		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
@@ -144,7 +162,7 @@ func newAllocRuntime(c *RuntimeConfig) Runtimes {
 }
 
 type ipamAllocRuntime struct {
-	ipamRib ipamRib
+	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
 	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
@@ -154,7 +172,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.ipamRib.getRIB(alloc.GetNetworkInstanceRef(), initializing)
+	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -166,5 +184,4 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 		watcher:      r.watcher,
 		fnc:          r.oc[alloc.GetPrefixKind()],
 	})
-
 }

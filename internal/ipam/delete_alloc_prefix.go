@@ -1,10 +1,26 @@
+/*
+Copyright 2022 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ipam
 
 import (
 	"context"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,8 +53,8 @@ func (r *applicator) Delete(ctx context.Context) error {
 			childRoutesToBeUpdated := []table.Route{}
 			for _, childRoute := range route.Children(r.rib) {
 				r.l.Info("route exists", "handle update for route", route, "child route", childRoute)
-				if childRoute.Labels()[ipamv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNameKey] ||
-					childRoute.Labels()[ipamv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[ipamv1alpha1.NephioNsnNamespaceKey] {
+				if childRoute.Labels()[allocv1alpha1.NephioNsnNameKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNameKey] ||
+					childRoute.Labels()[allocv1alpha1.NephioNsnNamespaceKey] != r.alloc.GetFullLabels()[allocv1alpha1.NephioNsnNamespaceKey] {
 					childRoutesToBeUpdated = append(childRoutesToBeUpdated, childRoute)
 					if err := r.rib.Delete(childRoute); err != nil {
 						r.l.Error(err, "cannot delete route from rib", "route", childRoute)

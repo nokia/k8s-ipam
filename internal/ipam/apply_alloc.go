@@ -1,3 +1,19 @@
+/*
+Copyright 2022 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ipam
 
 import (
@@ -6,7 +22,8 @@ import (
 	"net/netip"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/ipam/v1alpha1"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/utils/iputil"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -18,9 +35,9 @@ func (r *applicator) ApplyAlloc(ctx context.Context) error {
 
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
-	routes, msg := r.getRoutesByOwner()
-	if msg != "" {
-		return fmt.Errorf(msg)
+	routes, err := r.getRoutesByOwner()
+	if err != nil {
+		return err
 	}
 	if len(routes) > 0 {
 		r.l.Info("dynamic allocation: route exist")
@@ -116,21 +133,21 @@ func (r *applicator) GetSelectedRouteWithPrefixLength(routes table.Routes, prefi
 		for _, route := range routes {
 			switch r.alloc.GetPrefixKind() {
 			case ipamv1alpha1.PrefixKindLoopback:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindNetwork:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindPool:
-				if route.Labels()[ipamv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
 			default:
@@ -154,26 +171,26 @@ func (r *applicator) GetSelectedRouteWithPrefixLength(routes table.Routes, prefi
 	return nil
 }
 
-func (r *applicator) getRoutesByOwner() (table.Routes, string) {
+func (r *applicator) getRoutesByOwner() (table.Routes, error) {
 	// check if the prefix/alloc already exists in the routing table
 	// based on the name of the allocator
 	//routes := []table.Route{}
 	ownerSelector, err := r.alloc.GetOwnerSelector()
 	if err != nil {
-		return []table.Route{}, err.Error()
+		return []table.Route{}, err
 	}
 	routes := r.rib.GetByLabel(ownerSelector)
 	if len(routes) != 0 {
 		// for a prefixkind network with create prefix flag set it is possible that multiple
 		// routes are returned since they were expanded
 		if len(routes) > 1 && !(r.alloc.GetCreatePrefix() && r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork) {
-			return []table.Route{}, fmt.Sprintf("multiple prefixes match the nsn labelselector, %v", routes)
+			return []table.Route{}, fmt.Errorf("multiple prefixes match the nsn labelselector, %v", routes)
 		}
 		// route found
-		return routes, ""
+		return routes, nil
 	}
 	// no route found
-	return []table.Route{}, ""
+	return []table.Route{}, nil
 }
 
 func (r *applicator) getRoutesByLabel() table.Routes {

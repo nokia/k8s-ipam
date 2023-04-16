@@ -17,18 +17,15 @@ limitations under the License.
 package injector
 
 import (
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
-	"sigs.k8s.io/kustomize/kyaml/utils"
-	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+/*
 func UpdateValue(fp string, target, value *kyaml.RNode) error {
 	fieldPath := utils.SmarterPathSplitter(fp, ".")
 	createdField, createErr := target.Pipe(kyaml.LookupCreate(value.YNode().Kind, fieldPath...))
@@ -46,6 +43,7 @@ func UpdateValue(fp string, target, value *kyaml.RNode) error {
 	}
 	return nil
 }
+
 
 func SetFieldValue(options *types.FieldOptions, targetField *kyaml.RNode, value *kyaml.RNode) error {
 	//fmt.Printf("setFieldValue options: %v\n", options)
@@ -78,6 +76,7 @@ func SetFieldValue(options *types.FieldOptions, targetField *kyaml.RNode, value 
 
 	return nil
 }
+*/
 
 // Code adapted from Porch internal cmdrpkgpull and cmdrpkgpush
 func ResourcesToPackageBuffer(resources map[string]string) (*kio.PackageBuffer, error) {

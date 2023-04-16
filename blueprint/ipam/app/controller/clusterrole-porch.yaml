@@ -36,6 +36,23 @@ rules:
   - update
   - patch
 - apiGroups:
+  - ipam.alloc.nephio.org
+  resources:
+  - ipallocations
+  - ipallocations/status
+  - ipprefixes
+  - ipprefixes/status
+  - networkinstances
+  - networkinstances/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
   - ipam.nephio.org
   resources:
   - ipallocations
@@ -44,6 +61,23 @@ rules:
   - ipprefixes/status
   - networkinstances
   - networkinstances/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
+  - vlan.alloc.nephio.org
+  resources:
+  - vlanallocations
+  - vlanallocations/status
+  - vlandatabases
+  - vlandatabases/status
+  - vlans
+  - vlans/status
   verbs:
   - get
   - list
