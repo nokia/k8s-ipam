@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -335,7 +334,12 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
 			cr.Spec.Labels), // added the owner label in it
 	}
-	return BuildIPAllocation(cr, cr.GetName(), spec, IPAllocationStatus{})
+	meta := metav1.ObjectMeta{
+		Name:      cr.GetName(),
+		Namespace: cr.GetNamespace(),
+		Labels:    cr.GetLabels(),
+	}
+	return BuildIPAllocation(meta, spec, IPAllocationStatus{})
 }
 
 // BuildIPAllocationFromNetworkInstancePrefix returns an IP allocation from an NetworkInstance prefix
@@ -364,7 +368,12 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 			prefix.Labels), // added the owner label in it
 	}
 	// name is based on aggregate and prefix
-	return BuildIPAllocation(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), spec, IPAllocationStatus{})
+	meta := metav1.ObjectMeta{
+		Name:      cr.GetNameFromNetworkInstancePrefix(prefix.Prefix),
+		Namespace: cr.GetNamespace(),
+		Labels:    cr.GetLabels(),
+	}
+	return BuildIPAllocation(meta, spec, IPAllocationStatus{})
 }
 
 // AddSpecLabelsWithTypeMeta returns a map based on the owner GVK/NSN
@@ -385,19 +394,15 @@ func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn 
 
 // BuildIPAllocation returns an IP Allocation from a client Object a crName and
 // an IPAllocation Spec/Status
-func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
+func BuildIPAllocation(meta metav1.ObjectMeta, spec IPAllocationSpec, status IPAllocationStatus) *IPAllocation {
 	return &IPAllocation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: IPAllocationKindAPIVersion,
 			Kind:       IPAllocationKind,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: o.GetNamespace(),
-			Name:      crName,
-			Labels:    o.GetLabels(),
-		},
-		Spec:   spec,
-		Status: status,
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
 	}
 }
 
