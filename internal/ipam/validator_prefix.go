@@ -32,10 +32,10 @@ type Validator interface {
 	Validate(ctx context.Context) (string, error)
 }
 
-type validateInputFn func(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string
+type validateInputFn func(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string
 type validateChildrenExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string
 type validateNoParentExistFn func(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string
-type validateParentExistFn func(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string
+type validateParentExistFn func(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string
 
 type PrefixValidatorFunctionConfig struct {
 	validateInputFn         validateInputFn
@@ -47,7 +47,7 @@ type PrefixValidatorFunctionConfig struct {
 type PrefixValidatorConfig struct {
 	alloc *ipamv1alpha1.IPAllocation
 	rib   *table.RIB
-	pi    iputil.PrefixInfo
+	pi    *iputil.Prefix
 	fnc   *PrefixValidatorFunctionConfig
 }
 
@@ -63,7 +63,7 @@ func NewPrefixValidator(c *PrefixValidatorConfig) Validator {
 type prefixvalidator struct {
 	alloc *ipamv1alpha1.IPAllocation
 	rib   *table.RIB
-	pi    iputil.PrefixInfo
+	pi    *iputil.Prefix
 	fnc   *PrefixValidatorFunctionConfig
 	l     logr.Logger
 }
@@ -129,7 +129,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 
 	route = table.NewRoute(
 		r.pi.GetIPSubnet(),
-		r.alloc.GetDummyLabelsFromPrefix(r.pi),
+		r.alloc.GetDummyLabelsFromPrefix(*r.pi),
 		map[string]any{},
 	)
 

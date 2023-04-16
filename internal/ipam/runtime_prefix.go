@@ -50,7 +50,7 @@ type prefixRuntime struct {
 	initializing bool
 	alloc        *ipamv1alpha1.IPAllocation
 	rib          *table.RIB
-	pi           iputil.PrefixInfo
+	pi           *iputil.Prefix
 	fnc          *PrefixValidatorFunctionConfig
 	watcher      Watcher
 	l            logr.Logger

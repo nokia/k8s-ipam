@@ -25,7 +25,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 )
 
-func validateInput(alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string {
+func validateInput(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 	if pi == nil {
 		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate {
 			return fmt.Sprintf("a dynamic prefix allocation is not supported for: %s", alloc.GetPrefixKind())
@@ -125,7 +125,7 @@ func validateNoParentExist(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) 
 	return "an aggregate prefix is required"
 }
 
-func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi iputil.PrefixInfo) string {
+func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 	switch alloc.GetPrefixKind() {
 	case ipamv1alpha1.PrefixKindAggregate:
 		if route.Labels().Get(allocv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {

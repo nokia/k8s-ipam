@@ -230,7 +230,7 @@ func (r *applicator) getPrefixLengthFromRoute(route table.Route) iputil.PrefixLe
 	return iputil.PrefixLength(route.Prefix().Addr().BitLen())
 }
 
-func (r *applicator) updatePrefixInfo(pi iputil.PrefixInfo, p netip.Prefix, prefixLength iputil.PrefixLength) iputil.PrefixInfo {
+func (r *applicator) updatePrefixInfo(pi *iputil.Prefix, p netip.Prefix, prefixLength iputil.PrefixLength) *iputil.Prefix {
 	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
 		if r.alloc.GetCreatePrefix() {
 

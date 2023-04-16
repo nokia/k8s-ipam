@@ -344,7 +344,7 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, st
 }
 
 // GetDummyLabelsFromPrefix used in validation
-func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
+func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.Prefix) map[string]string {
 	labels := map[string]string{}
 	for k, v := range r.GetSpecLabels() {
 		labels[k] = v

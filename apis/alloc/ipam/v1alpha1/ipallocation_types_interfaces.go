@@ -403,7 +403,7 @@ func BuildIPAllocation(o client.Object, crName string, spec IPAllocationSpec, st
 
 // GetDummyLabelsFromPrefix returns a map with the labels from the spec
 // augmented with the prefixkind and the subnet from the prefixInfo
-func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.PrefixInfo) map[string]string {
+func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.Prefix) map[string]string {
 	labels := map[string]string{}
 	for k, v := range r.GetSpecLabels() {
 		labels[k] = v
