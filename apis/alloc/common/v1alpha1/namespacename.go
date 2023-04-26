@@ -14,6 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1 contains core API types used by most ndd resources.
-// +kubebuilder:object:generate=true
 package v1alpha1
+
+import (
+	"k8s.io/apimachinery/pkg/types"
+)
+
+const seperator = "-"
+
+func GetGenericNamespacedName(nsn types.NamespacedName) string {
+	if nsn.Namespace == "" {
+		return nsn.Name
+	}
+	return nsn.Namespace + seperator + nsn.Name
+}

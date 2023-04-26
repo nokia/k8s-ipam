@@ -167,7 +167,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// The spec got changed we check the existing prefix against the status
 	// if there is a difference, we need to delete the prefix
-	if cr.Status.AllocatedPrefix != "" && cr.Status.AllocatedPrefix != cr.Spec.Prefix {
+	if cr.Status.Prefix != "" && cr.Status.Prefix != cr.Spec.Prefix {
 		if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
@@ -191,7 +191,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	r.l.Info("Successfully reconciled resource")
-	cr.Status.AllocatedPrefix = cr.Spec.Prefix
+	cr.Status.Prefix = cr.Spec.Prefix
 	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

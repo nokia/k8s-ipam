@@ -26,8 +26,8 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -215,7 +215,7 @@ func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB
 				if !pi.IsPrefixPresentInSubnetMap(prefix) {
 					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
 						"mismatch prefixes",
-						"kind", ipPrefix.Spec.PrefixKind,
+						"kind", ipPrefix.Spec.Kind,
 						"stored prefix", prefix,
 						"spec prefix", ipPrefix.Spec.Prefix)
 				}
@@ -224,7 +224,7 @@ func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB
 				if prefix != ipPrefix.Spec.Prefix {
 					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
 						"mismatch prefixes",
-						"kind", ipPrefix.Spec.PrefixKind,
+						"kind", ipPrefix.Spec.Kind,
 						"stored prefix", prefix,
 						"spec prefix", ipPrefix.Spec.Prefix)
 				}

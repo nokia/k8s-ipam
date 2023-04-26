@@ -29,55 +29,61 @@ import (
 
 // IPAllocationSpec defines the desired state of IPAllocation
 type IPAllocationSpec struct {
-	// PrefixKind defines the kind of prefix we want to allocate
-	// network kind is used for physical, virtual nics on a device
-	// loopback kind is used for loopback interfaces
-	// pool kind is used for pools for dhcp/radius/bng/upf/etc
-	// aggregate kind is used for allocating an aggregate prefix
+	// Kind defines the kind of prefix for the IP Allocation
+	// - network kind is used for physical, virtual nics on a device
+	// - loopback kind is used for loopback interfaces
+	// - pool kind is used for pools for dhcp/radius/bng/upf/etc
+	// - aggregate kind is used for allocating an aggregate prefix
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
-	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
-	// NetworkInstance defines the networkInstance context used to allocate this prefix
+	Kind PrefixKind `json:"kind" yaml:"kind"`
+	// NetworkInstance defines the networkInstance context for the IP allocation
 	// Name and optionally Namespace is used here
-	NetworkInstance *corev1.ObjectReference `json:"networkInstance" yaml:"networkInstance"`
-	// AddressFamily defines the address family this prefix
+	NetworkInstance corev1.ObjectReference `json:"networkInstance" yaml:"networkInstance"`
+	// AddressFamily defines the address family for the IP allocation
 	// +kubebuilder:validation:Enum=`ipv4`;`ipv6`
-	AddressFamily iputil.AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`
-	// Prefix allows the client to define the prefix they want to be allocated
+	// +kubebuilder:validation:Optional
+	AddressFamily *iputil.AddressFamily `json:"addressFamily,omitempty" yaml:"addressFamily,omitempty"`
+	// Prefix defines the prefix for the IP allocation
 	// Used for specific prefix allocation or used as a hint for a dynamic prefix allocation in case of restart
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
-	Prefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
-	// PrefixLength allows to client to indicate the prefixLength it wants for the allocation
-	// Used typically to indicate the size a certain prefix
-	// If not supplied we use assume /32 for ipv4 and /128 for ipv6
-	PrefixLength uint8 `json:"prefixLength,omitempty" yaml:"prefixLength,omitempty"`
-	// index defines the index in order for the backend to allocate a dedicated index in the prefix.
-	// Used for deterministic prefix allocation
-	Index uint32 `json:"index,omitempty" yaml:"index,omitempty"`
-	// Selector defines the selector criterias by whihc this prefix should be allocated
-	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
-	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
-	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
-	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	// CreatePrefix defines if this prefix must be created. Allows to specify a
-	CreatePrefix bool `json:"createPrefix,omitempty" yaml:"createPrefix,omitempty"`
+	// +kubebuilder:validation:Optional
+	Prefix *string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+	// PrefixLength defines the prefix length for the IP Allocation
+	// If not present we use assume /32 for ipv4 and /128 for ipv6 during allocation
+	// +kubebuilder:validation:Optional
+	PrefixLength *uint8 `json:"prefixLength,omitempty" yaml:"prefixLength,omitempty"`
+	// Index defines the index of the IP Allocation, used to get a deterministic IP from a prefix
+	// If not present we allocate a random prefix from a prefix
+	// +kubebuilder:validation:Optional
+	Index *uint32 `json:"index,omitempty" yaml:"index,omitempty"`
+	// CreatePrefix defines if this prefix must be created. Only used for non address prefixes
+	// e.g. non /32 ipv4 and non /128 ipv6 prefixes
+	// +kubebuilder:validation:Optional
+	CreatePrefix *bool `json:"createPrefix,omitempty" yaml:"createPrefix,omitempty"`
+	// AllocationLabels define the user defined labels and selector labels used
+	// in resource allocation
+	allocv1alpha1.AllocationLabels
 }
 
 // IPAllocationStatus defines the observed state of IPAllocation
 type IPAllocationStatus struct {
-	// ConditionedStatus provides the status of the VLAN allocation using conditions
+	// ConditionedStatus provides the status of the IP allocation using conditions
 	// 2 conditions are used:
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
-	// AllocatedPrefix identifies the prefix that was allocated by the IPAM system
-	AllocatedPrefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
-	// Gateway identifies the gatway IP for the network
-	Gateway string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
-	// expiryTime indicated when the allocation expires
-	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
+	// Prefix defines the prefix, allocated by the IPAM backend
+	// +kubebuilder:validation:Optional
+	Prefix *string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+	// Gateway defines the gateway IP for the allocated prefix
+	// Gateway is only relevant for prefix kind = network
+	// +kubebuilder:validation:Optional
+	Gateway *string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
+	// ExpiryTime defines when the allocation expires
+	// +kubebuilder:validation:Optional
+	ExpiryTime *string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true

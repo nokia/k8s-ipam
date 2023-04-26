@@ -25,18 +25,18 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// GetCondition returns the condition of a networkinstance based on the
-// conditionkind
-func (r *NetworkInstance) GetCondition(ck allocv1alpha1.ConditionKind) allocv1alpha1.Condition {
-	return r.Status.GetCondition(ck)
+// GetCondition returns the condition based on the condition kind
+func (r *NetworkInstance) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
+	return r.Status.GetCondition(t)
 }
 
-// SetConditions set the conditions of the networkinstance
+// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
+// to be set at once
 func (r *NetworkInstance) SetConditions(c ...allocv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
 }
 
-// GetNamespacedName returns the namespace and name of the networkinstance
+// GetNamespacedName returns the namespace and name
 func (r *NetworkInstance) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{
 		Name:      r.Name,
@@ -55,33 +55,13 @@ func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string
 // GetGenericNamespacedName return a namespace and name
 // as string, compliant to the k8s api naming convention
 func (r *NetworkInstance) GetGenericNamespacedName() string {
-	if r.GetNamespace() == "" {
-		return r.GetName()
-	}
-	return fmt.Sprintf("%s-%s", r.GetNamespace(), r.GetName())
+	return allocv1alpha1.GetGenericNamespacedName(types.NamespacedName{
+		Namespace: r.GetNamespace(),
+		Name:      r.GetName(),
+	})
 }
 
-// GetPrefixes returns the prefixes defined in the networkinstance
-func (r *NetworkInstance) GetPrefixes() []*Prefix {
-	return r.Spec.Prefixes
-}
-
-// GetPrefix returns the prefix in cidr notation
-func (r *Prefix) GetPrefix() string {
-	return r.Prefix
-}
-
-// GetLabels returns the labels of the prefix in the networkinstance
-func (r *Prefix) GetPrefixLabels() map[string]string {
-	return r.Labels
-}
-
-// GetAllocatedPrefixes returns the allocated prefixes the ipam backend
-// allocated to this IPPrefix
-func (r *NetworkInstance) GetAllocatedPrefixes() []*Prefix {
-	return r.Status.AllocatedPrefixes
-}
-
+// GetCacheID returns a CacheID as an objectReference
 func (r *NetworkInstance) GetCacheID() corev1.ObjectReference {
 	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
 }

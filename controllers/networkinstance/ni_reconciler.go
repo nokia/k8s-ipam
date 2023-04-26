@@ -138,7 +138,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// change handling for prefixes
-	for _, allocatedPrefix := range cr.Status.AllocatedPrefixes {
+	for _, allocatedPrefix := range cr.Status.Prefixes {
 		found := false
 		for _, prefix := range cr.Spec.Prefixes {
 			if allocatedPrefix.Prefix == prefix.Prefix {
@@ -175,7 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	cr.Status.AllocatedPrefixes = cr.Spec.Prefixes
+	cr.Status.Prefixes = cr.Spec.Prefixes
 
 	// Update the status of the CR and end the reconciliation loop
 	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())

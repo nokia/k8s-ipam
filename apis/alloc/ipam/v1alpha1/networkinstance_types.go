@@ -27,19 +27,18 @@ import (
 
 // NetworkInstanceSpec defines the desired state of NetworkInstance
 type NetworkInstanceSpec struct {
-	// Prefixes define the aggregate prefixes in the network instance
+	// Prefixes define the aggregate prefixes for the network instance
 	// A Network instance needs at least 1 prefix to be defined to become operational
-	Prefixes []*Prefix `json:"prefixes" yaml:"prefixes"`
+	Prefixes []Prefix `json:"prefixes" yaml:"prefixes"`
 }
 
 type Prefix struct {
-	// Prefix defines the ip cidr in prefix or address notation. It can be used to define a subnet or specifc addresses
+	// Prefix defines the ip cidr in prefix notation.
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix" yaml:"prefix"`
-	// Labels provide metadata to the prefix. They are part of the spec since the allocation
-	// selector will use these labels for finer grane selection
-	// As such we distinguish clearly between the metadata labels and the labels used in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	// UserDefinedLabels define metadata to the resource.
+	// defined in the spec to distingiush metadata labels from user defined labels
+	allocv1alpha1.UserDefinedLabels
 }
 
 // NetworkInstanceStatus defines the observed state of NetworkInstance
@@ -50,8 +49,8 @@ type NetworkInstanceStatus struct {
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
-	// AllocatedPrefixes identifies the prefix that was allocated by the IPAM system from the ni spec
-	AllocatedPrefixes []*Prefix `json:"allocatedPrefixes,omitempty" yaml:"allocatedPrefixes,omitempty"`
+	// Prefixes defines the prefixes, allocated by the IPAM backend
+	Prefixes []Prefix `json:"allocatedPrefixes,omitempty" yaml:"allocatedPrefixes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

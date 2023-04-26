@@ -76,9 +76,9 @@ func StringToGroupVersionKind(s string) (string, string, string) {
 	return "", "", ""
 }
 
-func StringToGVK(s string) *schema.GroupVersionKind {
+func StringToGVK(s string) schema.GroupVersionKind {
 	group, version, kind := StringToGroupVersionKind(s)
-	return &schema.GroupVersionKind{
+	return schema.GroupVersionKind{
 		Group:   group,
 		Version: version,
 		Kind:    kind,

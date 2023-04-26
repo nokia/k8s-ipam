@@ -79,7 +79,7 @@ func buildIPAllocation(alloc *allocation) *ipamv1alpha1.IPAllocation {
 				},
 				Spec: ipamv1alpha1.IPPrefixSpec{
 					NetworkInstance: alloc.spec.NetworkInstance,
-					PrefixKind:      alloc.spec.PrefixKind,
+					Kind:            alloc.spec.Kind,
 					Prefix:          alloc.spec.Prefix,
 					Labels:          alloc.spec.Labels,
 				},
@@ -138,7 +138,7 @@ func TestNetworkInstance(t *testing.T) {
 				name:      "alloc-net1-prefix1",
 				spec: ipamv1alpha1.IPAllocationSpec{
 					NetworkInstance: niRef,
-					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					Prefix:          "10.0.0.2/24",
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
@@ -158,7 +158,7 @@ func TestNetworkInstance(t *testing.T) {
 				name:      "alloc-net1-prefix1",
 				spec: ipamv1alpha1.IPAllocationSpec{
 					NetworkInstance: niRef,
-					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					Prefix:          "10.0.0.1/24",
 					CreatePrefix:    true,
 					Labels: map[string]string{
@@ -178,7 +178,7 @@ func TestNetworkInstance(t *testing.T) {
 				name:      "alloc-net1-staticprefix",
 				spec: ipamv1alpha1.IPAllocationSpec{
 					NetworkInstance: niRef,
-					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					Prefix:          "10.0.0.2/24",
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
@@ -198,7 +198,7 @@ func TestNetworkInstance(t *testing.T) {
 				name:      "alloc-net1-prefix2",
 				spec: ipamv1alpha1.IPAllocationSpec{
 					NetworkInstance: niRef,
-					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					Prefix:          "10.0.0.10/24",
 					CreatePrefix:    true,
 					Labels: map[string]string{
@@ -219,7 +219,7 @@ func TestNetworkInstance(t *testing.T) {
 				name:      "alloc-net1-alloc1",
 				spec: ipamv1alpha1.IPAllocationSpec{
 					NetworkInstance: niRef,
-					PrefixKind:      ipamv1alpha1.PrefixKindNetwork,
+					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"nephio.org/region":       "us-central1",

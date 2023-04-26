@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,28 +31,28 @@ func TestConditionEqual(t *testing.T) {
 		want bool
 	}{
 		"IdenticalIgnoringTimestamp": {
-			a:    Condition{Kind: ConditionKindReady, LastTransitionTime: metav1.Now()},
-			b:    Condition{Kind: ConditionKindReady, LastTransitionTime: metav1.Now()},
+			a:    Condition{metav1.Condition{Type: string(ConditionTypeReady), LastTransitionTime: metav1.Now()}},
+			b:    Condition{metav1.Condition{Type: string(ConditionTypeReady), LastTransitionTime: metav1.Now()}},
 			want: true,
 		},
 		"DifferentType": {
-			a:    Condition{Kind: ConditionKindReady},
-			b:    Condition{Kind: ConditionKindSynced},
+			a:    Condition{metav1.Condition{Type: string(ConditionTypeReady)}},
+			b:    Condition{metav1.Condition{Type: string(ConditionTypeSynced)}},
 			want: false,
 		},
 		"DifferentStatus": {
-			a:    Condition{Status: corev1.ConditionTrue},
-			b:    Condition{Status: corev1.ConditionFalse},
+			a:    Condition{metav1.Condition{Status: metav1.ConditionTrue}},
+			b:    Condition{metav1.Condition{Status: metav1.ConditionFalse}},
 			want: false,
 		},
 		"DifferentReason": {
-			a:    Condition{Reason: Ready().Reason},
-			b:    Condition{Reason: ReconcileSuccess().Reason},
+			a:    Condition{metav1.Condition{Reason: Ready().Reason}},
+			b:    Condition{metav1.Condition{Reason: ReconcileSuccess().Reason}},
 			want: false,
 		},
 		"DifferentMessage": {
-			a:    Condition{Message: "a"},
-			b:    Condition{Message: "b"},
+			a:    Condition{metav1.Condition{Message: "a"}},
+			b:    Condition{metav1.Condition{Message: "b"}},
 			want: false,
 		},
 	}
@@ -63,7 +62,7 @@ func TestConditionEqual(t *testing.T) {
 			got := tc.a.Equal(tc.b)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("a.Equal(b): -want, +got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -112,7 +111,7 @@ func TestConditionedStatusEqual(t *testing.T) {
 			got := tc.a.Equal(tc.b)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("a.Equal(b): -want, +got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -148,7 +147,7 @@ func TestSetConditions(t *testing.T) {
 
 			got := tc.cs
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("tc.cs.SetConditions(...): -want, +got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -157,21 +156,21 @@ func TestSetConditions(t *testing.T) {
 func TestGetCondition(t *testing.T) {
 	cases := map[string]struct {
 		cs   *ConditionedStatus
-		t    ConditionKind
+		t    ConditionType
 		want Condition
 	}{
 		"ConditionExists": {
 			cs:   NewConditionedStatus(Ready()),
-			t:    ConditionKindReady,
+			t:    ConditionTypeReady,
 			want: Ready(),
 		},
 		"ConditionDoesNotExist": {
 			cs: NewConditionedStatus(Ready()),
-			t:  ConditionKindSynced,
-			want: Condition{
-				Kind:   ConditionKindSynced,
-				Status: corev1.ConditionUnknown,
-			},
+			t:  ConditionTypeSynced,
+			want: Condition{metav1.Condition{
+				Type:   string(ConditionTypeSynced),
+				Status: metav1.ConditionFalse,
+			}},
 		},
 	}
 
@@ -179,7 +178,7 @@ func TestGetCondition(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := tc.cs.GetCondition(tc.t)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("tc.cs.GetConditions(...): -want, +got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -193,19 +192,19 @@ func TestConditionWithMessage(t *testing.T) {
 		want Condition
 	}{
 		"MessageAdded": {
-			c:    Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady},
+			c:    Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady)}},
 			msg:  testMsg,
-			want: Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady, Message: testMsg},
+			want: Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady), Message: testMsg}},
 		},
 		"MessageChanged": {
-			c:    Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady, Message: "aaaaaaaaa"},
+			c:    Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady), Message: "aaaaaaaaa"}},
 			msg:  testMsg,
-			want: Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady, Message: testMsg},
+			want: Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady), Message: testMsg}},
 		},
 		"MessageCleared": {
-			c:    Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady, Message: testMsg},
+			c:    Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady), Message: testMsg}},
 			msg:  "",
-			want: Condition{Kind: ConditionKindReady, Reason: ConditionReasonReady},
+			want: Condition{metav1.Condition{Type: string(ConditionTypeReady), Reason: string(ConditionReasonReady)}},
 		},
 	}
 
@@ -214,7 +213,7 @@ func TestConditionWithMessage(t *testing.T) {
 			got := tc.c.WithMessage(tc.msg)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("a.Equal(b): -want, +got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}

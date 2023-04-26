@@ -46,5 +46,4 @@ func GetPrefixKindFromString(s string) PrefixKind {
 	default:
 		return PrefixKindUnknown
 	}
-
 }

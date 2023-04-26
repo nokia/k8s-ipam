@@ -28,24 +28,23 @@ import (
 
 // IPPrefixSpec defines the desired state of IPPrefix
 type IPPrefixSpec struct {
-	// PrefixKind defines the kind of prefix we want to allocate
-	// network kind is used for physical, virtual nics on a device
-	// loopback kind is used for loopback interfaces
-	// pool kind is used for pools for dhcp/radius/bng/upf/etc
-	// aggregate kind is used for allocating an aggregate prefix
+	// Kind defines the kind of prefix for the IP Allocation
+	// - network kind is used for physical, virtual nics on a device
+	// - loopback kind is used for loopback interfaces
+	// - pool kind is used for pools for dhcp/radius/bng/upf/etc
+	// - aggregate kind is used for allocating an aggregate prefix
 	// +kubebuilder:validation:Enum=`network`;`loopback`;`pool`;`aggregate`
 	// +kubebuilder:default=network
-	PrefixKind PrefixKind `json:"kind" yaml:"kind"`
-	// NetworkInstance defines the networkInstance context to which this prefix belongs
+	Kind PrefixKind `json:"kind" yaml:"kind"`
+	// NetworkInstance defines the networkInstance context for the IP prefix
 	// Name and optionally Namespace is used here
-	NetworkInstance *corev1.ObjectReference `json:"networkInstanceReference" yaml:"networkReference"`
-	// Prefix defines the ip cidr in prefix or address notation. It can be used to define a subnet or specifc addresses
+	NetworkInstance corev1.ObjectReference `json:"networkInstanceReference" yaml:"networkReference"`
+	// Prefix defines the ip cidr in prefix or address notation.
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix" yaml:"prefix"`
-	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
-	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
-	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	// UserDefinedLabels define metadata to the resource.
+	// defined in the spec to distingiush metadata labels from user defined labels
+	allocv1alpha1.UserDefinedLabels
 }
 
 // IPPrefixStatus defines the observed state of IPPrefix
@@ -56,8 +55,9 @@ type IPPrefixStatus struct {
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
-	// AllocatedPrefix identifies the prefix that was allocated by the IPAM backend
-	AllocatedPrefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+	// Prefix defines the prefix, allocated by the IPAM backend
+	// +kubebuilder:validation:Optional
+	Prefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
 }
 
 // +kubebuilder:object:root=true

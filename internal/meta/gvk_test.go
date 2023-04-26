@@ -88,12 +88,12 @@ func TestStringToGVK(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  *schema.GroupVersionKind
+		want  schema.GroupVersionKind
 	}{
 		{
 			name:  "full gvk string",
 			input: "a.v0.1.2.3.4",
-			want: &schema.GroupVersionKind{
+			want: schema.GroupVersionKind{
 				Group:   "1.2.3.4",
 				Version: "v0",
 				Kind:    "a",
@@ -102,7 +102,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "empty string",
 			input: "",
-			want: &schema.GroupVersionKind{
+			want: schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",
@@ -111,7 +111,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "kind, empty version/group",
 			input: "a",
-			want: &schema.GroupVersionKind{
+			want: schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",
@@ -120,7 +120,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "kind, emoty group",
 			input: "a.v0",
-			want: &schema.GroupVersionKind{
+			want: schema.GroupVersionKind{
 				Group:   "",
 				Version: "",
 				Kind:    "",
@@ -129,7 +129,7 @@ func TestStringToGVK(t *testing.T) {
 		{
 			name:  "minimal",
 			input: "a.v0.1",
-			want: &schema.GroupVersionKind{
+			want: schema.GroupVersionKind{
 				Group:   "1",
 				Version: "v0",
 				Kind:    "a",
@@ -139,18 +139,7 @@ func TestStringToGVK(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := StringToGVK(tt.input)
-			if got == nil && tt.want == nil {
-				return
-			}
-			if got == nil && tt.want != nil {
-				t.Errorf("StringToGVK() = %v, want %v", got, tt.want)
-				return
-			}
-			if got != nil && tt.want == nil {
-				t.Errorf("StringToGVK() = %v, want %v", got, tt.want)
-				return
-			}
-			if *got != *tt.want {
+			if got != tt.want {
 				t.Errorf("StringToGVK() = %v, want %v", got, tt.want)
 			}
 		})

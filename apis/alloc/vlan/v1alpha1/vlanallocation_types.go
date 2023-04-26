@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,20 +28,18 @@ import (
 
 // VLANAllocationSpec defines the desired state of VLANAllocation
 type VLANAllocationSpec struct {
-	// VLANDatabases defines the vlan database contexts from which this vlan must be allocated
-	// For Local vlan allocation a single vlan database has to be used, for global vlan allocations
-	// all vlan databases from which this vlan must be alloctaed must be specified
-	VLANDatabases []*corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
-	// VlanID allows the client to define the vlan id they want to allocate
-	VLANID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
-	// VLANRange allows the client to define the vlan range they want to allocate
-	VLANRange string `json:"range,omitempty" yaml:"range,omitempty"`
-	// Selector defines the selector criterias by which the vlan should be allocated
-	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
-	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
-	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
-	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	// VLANDatabases defines the vlan database contexts for the VLAN Allocation
+	// For Local vlan allocation a single vlan database is required, 
+	// For global vlan allocations all vlan databases from which
+	// this vlan must be alloctaed must be specified
+	VLANDatabases []corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
+	// VLANID defines the vlan for the VLAN allocation
+	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANRange defines the vlan range for the VLAN allocation
+	VLANRange *string `json:"range,omitempty" yaml:"range,omitempty"`
+	// AllocationLabels define the user defined labels and selector labels used 
+	// in resource allocation
+	allocv1alpha1.AllocationLabels
 }
 
 // VLANAllocationStatus defines the observed state of VLANAllocation
@@ -52,11 +50,12 @@ type VLANAllocationStatus struct {
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
-	// AllocatedVlan identifies the vlan that was allocated by the VLAN backend
-	AllocatedVlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
-	// AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
-	AllocatedVlanRange string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
-	// expiryTime indicated when the allocation expires
+	// VLANID defines the vlan ID, allocated by the VLAN backend
+	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANRange defines the vlan range, allocated by the VLAN backend
+	VLANRange *string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
+	// ExpiryTime indicated when the allocation expires
+	// +kubebuilder:validation:Optional
 	ExpiryTime string `json:"expiryTime,omitempty" yaml:"expiryTime,omitempty"`
 }
 

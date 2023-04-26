@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,16 +34,15 @@ const (
 
 // VLANDatabaseSpec defines the desired state of VLANDatabase
 type VLANDatabaseSpec struct {
-	// VLANDBKind defines the kind of vlan database we want to create
+	// Kind defines the kind of vlan database we want to create
 	// esg kind is used for ethernet segment groups
 	// device kind is used for devices: vlan per device or vlan per interface
 	// +kubebuilder:validation:Enum=`esg`;`device`
 	// +kubebuilder:default=esg
-	VLANDBKind VLANDBKind `json:"kind" yaml:"kind"`
-	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
-	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
-	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Kind VLANDBKind `json:"kind" yaml:"kind"`
+	// UserDefinedLabels define metadata to the resource.
+	// defined in the spec to distingiush metadata labels from user defined labels
+	allocv1alpha1.UserDefinedLabels
 }
 
 // VLANDatabaseStatus defines the observed state of VLANDatabase

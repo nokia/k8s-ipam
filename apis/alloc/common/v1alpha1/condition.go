@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,19 +19,18 @@ package v1alpha1
 import (
 	"sort"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// A ConditionKind represents a condition kind for a resource
-type ConditionKind string
+// A ConditionType represents a condition type for a given KRM resource
+type ConditionType string
 
-// Condition Kinds.
+// Condition Types.
 const (
-	// handled per target per resource
-	ConditionKindSynced ConditionKind = "Synced"
-	// handled per target per resource
-	ConditionKindReady ConditionKind = "Ready"
+	// ConditionTypeSynced represents the reconciliation state condition
+	ConditionTypeSynced ConditionType = "Synced"
+	// ConditionTypeReady represents the resource ready condition
+	ConditionTypeReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -44,38 +43,20 @@ const (
 	ConditionReasonUnknown ConditionReason = "Unknown"
 )
 
-// Reasons a resource is or is not synced.
+// Reasons a resource is synced or not
 const (
 	ConditionReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
 	ConditionReasonReconcileFailure ConditionReason = "ReconcileFailure"
 )
 
-// A Condition that may apply to a resource
 type Condition struct {
-	// Type of this condition. At most one of each condition type may apply to
-	// a resource at any point in time.
-	Kind ConditionKind `json:"kind"`
-
-	// Status of this condition; is it currently True, False, or Unknown?
-	Status corev1.ConditionStatus `json:"status"`
-
-	// LastTransitionTime is the last time this condition transitioned from one
-	// status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
-
-	// A Reason for this condition's last transition from one status to another.
-	Reason ConditionReason `json:"reason"`
-
-	// A Message containing details about this condition's last transition from
-	// one status to another, if any.
-	// +optional
-	Message string `json:"message,omitempty"`
+	metav1.Condition
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
 // ignoring the LastTransitionTime.
 func (c Condition) Equal(other Condition) bool {
-	return c.Kind == other.Kind &&
+	return c.Type == other.Type &&
 		c.Status == other.Status &&
 		c.Reason == other.Reason &&
 		c.Message == other.Message
@@ -89,7 +70,7 @@ func (c Condition) WithMessage(msg string) Condition {
 }
 
 // A ConditionedStatus reflects the observed status of a resource. Only
-// one condition of each kind may exist.
+// one condition of each type may exist.
 type ConditionedStatus struct {
 	// Conditions of the resource.
 	// +optional
@@ -98,30 +79,30 @@ type ConditionedStatus struct {
 
 // NewConditionedStatus returns a stat with the supplied conditions set.
 func NewConditionedStatus(c ...Condition) *ConditionedStatus {
-	s := &ConditionedStatus{}
-	s.SetConditions(c...)
-	return s
+	r := &ConditionedStatus{}
+	r.SetConditions(c...)
+	return r
 }
 
 // GetCondition returns the condition for the given ConditionKind if exists,
 // otherwise returns nil
-func (s *ConditionedStatus) GetCondition(ck ConditionKind) Condition {
-	for _, c := range s.Conditions {
-		if c.Kind == ck {
+func (r *ConditionedStatus) GetCondition(t ConditionType) Condition {
+	for _, c := range r.Conditions {
+		if c.Type == string(t) {
 			return c
 		}
 	}
-	return Condition{Kind: ck, Status: corev1.ConditionUnknown}
+	return Condition{metav1.Condition{Type: string(t), Status: metav1.ConditionFalse}}
 }
 
 // SetConditions sets the supplied conditions, replacing any existing conditions
-// of the same kind. This is a no-op if all supplied conditions are identical,
+// of the same type. This is a no-op if all supplied conditions are identical,
 // ignoring the last transition time, to those already set.
-func (s *ConditionedStatus) SetConditions(c ...Condition) {
+func (r *ConditionedStatus) SetConditions(c ...Condition) {
 	for _, new := range c {
 		exists := false
-		for i, existing := range s.Conditions {
-			if existing.Kind != new.Kind {
+		for i, existing := range r.Conditions {
+			if existing.Type != new.Type {
 				continue
 			}
 
@@ -130,35 +111,35 @@ func (s *ConditionedStatus) SetConditions(c ...Condition) {
 				continue
 			}
 
-			s.Conditions[i] = new
+			r.Conditions[i] = new
 			exists = true
 		}
 		if !exists {
-			s.Conditions = append(s.Conditions, new)
+			r.Conditions = append(r.Conditions, new)
 		}
 	}
 }
 
 // Equal returns true if the status is identical to the supplied status,
 // ignoring the LastTransitionTimes and order of statuses.
-func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
-	if s == nil || other == nil {
-		return s == nil && other == nil
+func (r *ConditionedStatus) Equal(other *ConditionedStatus) bool {
+	if r == nil || other == nil {
+		return r == nil && other == nil
 	}
 
-	if len(other.Conditions) != len(s.Conditions) {
+	if len(other.Conditions) != len(r.Conditions) {
 		return false
 	}
 
-	sc := make([]Condition, len(s.Conditions))
-	copy(sc, s.Conditions)
+	sc := make([]Condition, len(r.Conditions))
+	copy(sc, r.Conditions)
 
 	oc := make([]Condition, len(other.Conditions))
 	copy(oc, other.Conditions)
 
-	// We should not have more than one condition of each kind.
-	sort.Slice(sc, func(i, j int) bool { return sc[i].Kind < sc[j].Kind })
-	sort.Slice(oc, func(i, j int) bool { return oc[i].Kind < oc[j].Kind })
+	// We should not have more than one condition of each type.
+	sort.Slice(sc, func(i, j int) bool { return sc[i].Type < sc[j].Type })
+	sort.Slice(oc, func(i, j int) bool { return oc[i].Type < oc[j].Type })
 
 	for i := range sc {
 		if !sc[i].Equal(oc[i]) {
@@ -169,60 +150,59 @@ func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
 }
 
 // Ready returns a condition that indicates the resource is
-// currently observed to be ready for use.
+// ready for use.
 func Ready() Condition {
-	return Condition{
-		Kind:               ConditionKindReady,
-		Status:             corev1.ConditionTrue,
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ConditionReasonReady,
-	}
+		Reason:             string(ConditionReasonReady),
+	}}
 }
 
 // Unknown returns a condition that indicates the resource is in an
 // unknown status.
 func Unknown() Condition {
-	return Condition{
-		Kind:               ConditionKindReady,
-		Status:             corev1.ConditionFalse,
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ConditionReasonUnknown,
-	}
+		Reason:             string(ConditionReasonUnknown),
+	}}
 }
 
 // Failed returns a condition that indicates the resource
-// failed to get instantiated.
+// failed to get reconciled.
 func Failed(msg string) Condition {
-	return Condition{
-		Kind:               ConditionKindReady,
-		Status:             corev1.ConditionFalse,
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ConditionReasonFailed,
+		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
-	}
+	}}
+
 }
 
-// ReconcileSuccess returns a condition indicating that ndd successfully
-// completed the most recent reconciliation of the resource.
+// ReconcileSuccess returns a condition indicating that the controller
+// successfully completed the reconciliation of the resource.
 func ReconcileSuccess() Condition {
-	return Condition{
-		Kind:               ConditionKindSynced,
-		Status:             corev1.ConditionTrue,
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeSynced),
+		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ConditionReasonReconcileSuccess,
-	}
+		Reason:             string(ConditionReasonReconcileSuccess),
+	}}
 }
 
-// ReconcileError returns a condition indicating that ndd encountered an
-// error while reconciling the resource. This could mean ndd was
-// unable to update the resource to reflect its desired state, or that
-// ndd was unable to determine the current actual state of the resource.
+// ReconcileError returns a condition indicating that the controller
+// encountered an error while reconciling the resource.
 func ReconcileError(err error) Condition {
-	return Condition{
-		Kind:               ConditionKindSynced,
-		Status:             corev1.ConditionFalse,
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeSynced),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ConditionReasonReconcileFailure,
+		Reason:             string(ConditionReasonReconcileFailure),
 		Message:            err.Error(),
-	}
+	}}
 }

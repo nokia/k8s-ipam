@@ -257,7 +257,7 @@ func (r *reconciler) injectAllocatedIPs(
 			r.l.Info("grpc ipam allocation response", "Name", rn.GetName(), "resp", resp)
 
 			// update Allocation
-			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAlloc.Spec.PrefixKind))
+			ipAllocation, err := GetUpdatedAllocation(resp, ipamv1alpha1.PrefixKind(ipAlloc.Spec.Kind))
 			if err != nil {
 				return prResources, pkgBuf, errors.Wrap(err, "cannot get updated allocation status")
 			}
@@ -366,7 +366,7 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 	}
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
-		PrefixKind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
+		Kind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
 		NetworkInstance: &corev1.ObjectReference{
 			Namespace: networkInstanceRef.GetString("namespace"),
 			Name:      networkInstanceRef.GetString("name"),

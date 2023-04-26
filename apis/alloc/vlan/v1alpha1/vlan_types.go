@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,14 +27,13 @@ import (
 
 // VLANSpec defines the desired state of VLAN
 type VLANSpec struct {
-	// VlanID defines a specific vlan id
-	VlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANID defines the VLAN ID
+	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines a range of vlans
-	VLANRange string `json:"range,omitempty" yaml:"range,omitempty"`
-	// Labels define metadata to the object (aka. user defined labels). They are part of the spec since the allocation
-	// selector will use these labels for allocation more specific prefixes/addresses within this prefix
-	// As such we distinguish clearly between the metadata labels and the user defined labels in the spec
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	VLANRange *string `json:"range,omitempty" yaml:"range,omitempty"`
+	// UserDefinedLabels define metadata to the resource.
+	// defined in the spec to distingiush metadata labels from user defined labels
+	allocv1alpha1.UserDefinedLabels
 }
 
 // VLANStatus defines the observed state of VLAN
@@ -45,10 +44,10 @@ type VLANStatus struct {
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
-	// AllocatedVlan identifies the vlan that was allocated by the VLAN backend
-	AllocatedVlanID uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
-	// AllocatedVlan identifies the vlan range that was allocated by the VLAN backend
-	AllocatedVlanRange string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
+	// VLANID defines the vlan ID, allocated by the VLAN backend
+	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
+	// VLANRange defines the vlan range, allocated by the VLAN backend
+	VLANRange *string `json:"vlanRange,omitempty" yaml:"vlanRange,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestIPPRefixGetCondition(t *testing.T) {
+func TestVLANGetCondition(t *testing.T) {
 	tests := map[string]struct {
 		cs   *allocv1alpha1.ConditionedStatus
 		t    allocv1alpha1.ConditionType
@@ -48,9 +48,9 @@ func TestIPPRefixGetCondition(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			v := IPPrefix{}
-			v.Status.ConditionedStatus = *tc.cs
-			got := v.GetCondition(allocv1alpha1.ConditionType(tc.t))
+			o := VLAN{}
+			o.Status.ConditionedStatus = *tc.cs
+			got := o.GetCondition(allocv1alpha1.ConditionType(tc.t))
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("-want, +got:\n%s", diff)
@@ -59,7 +59,7 @@ func TestIPPRefixGetCondition(t *testing.T) {
 	}
 }
 
-func TestIPPRefixSetConditions(t *testing.T) {
+func TestVLANSetConditions(t *testing.T) {
 	cases := map[string]struct {
 		cs   *allocv1alpha1.ConditionedStatus
 		c    []allocv1alpha1.Condition
@@ -85,7 +85,7 @@ func TestIPPRefixSetConditions(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			o := IPPrefix{}
+			o := VLAN{}
 			o.Status.ConditionedStatus = *tc.cs
 			o.SetConditions(tc.c...)
 
@@ -97,7 +97,7 @@ func TestIPPRefixSetConditions(t *testing.T) {
 	}
 }
 
-func TestIPPrefixGetGenericNamespacedName(t *testing.T) {
+func TestVLANGetGenericNamespacedName(t *testing.T) {
 	cases := map[string]struct {
 		nsn  types.NamespacedName
 		want string
@@ -115,7 +115,7 @@ func TestIPPrefixGetGenericNamespacedName(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			o := IPPrefix{}
+			o := VLAN{}
 			o.SetName(tc.nsn.Name)
 			o.SetNamespace(tc.nsn.Namespace)
 			got := o.GetGenericNamespacedName()
@@ -126,7 +126,7 @@ func TestIPPrefixGetGenericNamespacedName(t *testing.T) {
 	}
 }
 
-func TestIPPrefixGetUserDefinedLabels(t *testing.T) {
+func TestVLANGetUserDefinedLabels(t *testing.T) {
 	cases := map[string]struct {
 		labels map[string]string
 		want   map[string]string
@@ -144,10 +144,10 @@ func TestIPPrefixGetUserDefinedLabels(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			o := IPPrefix{}
-			o.Spec.Labels = tc.labels
+			v := VLAN{}
+			v.Spec.Labels = tc.labels
 
-			got := o.GetUserDefinedLabels()
+			got := v.GetUserDefinedLabels()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("TestGetSpecLabels(...): -want, +got:\n%s", diff)
 			}

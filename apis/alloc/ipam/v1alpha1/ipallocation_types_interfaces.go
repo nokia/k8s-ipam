@@ -30,11 +30,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 )
 
 // GetCondition returns the condition based on the condition kind
-func (r *IPAllocation) GetCondition(ck allocv1alpha1.ConditionKind) allocv1alpha1.Condition {
-	return r.Status.GetCondition(ck)
+func (r *IPAllocation) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
+	return r.Status.GetCondition(t)
 }
 
 // SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
@@ -46,170 +47,84 @@ func (r *IPAllocation) SetConditions(c ...allocv1alpha1.Condition) {
 // GetGenericNamespacedName return a namespace and name
 // as string, compliant to the k8s api naming convention
 func (r *IPAllocation) GetGenericNamespacedName() string {
-	if r.GetNamespace() == "" {
-		return r.GetName()
-	}
-	return fmt.Sprintf("%s-%s", r.GetNamespace(), r.GetName())
-}
-
-// GetPrefixKind returns the prefixkind of the ip allocation
-func (r *IPAllocation) GetPrefixKind() PrefixKind {
-	return r.Spec.PrefixKind
-}
-
-// GetNetworkInstance returns the networkinstance of the ip allocation
-func (r *IPAllocation) GetNetworkInstance() corev1.ObjectReference {
-	nsn := corev1.ObjectReference{}
-	if r.Spec.NetworkInstance != nil {
-		nsn.Name = r.Spec.NetworkInstance.Name
-		nsn.Namespace = r.Spec.NetworkInstance.Namespace
-	}
-	return nsn
-}
-
-// GetAddressFamily returns the address family of the ip allocation
-func (r *IPAllocation) GetAddressFamily() iputil.AddressFamily {
-	return r.Spec.AddressFamily
-}
-
-// GetPrefix returns the prefix of the ip allocation in cidr notation
-// if the prefix was undefined and empty string is returned
-func (r *IPAllocation) GetPrefix() string {
-	return r.Spec.Prefix
-}
-
-// GetPrefixLengthFromSpec returns the prefixlength as defined in the ip allocation spec
-func (r *IPAllocation) GetPrefixLengthFromSpec() iputil.PrefixLength {
-	return iputil.PrefixLength(r.Spec.PrefixLength)
+	return allocv1alpha1.GetGenericNamespacedName(types.NamespacedName{
+		Namespace: r.GetNamespace(),
+		Name:      r.GetName(),
+	})
 }
 
 // GetPrefixLengthFromRoute returns the prefixlength of the ip allocation if defined in the spec
 // otherwise the route prefix is returned
 func (r *IPAllocation) GetPrefixLengthFromRoute(route table.Route) iputil.PrefixLength {
-	if r.GetPrefixLengthFromSpec() != 0 {
-		return r.GetPrefixLengthFromSpec()
+	if r.Spec.PrefixLength != nil {
+		return iputil.PrefixLength(*r.Spec.PrefixLength)
 	}
 	return iputil.PrefixLength(route.Prefix().Addr().BitLen())
 }
 
-// GetIndex returns the index of the ip allocation as defined in the spec
-func (r *IPAllocation) GetIndex() uint32 {
-	return r.Spec.Index
+// GetPrefixLengthFromAlloc returns the prefixlength, bu validating the
+// prefixlength in the spec. if undefined a /32 or .128 is returned based on the
+// prefix in the route
+func (r *IPAllocation) GetPrefixLengthFromAlloc(route table.Route) uint8 {
+	if r.Spec.PrefixLength != nil {
+		return *r.Spec.PrefixLength
+	}
+	if route.Prefix().Addr().Is4() {
+		return 32
+	}
+	return 128
 }
 
-// GetSelector returns the selector of the ip allocation as defined in the spec
-// if undefined a nil pointer is returned
-func (r *IPAllocation) GetSelector() *metav1.LabelSelector {
-	return r.Spec.Selector
+// GetUserDefinedLabels returns a map with a copy of the user defined labels
+func (r *IPAllocation) GetUserDefinedLabels() map[string]string {
+	return r.Spec.GetUserDefinedLabels()
 }
 
-// GetSelectorLabels returns the matchLabels of the selector as a map[atring]string
-// if the selector is undefined an empty map is returned
+// GetSelectorLabels returns a map with a copy of the selector labels
 func (r *IPAllocation) GetSelectorLabels() map[string]string {
-	l := map[string]string{}
-	if r.Spec.Selector != nil {
-		for k, v := range r.Spec.Selector.MatchLabels {
-			l[k] = v
-		}
+	return r.Spec.GetSelectorLabels()
+}
+
+// GetFullLabels returns a map with a copy of the user defined labels and the selector labels
+func (r *IPAllocation) GetFullLabels() map[string]string {
+	return r.Spec.GetFullLabels()
+}
+
+// GetDummyLabelsFromPrefix returns a map with the labels from the spec
+// augmented with the prefixkind and the subnet from the prefixInfo
+func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.Prefix) map[string]string {
+	labels := map[string]string{}
+	for k, v := range r.GetUserDefinedLabels() {
+		labels[k] = v
 	}
-	return l
+	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.Spec.Kind)
+	labels[allocv1alpha1.NephioSubnetKey] = string(pi.GetSubnetName())
+
+	return labels
 }
 
-// GetSpecLabels returns the labels as defined in the spec in a map
-func (r *IPAllocation) GetSpecLabels() map[string]string {
-	l := map[string]string{}
-	for k, v := range r.Spec.Labels {
-		l[k] = v
-	}
-	return l
+// GetLabelSelector returns a labels selector based on the label selector
+func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
+	return r.Spec.GetLabelSelector()
 }
 
-// GetCreatePrefix return the create prefix flag as defined in the ip allocation spec
-func (r *IPAllocation) GetCreatePrefix() bool {
-	return r.Spec.CreatePrefix
+// GetOwnerSelector returns a label selector to select the owner of the allocation in the backend
+func (r *IPAllocation) GetOwnerSelector() (labels.Selector, error) {
+	return r.Spec.GetOwnerSelector()
 }
 
-// GetAllocatedPrefix returns the allocated prefix from ip allocation status
-func (r *IPAllocation) GetAllocatedPrefix() string {
-	return r.Status.AllocatedPrefix
-}
-
-// GetGateway returns the gateway from the ip allocation status
-func (r *IPAllocation) GetGateway() string {
-	return r.Status.Gateway
-}
-
-// GetExpiryTime returns the expiry time from the ip allocation status
-func (r *IPAllocation) GetExpiryTime() string {
-	return r.Status.ExpiryTime
-}
-
-// GetOwnerGvk returns the ownergvk as defined in the labels of the ip allocation spec
-func (r *IPAllocation) GetOwnerGvk() string {
-	if len(r.Spec.Labels) != 0 {
-		return r.Spec.Labels[allocv1alpha1.NephioOwnerGvkKey]
-	}
-	return ""
-}
-
-// IsCreatePrefixAllcation validates the IP Allocation and returns an error
-// when the validation fails
-// When CreatePrefix is set and Prefix is set, the prefix cannot be an address prefix
-// When CreatePrefix is set and Prefix is not set, the prefixlength must be defined
-// When CreatePrefix is not set and Prefic is set, the prefix must be an address - static address allocation
-// When CreatePrefix is not set and Prefic is not set, this is a dynamic address allocation
-func (r *IPAllocation) IsCreatePrefixAllcation() (bool, error) {
-	// if create prefix is set this is seen as a prefix allocation
-	// if create prefix is not set this is seen as an address allocation
-	if r.GetCreatePrefix() {
-		// create prefix validation
-		if r.GetPrefix() != "" {
-			pi, err := iputil.New(r.GetPrefix())
-			if err != nil {
-				return false, err
-			}
-			if pi.IsAddressPrefix() {
-				return false, fmt.Errorf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
-			}
-			return true, nil
-		}
-		// this is the case where a dynamic prefix will be allocate based on a prefix length defined by the user
-		if r.GetPrefixLengthFromSpec() != 0 {
-			return true, nil
-		}
-	}
-	// create address validation
-	if r.GetPrefix() != "" {
-		pi, err := iputil.New(r.GetPrefix())
-		if err != nil {
-			return false, err
-		}
-		if !pi.IsAddressPrefix() {
-			return false, fmt.Errorf("create address is only allowed with /32 or .128, got: %s", pi.GetIPPrefix().String())
-		}
-		return false, nil
-	}
-	return false, nil
-}
-
-// GetGatewayLabelSelector returns a label selector to find the gateway of an allocated prefix
-// The label selector consists of the selector labels in the spec augmented with the gateway selector
+// GetGatewayLabelSelector returns a label selector to select the gateway of the allocation in the backend
 func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	l := map[string]string{
 		allocv1alpha1.NephioGatewayKey: "true",
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
-		// exclude any key that is not network and networkinstance
-		if //k == NephioSubnetKey ||
-		//k == ipamv1alpha1.NephioNetworkInstanceKey ||
-		k == allocv1alpha1.NephioGatewayKey {
-			req, err := labels.NewRequirement(k, selection.Equals, []string{v})
-			if err != nil {
-				return nil, err
-			}
-			fullselector = fullselector.Add(*req)
+		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
+		if err != nil {
+			return nil, err
 		}
+		fullselector = fullselector.Add(*req)
 	}
 	for k, v := range r.GetSelectorLabels() {
 		req, err := labels.NewRequirement(k, selection.In, []string{v})
@@ -221,95 +136,57 @@ func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
 	return fullselector, nil
 }
 
-// GetLabelSelector returns a labels selector from the selector labels in the spec
-func (r *IPAllocation) GetLabelSelector() (labels.Selector, error) {
-	l := r.GetSelectorLabels()
-	fullselector := labels.NewSelector()
-	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
-		if err != nil {
-			return nil, err
+// IsCreatePrefixAllcationValid validates the IP Allocation and returns an error
+// when the validation fails
+// When CreatePrefix is set and Prefix is set, the prefix cannot be an address prefix
+// When CreatePrefix is set and Prefix is not set, the prefixlength must be defined
+// When CreatePrefix is not set and Prefix is set, the prefix must be an address - static address allocation
+// When CreatePrefix is not set and Prefix is not set, this is a dynamic address allocation
+func (r *IPAllocation) IsCreatePrefixAllcationValid() (bool, error) {
+	// if create prefix is set this is seen as a prefix allocation
+	// if create prefix is not set this is seen as an address allocation
+	if r.Spec.CreatePrefix != nil {
+		// create prefix validation
+		if r.Spec.Prefix != nil {
+			pi, err := iputil.New(*r.Spec.Prefix)
+			if err != nil {
+				return false, err
+			}
+			if pi.IsAddressPrefix() {
+				return false, fmt.Errorf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
+			}
+			return true, nil
 		}
-		fullselector = fullselector.Add(*req)
-	}
-	return fullselector, nil
-}
-
-// GetOwnerSelector returns a label selector to find the owner in the ipam backend
-func (r *IPAllocation) GetOwnerSelector() (labels.Selector, error) {
-	l := map[string]string{
-		allocv1alpha1.NephioNsnNameKey:           r.Spec.Labels[allocv1alpha1.NephioNsnNameKey],
-		allocv1alpha1.NephioNsnNamespaceKey:      r.Spec.Labels[allocv1alpha1.NephioNsnNamespaceKey],
-		allocv1alpha1.NephioOwnerGvkKey:          r.Spec.Labels[allocv1alpha1.NephioOwnerGvkKey],
-		allocv1alpha1.NephioOwnerNsnNameKey:      r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNameKey],
-		allocv1alpha1.NephioOwnerNsnNamespaceKey: r.Spec.Labels[allocv1alpha1.NephioOwnerNsnNamespaceKey],
-	}
-
-	fullselector := labels.NewSelector()
-	for k, v := range l {
-		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
-		if err != nil {
-			return nil, err
+		// this is the case where a dynamic prefix will be allocate based on a prefix length defined by the user
+		if r.Spec.PrefixLength != nil {
+			return true, nil
 		}
-		fullselector = fullselector.Add(*req)
+		return false, fmt.Errorf("create prefix needs a prefixLength or prefix got none")
+
 	}
-	return fullselector, nil
+	// create address validation
+	if r.Spec.Prefix != nil {
+		pi, err := iputil.New(*r.Spec.Prefix)
+		if err != nil {
+			return false, err
+		}
+		if !pi.IsAddressPrefix() {
+			return false, fmt.Errorf("create address is only allowed with /32 or .128, got: %s", pi.GetIPPrefix().String())
+		}
+		return false, nil
+	}
+	return false, nil
 }
 
-// GetFullLabels returns a map with a combination of the user defined labels
-// in the spec and the selector labels defined in the spec
-func (r *IPAllocation) GetFullLabels() map[string]string {
-	l := make(map[string]string)
-	for k, v := range r.GetSpecLabels() {
-		l[k] = v
-	}
-	for k, v := range r.GetSelectorLabels() {
-		l[k] = v
-	}
-	return l
-}
-
-// GetPrefixLengthFromAlloc returns the prefixlength, bu validating the
-// prefixlength in the spec. if undefined a /32 or .128 is returned based on the
-// prefix in the route
-func GetPrefixLengthFromAlloc(route table.Route, alloc IPAllocation) uint8 {
-	if alloc.Spec.PrefixLength != 0 {
-		return alloc.Spec.PrefixLength
-	}
-	if route.Prefix().Addr().Is4() {
-		return 32
-	}
-	return 128
-}
-
-// BuildIPAllocationFromIPAllocation returns an ip allocation from an ip allocation
+// AddOwnerLabelsToCR returns a VLANAllocation
 // by augmenting the owner GVK/NSN in the user defined labels
-func BuildIPAllocationFromIPAllocation(cr *IPAllocation) *IPAllocation {
-	newcr := cr.DeepCopy()
-	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
-	// if the ownerGvk is in the labels we use this as ownerGVK
-	ownerGVKValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerGvkKey]
-	if ok {
-		ownerGvk = meta.StringToGVK(ownerGVKValue)
+func (r *IPAllocation) AddOwnerLabelsToCR() {
+	if r.Spec.UserDefinedLabels.Labels == nil {
+		r.Spec.UserDefinedLabels.Labels = map[string]string{}
 	}
-	// if the ownerNsn is in the labels we use this as ownerNsn
-	ownerNsn := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
-	ownerNameValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerNsnNameKey]
-	if ok {
-		ownerNsn.Name = ownerNameValue
+	for k, v := range allocv1alpha1.GetOwnerLabelsFromCR(r) {
+		r.Spec.UserDefinedLabels.Labels[k] = v
 	}
-	ownerNamespaceValue, ok := cr.GetLabels()[allocv1alpha1.NephioOwnerNsnNamespaceKey]
-	if ok {
-		ownerNsn.Namespace = ownerNamespaceValue
-	}
-
-	newcr.Spec.Labels = AddSpecLabelsWithTypeMeta(
-		ownerGvk,
-		types.NamespacedName{Namespace: ownerNsn.Namespace, Name: ownerNsn.Name},
-		types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-		cr.Spec.Labels,
-	) // added the owner label in it
-	return newcr
 }
 
 // BuildIPAllocationFromIPPrefix returns an IP allocation from an IP Prefix
@@ -323,16 +200,20 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		return nil
 	}
 	spec := IPAllocationSpec{
-		PrefixKind:      cr.Spec.PrefixKind,
+		Kind:            cr.Spec.Kind,
 		NetworkInstance: cr.Spec.NetworkInstance,
-		Prefix:          cr.Spec.Prefix,
-		PrefixLength:    uint8(pi.GetPrefixLength().Int()),
-		CreatePrefix:    true,
-		Labels: AddSpecLabelsWithTypeMeta(
-			ownerGvk,
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-			cr.Spec.Labels), // added the owner label in it
+		Prefix:          &cr.Spec.Prefix,
+		PrefixLength:    pointerUint8(pi.GetPrefixLength().Int()),
+		CreatePrefix:    pointer.Bool(true),
+		AllocationLabels: allocv1alpha1.AllocationLabels{
+			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
+				Labels: AddSpecLabelsWithTypeMeta(
+					ownerGvk,
+					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+					cr.Spec.Labels), // added the owner label in it
+			},
+		},
 	}
 	meta := metav1.ObjectMeta{
 		Name:      cr.GetName(),
@@ -345,7 +226,7 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 // BuildIPAllocationFromNetworkInstancePrefix returns an IP allocation from an NetworkInstance prefix
 // by augmenting the owner GVK/NSN in the user defined labels and populating
 // the information from the IP prefix in the IP Allocation spec attributes.
-func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Prefix) *IPAllocation {
+func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix Prefix) *IPAllocation {
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 
 	pi, err := iputil.New(prefix.Prefix)
@@ -353,19 +234,23 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix *Pre
 		return nil
 	}
 	spec := IPAllocationSpec{
-		PrefixKind: PrefixKindAggregate,
-		NetworkInstance: &corev1.ObjectReference{
+		Kind: PrefixKindAggregate,
+		NetworkInstance: corev1.ObjectReference{
 			Name:      cr.GetName(),
 			Namespace: cr.GetNamespace(),
 		},
-		Prefix:       prefix.Prefix,
-		PrefixLength: uint8(pi.GetPrefixLength().Int()),
-		CreatePrefix: true,
-		Labels: AddSpecLabelsWithTypeMeta(
-			ownerGvk,
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-			types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)},
-			prefix.Labels), // added the owner label in it
+		Prefix:       &prefix.Prefix,
+		PrefixLength: pointerUint8(pi.GetPrefixLength().Int()),
+		CreatePrefix: pointer.Bool(true),
+		AllocationLabels: allocv1alpha1.AllocationLabels{
+			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
+				Labels: AddSpecLabelsWithTypeMeta(
+					ownerGvk,
+					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
+					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)},
+					prefix.GetUserDefinedLabels()), // added the owner label in it
+			},
+		},
 	}
 	// name is based on aggregate and prefix
 	meta := metav1.ObjectMeta{
@@ -406,15 +291,7 @@ func BuildIPAllocation(meta metav1.ObjectMeta, spec IPAllocationSpec, status IPA
 	}
 }
 
-// GetDummyLabelsFromPrefix returns a map with the labels from the spec
-// augmented with the prefixkind and the subnet from the prefixInfo
-func (r *IPAllocation) GetDummyLabelsFromPrefix(pi iputil.Prefix) map[string]string {
-	labels := map[string]string{}
-	for k, v := range r.GetSpecLabels() {
-		labels[k] = v
-	}
-	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.GetPrefixKind())
-	labels[allocv1alpha1.NephioSubnetKey] = string(pi.GetSubnetName())
-
-	return labels
+func pointerUint8(i int) *uint8 {
+	x := uint8(i)
+	return &x
 }

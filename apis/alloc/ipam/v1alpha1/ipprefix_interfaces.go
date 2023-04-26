@@ -17,18 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// GetCondition of this resource
-func (r *IPPrefix) GetCondition(ck allocv1alpha1.ConditionKind) allocv1alpha1.Condition {
-	return r.Status.GetCondition(ck)
+// GetCondition returns the condition based on the condition kind
+func (r *IPPrefix) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
+	return r.Status.GetCondition(t)
 }
 
-// SetConditions of the Network Node.
+// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
+// to be set at once
 func (r *IPPrefix) SetConditions(c ...allocv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
 }
@@ -36,44 +35,13 @@ func (r *IPPrefix) SetConditions(c ...allocv1alpha1.Condition) {
 // GetGenericNamespacedName return a namespace and name
 // as string, compliant to the k8s api naming convention
 func (r *IPPrefix) GetGenericNamespacedName() string {
-	if r.GetNamespace() == "" {
-		return r.GetName()
-	}
-	return fmt.Sprintf("%s-%s", r.GetNamespace(), r.GetName())
+	return allocv1alpha1.GetGenericNamespacedName(types.NamespacedName{
+		Namespace: r.GetNamespace(),
+		Name:      r.GetName(),
+	})
 }
 
-// GetPrefixKind returns the prefixkind of the ip prefix
-func (r *IPPrefix) GetPrefixKind() PrefixKind {
-	return r.Spec.PrefixKind
-}
-
-// GetNetworkInstance returns the networkinstance of the ipprefix
-func (r *IPPrefix) GetNetworkInstance() corev1.ObjectReference {
-	nsn := corev1.ObjectReference{}
-	if r.Spec.NetworkInstance != nil {
-		nsn.Name = r.Spec.NetworkInstance.Name
-		nsn.Namespace = r.Spec.NetworkInstance.Namespace
-	}
-	return nsn
-}
-
-// GetPrefix returns the prefix of the IPPrefix in cidr notation
-// if the prefix was undefined and empty string is returned
-func (r *IPPrefix) GetPrefix() string {
-	return r.Spec.Prefix
-}
-
-// GetLabels returns the user defined labels of the IPPrefix
-// defined in the spec
-func (r *IPPrefix) GetSpecLabels() map[string]string {
-	if len(r.Spec.Labels) == 0 {
-		r.Spec.Labels = map[string]string{}
-	}
-	return r.Spec.Labels
-}
-
-// GetAllocatedPrefixes returns the allocated prefixes the ipam backend
-// allocated to this IPPrefix
-func (r *IPPrefix) GetAllocatedPrefix() string {
-	return r.Status.AllocatedPrefix
+// GetUserDefinedLabels returns the user defined labels in the spec
+func (r *IPPrefix) GetUserDefinedLabels() map[string]string {
+	return r.Spec.GetUserDefinedLabels()
 }
