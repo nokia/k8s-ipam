@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxy/proxycache"
@@ -29,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-    allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 )
 
 type Proxy[T1, T2 client.Object] interface {
@@ -67,8 +67,8 @@ func New[T1, T2 client.Object](ctx context.Context, cfg Config) Proxy[T1, T2] {
 		pc:          pc,
 		l:           l,
 	}
-	// this is a helper to validate the response since the proxy is content unaware. It understands
-	// KRM but nothing else
+	// This is a helper to validate the response since the proxy is content unaware.
+	// It understands KRM but nothing else
 	pc.RegisterRefreshRespValidator(cfg.Group, cfg.ValidateFn)
 	pc.Start(ctx)
 	return cp

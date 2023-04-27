@@ -1,21 +1,21 @@
-# app
+# crd
 
 ## Description
-ipam app
+resource-backend crd
 
 ## Usage
 
 ### Fetch the package
-`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] app`
+`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] crd`
 Details: https://kpt.dev/reference/cli/pkg/get/
 
 ### View package content
-`kpt pkg tree app`
+`kpt pkg tree crd`
 Details: https://kpt.dev/reference/cli/pkg/tree/
 
 ### Apply the package
 ```
-kpt live init app
-kpt live apply app --reconcile-timeout=2m --output=table
+kpt live init crd
+kpt live apply crd --reconcile-timeout=2m --output=table
 ```
 Details: https://kpt.dev/reference/cli/live/

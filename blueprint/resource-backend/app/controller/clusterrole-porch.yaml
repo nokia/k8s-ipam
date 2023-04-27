@@ -7,16 +7,16 @@ metadata:
     app.kubernetes.io/component: tbd
     app.kubernetes.io/instance: tbd
     app.kubernetes.io/managed-by: kpt
-    app.kubernetes.io/name: ipam
-    app.kubernetes.io/part-of: ipam
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
     app.kubernetes.io/version: tbd
-  name: ipam-controller-controller-role
+  name: resource-backend-controller-porch-role
 rules:
 - apiGroups:
-  - '*'
+  - porch.kpt.dev
   resources:
-  - events
-  - configmaps
+  - packagerevisionresources
+  - packagerevisions
   verbs:
   - get
   - list
@@ -26,36 +26,17 @@ rules:
   - create
   - delete
 - apiGroups:
-  - coordination.k8s.io
+  - porch.kpt.dev
   resources:
-  - leases
+  - packagerevisionresources/status
+  - packagerevisions/status
+  - packagerevisions/approval
   verbs:
   - get
-  - list
-  - watch
   - update
   - patch
-  - create
-  - delete
 - apiGroups:
   - ipam.alloc.nephio.org
-  resources:
-  - ipallocations
-  - ipallocations/status
-  - ipprefixes
-  - ipprefixes/status
-  - networkinstances
-  - networkinstances/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-  - delete
-- apiGroups:
-  - ipam.nephio.org
   resources:
   - ipallocations
   - ipallocations/status

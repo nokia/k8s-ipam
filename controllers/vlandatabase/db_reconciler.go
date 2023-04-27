@@ -131,7 +131,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// the prefixes that are within the spec of the network-instance need to be allocated first
 	// since they serve as an aggregate
 	if err := r.ClientProxy.CreateIndex(ctx, cr); err != nil {
-		r.l.Error(err, "cannot initialize ipam")
+		r.l.Error(err, "cannot initialize index")
 		cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}

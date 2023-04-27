@@ -31,6 +31,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/vlan"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -40,6 +41,9 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 		Registrator: opts.Registrator,
 	})
 	opts.IpamClientProxy = ipamproxyClient
+	opts.VlanClientProxy = vlan.New(ctx, clientproxy.Config{
+		Registrator: opts.Registrator,
+	})
 
 	eventChs := map[schema.GroupVersionKind]chan event.GenericEvent{}
 	for _, setup := range []func(ctrl.Manager, *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error){

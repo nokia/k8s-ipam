@@ -50,7 +50,7 @@ const (
 )
 
 type Condition struct {
-	metav1.Condition
+	metav1.Condition `json:",inline" yaml:",inline"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,

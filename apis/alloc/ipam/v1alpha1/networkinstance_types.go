@@ -38,7 +38,7 @@ type Prefix struct {
 	Prefix string `json:"prefix" yaml:"prefix"`
 	// UserDefinedLabels define metadata to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	allocv1alpha1.UserDefinedLabels
+	allocv1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // NetworkInstanceStatus defines the observed state of NetworkInstance
@@ -55,8 +55,8 @@ type NetworkInstanceStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".metadata.name"
 // +kubebuilder:printcolumn:name="PREFIX0",type="string",JSONPath=".spec.prefixes[0].prefix"
 // +kubebuilder:printcolumn:name="PREFIX1",type="string",JSONPath=".spec.prefixes[1].prefix"
@@ -64,7 +64,7 @@ type NetworkInstanceStatus struct {
 // +kubebuilder:printcolumn:name="PREFIX3",type="string",JSONPath=".spec.prefixes[3].prefix"
 // +kubebuilder:printcolumn:name="PREFIX4",type="string",JSONPath=".spec.prefixes[4].prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:categories={nephio,ipam}
+// +kubebuilder:resource:categories={nephio,alloc}
 // NetworkInstance is the Schema for the networkinstances API
 type NetworkInstance struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`

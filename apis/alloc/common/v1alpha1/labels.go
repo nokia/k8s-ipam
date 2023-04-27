@@ -45,7 +45,7 @@ func (r *UserDefinedLabels) GetUserDefinedLabels() map[string]string {
 }
 
 type AllocationLabels struct {
-	UserDefinedLabels
+	UserDefinedLabels `json:",inline" yaml:",inline"`
 	// Selector defines the selector criterias for the VLAN allocation
 	// +kubebuilder:validation:Optional
 	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`

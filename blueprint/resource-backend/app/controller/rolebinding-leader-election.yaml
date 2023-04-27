@@ -7,16 +7,16 @@ metadata:
     app.kubernetes.io/component: tbd
     app.kubernetes.io/instance: tbd
     app.kubernetes.io/managed-by: kpt
-    app.kubernetes.io/name: ipam
-    app.kubernetes.io/part-of: ipam
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
     app.kubernetes.io/version: tbd
-  name: ipam-controller-leader-election-role-binding
-  namespace: ipam
+  name: resource-backend-controller-leader-election-role-binding
+  namespace: resource-backend
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ipam-controller-leader-election-role
+  name: resource-backend-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: ipam-controller
-  namespace: ipam
+  name: resource-backend-controller
+  namespace: resource-backend

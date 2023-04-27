@@ -42,7 +42,7 @@ type VLANDatabaseSpec struct {
 	Kind VLANDBKind `json:"kind" yaml:"kind"`
 	// UserDefinedLabels define metadata to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	allocv1alpha1.UserDefinedLabels
+	allocv1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // VLANDatabaseStatus defines the observed state of VLANDatabase
@@ -57,8 +57,8 @@ type VLANDatabaseStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:categories={nephio,alloc}
 // VLANDatabase is the Schema for the vlan database API

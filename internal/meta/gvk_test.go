@@ -41,7 +41,7 @@ func TestGVKToString(t *testing.T) {
 		{
 			name: "empty gvk",
 			gvk:  schema.GroupVersionKind{},
-			want: emptyGvk,
+			want: emptyKind,
 		},
 		{
 			name: "empty gvk",

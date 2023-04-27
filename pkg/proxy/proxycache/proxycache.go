@@ -81,7 +81,7 @@ func (r *proxycache) RegisterRefreshRespValidator(key string, fn RefreshRespVali
 
 func (r *proxycache) Start(ctx context.Context) {
 	r.l.Info("starting proxy cache")
-	ch := r.registrator.Watch(ctx, "ipam", []string{}, registrator.WatchOptions{RetriveServices: true})
+	ch := r.registrator.Watch(ctx, "resource-backend", []string{}, registrator.WatchOptions{RetriveServices: true})
 	// this is used to control the watch go routine
 	watchCtx, cancel := context.WithCancel(ctx)
 	r.watchCancel = cancel
@@ -92,7 +92,6 @@ func (r *proxycache) Start(ctx context.Context) {
 			select {
 			case svcInfo := <-ch:
 				r.l.Info("service", "info", *svcInfo)
-
 				if r.svcInfo != nil {
 					for _, service := range svcInfo.ServiceInstances {
 						if service.Address == r.svcInfo.Address &&
@@ -124,6 +123,7 @@ func (r *proxycache) Start(ctx context.Context) {
 				if err := r.createClient(watchCtx); err != nil {
 					r.l.Error(err, "cannot create client")
 				}
+
 			case <-ctx.Done():
 				// called when the controller gets cancelled
 				return
@@ -184,7 +184,6 @@ func (r *proxycache) Start(ctx context.Context) {
 								}
 							}
 						}
-
 					}()
 				}
 				wg.Wait()

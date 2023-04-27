@@ -59,6 +59,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(vlanv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(porchv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -118,18 +119,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	podName := os.Getenv("POD_NAME")
-	if podName == "" {
-		podName = "local-resource-backend"
-	}
-	address := os.Getenv("POD_IP")
-	if address == "" {
-		address = "127.0.0.1"
-	}
+	//podName := os.Getenv("POD_NAME")
+	//if podName == "" {
+	podName := "local-resource-backend"
+	//}
+	//address := os.Getenv("POD_IP")
+	//if address == "" {
+	address := "127.0.0.1"
+	//}
 	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = "resource-backend"
-	}
+	//if namespace == "" {
+	//	namespace = "resource-backend"
+	//}
 
 	// register the service
 	go func() {

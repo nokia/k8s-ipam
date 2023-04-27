@@ -1,0 +1,7 @@
+apiVersion: vlan.alloc.nephio.org/v1alpha1
+kind: VLANDatabase
+metadata:
+  name: edge1
+spec:
+  labels:
+    nephio.org/site: edge1

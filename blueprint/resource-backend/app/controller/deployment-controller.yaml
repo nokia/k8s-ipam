@@ -3,13 +3,13 @@ kind: Deployment
 metadata:
   annotations: {}
   creationTimestamp: null
-  name: ipam-controller
-  namespace: ipam
+  name: resource-backend-controller
+  namespace: resource-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      fn.kptgen.dev/controller: ipam-controller
+      fn.kptgen.dev/controller: resource-backend-controller
   strategy: {}
   template:
     metadata:
@@ -18,12 +18,12 @@ spec:
         app.kubernetes.io/component: tbd
         app.kubernetes.io/instance: tbd
         app.kubernetes.io/managed-by: kpt
-        app.kubernetes.io/name: ipam
-        app.kubernetes.io/part-of: ipam
+        app.kubernetes.io/name: resource-backend
+        app.kubernetes.io/part-of: resource-backend
         app.kubernetes.io/version: tbd
-        fn.kptgen.dev/controller: ipam-controller
-      name: ipam-controller
-      namespace: ipam
+        fn.kptgen.dev/controller: resource-backend-controller
+      name: resource-backend-controller
+      namespace: resource-backend
     spec:
       containers:
       - args:
@@ -69,7 +69,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
-        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/ipam-controller:latest
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/resource-backend-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
@@ -95,5 +95,5 @@ spec:
           capabilities:
             drop:
             - ALL
-      serviceAccountName: ipam-controller
+      serviceAccountName: resource-backend-controller
 status: {}

@@ -1,6 +1,6 @@
 VERSION ?= latest
 REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
-PROJECT ?= ipam
+PROJECT ?= resource-backend
 
 KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config
 KPT_BLUEPRINT_PKG_DIR ?= blueprint/${PROJECT}

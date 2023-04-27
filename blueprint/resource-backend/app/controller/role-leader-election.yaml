@@ -7,11 +7,11 @@ metadata:
     app.kubernetes.io/component: tbd
     app.kubernetes.io/instance: tbd
     app.kubernetes.io/managed-by: kpt
-    app.kubernetes.io/name: ipam
-    app.kubernetes.io/part-of: ipam
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
     app.kubernetes.io/version: tbd
-  name: ipam-controller-leader-election-role
-  namespace: ipam
+  name: resource-backend-controller-leader-election-role
+  namespace: resource-backend
 rules:
 - apiGroups:
   - ""

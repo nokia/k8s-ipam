@@ -44,7 +44,7 @@ type IPPrefixSpec struct {
 	Prefix string `json:"prefix" yaml:"prefix"`
 	// UserDefinedLabels define metadata to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	allocv1alpha1.UserDefinedLabels
+	allocv1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // IPPrefixStatus defines the observed state of IPPrefix
@@ -62,15 +62,15 @@ type IPPrefixStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".spec.networkInstance"
 // +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.kind"
 // +kubebuilder:printcolumn:name="SUBNET",type="string",JSONPath=".spec.subnetName"
 // +kubebuilder:printcolumn:name="PREFIX-REQ",type="string",JSONPath=".spec.prefix"
 // +kubebuilder:printcolumn:name="PREFIX-ALLOC",type="string",JSONPath=".status.prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:categories={nephio,ipam}
+// +kubebuilder:resource:categories={nephio,alloc}
 
 // IPPrefix is the Schema for the ipprefixes API
 type IPPrefix struct {

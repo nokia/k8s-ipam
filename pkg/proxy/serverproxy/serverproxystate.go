@@ -20,7 +20,7 @@ type ProxyState struct {
 	// key is clientName
 	clients  map[string]*clientContext
 	backends map[schema.GroupVersion]backend.Backend
-	l logr.Logger
+	l        logr.Logger
 }
 
 type ProxyStateConfig struct {

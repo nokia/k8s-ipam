@@ -34,9 +34,9 @@ type VLANAllocationSpec struct {
 	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines the vlan range for the VLAN allocation
 	VLANRange *string `json:"range,omitempty" yaml:"range,omitempty"`
-	// AllocationLabels define the user defined labels and selector labels used 
+	// AllocationLabels define the user defined labels and selector labels used
 	// in resource allocation
-	allocv1alpha1.AllocationLabels
+	allocv1alpha1.AllocationLabels `json:",inline" yaml:",inline"`
 }
 
 // VLANAllocationStatus defines the observed state of VLANAllocation
@@ -58,8 +58,8 @@ type VLANAllocationStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="VLAN-REQ",type="string",JSONPath=".spec.vlanID"
 // +kubebuilder:printcolumn:name="VLAN-ALLOC",type="string",JSONPath=".status.vlanID"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

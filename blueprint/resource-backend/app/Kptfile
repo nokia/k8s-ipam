@@ -1,0 +1,9 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: app
+  namespace: resource-backend
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: resource-backend app

@@ -13,7 +13,7 @@ func (r *proxycache) getClient() (allocpb.AllocationClient, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	if r.allocClient == nil {
-		return nil, fmt.Errorf("ipam server unreachable")
+		return nil, fmt.Errorf("backend server unreachable")
 	}
 	return r.allocClient.Get(), nil
 }
@@ -36,6 +36,7 @@ func (r *proxycache) deleteClient(ctx context.Context) error {
 func (r *proxycache) createClient(ctx context.Context) error {
 	r.m.Lock()
 	defer r.m.Unlock()
+	r.l.Info("create client", "address", fmt.Sprintf("%s:%s", r.svcInfo.Address, strconv.Itoa(r.svcInfo.Port)))
 	ac, err := alloc.New(&alloc.Config{
 		Address:  fmt.Sprintf("%s:%s", r.svcInfo.Address, strconv.Itoa(r.svcInfo.Port)),
 		Insecure: true,

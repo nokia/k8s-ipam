@@ -63,7 +63,7 @@ type IPAllocationSpec struct {
 	CreatePrefix *bool `json:"createPrefix,omitempty" yaml:"createPrefix,omitempty"`
 	// AllocationLabels define the user defined labels and selector labels used
 	// in resource allocation
-	allocv1alpha1.AllocationLabels
+	allocv1alpha1.AllocationLabels `json:",inline" yaml:",inline"`
 }
 
 // IPAllocationStatus defines the observed state of IPAllocation
@@ -88,8 +88,8 @@ type IPAllocationStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.kind=='Synced')].status"
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.kind=='Ready')].status"
+// +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".spec.networkInstance"
 // +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.kind"
 // +kubebuilder:printcolumn:name="AF",type="string",JSONPath=".spec.addressFamily"
@@ -98,7 +98,7 @@ type IPAllocationStatus struct {
 // +kubebuilder:printcolumn:name="PREFIX-ALLOC",type="string",JSONPath=".status.prefix"
 // +kubebuilder:printcolumn:name="GATEWAY",type="string",JSONPath=".status.gateway"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:categories={nephio,ipam}
+// +kubebuilder:resource:categories={nephio,alloc}
 // IPAllocation is the Schema for the ipallocations API
 type IPAllocation struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
