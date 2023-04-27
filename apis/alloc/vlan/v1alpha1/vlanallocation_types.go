@@ -94,7 +94,7 @@ var (
 	VLANAllocationGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: VLANAllocationKind}.String()
 	VLANAllocationKindAPIVersion   = VLANAllocationKind + "." + GroupVersion.String()
 	VLANAllocationGroupVersionKind = GroupVersion.WithKind(VLANAllocationKind)
-	VLANAllocationKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+	VLANAllocationKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    VLANAllocationKind,

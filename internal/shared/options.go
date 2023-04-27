@@ -25,7 +25,7 @@ import (
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/pkg/backend"
-	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -33,7 +33,8 @@ import (
 type Options struct {
 	PorchClient     client.Client
 	Registrator     registrator.Registrator
-	IpamClientProxy clientproxy.Proxy
+	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
+	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	Poll            time.Duration
 	Copts           controller.Options
 	Ipam            backend.Backend[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation, table.Routes]

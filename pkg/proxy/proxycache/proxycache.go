@@ -23,12 +23,16 @@ type ProxyCache interface {
 	// registers a response validator to validate the content of the response
 	// given the proxy cache is content agnostic it needs a helper to execute this task
 	RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn)
+	// CreateIndex creates the cacheindex
+	CreateIndex(ctx context.Context, alloc *allocpb.AllocRequest) error
+	// DeleteIndex removes the cache index
+	DeleteIndex(ctx context.Context, alloc *allocpb.AllocRequest) error
 	// Get returns the allocated prefix
-	Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
+	GetAllocation(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
 	// Allocate -> lookup in local cache based on (ipam, etc) gvknsn
-	Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error)
+	Allocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
 	// DeAllocate removes the cache data
-	DeAllocate(ctx context.Context, alloc *allocpb.Request) error
+	DeAllocate(ctx context.Context, alloc *allocpb.AllocRequest) error
 	// Timer based refresh Config/State Cache
 	// NotifyClient controller though generic event (informer) -> all the For
 }
@@ -69,7 +73,6 @@ type proxycache struct {
 // AddEventChs add the ownerGvk's event channels to the informaer
 func (r *proxycache) AddEventChs(eventChannels map[schema.GroupVersionKind]chan event.GenericEvent) {
 	r.informer = NewInformer(eventChannels)
-
 }
 
 func (r *proxycache) RegisterRefreshRespValidator(key string, fn RefreshRespValidatorFn) {
@@ -137,7 +140,7 @@ func (r *proxycache) Start(ctx context.Context) {
 					if err != nil {
 						r.l.Error(err, "cannot marshal the time during refresh")
 					}
-					req := &allocpb.Request{
+					req := &allocpb.AllocRequest{
 						Header:     allocpbResp.GetHeader(),
 						Spec:       allocpbResp.GetSpec(),
 						ExpiryTime: string(b)}
@@ -190,7 +193,25 @@ func (r *proxycache) Start(ctx context.Context) {
 	}()
 }
 
-func (r *proxycache) Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+func (r *proxycache) CreateIndex(ctx context.Context, alloc *allocpb.AllocRequest) error {
+	allocClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+	_, err = allocClient.CreateIndex(ctx, alloc)
+	return err
+}
+
+func (r *proxycache) DeleteIndex(ctx context.Context, alloc *allocpb.AllocRequest) error {
+	allocClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+	_, err = allocClient.DeleteIndex(ctx, alloc)
+	return err
+}
+
+func (r *proxycache) GetAllocation(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
 	allocClient, err := r.getClient()
 	if err != nil {
 		return nil, err
@@ -203,16 +224,16 @@ func (r *proxycache) Get(ctx context.Context, alloc *allocpb.Request) (*allocpb.
 	return allocResp, err
 }
 
-func (r *proxycache) Allocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+func (r *proxycache) Allocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
 	return r.allocate(ctx, alloc, false)
 }
 
-func (r *proxycache) refreshAllocate(ctx context.Context, alloc *allocpb.Request) (*allocpb.Response, error) {
+func (r *proxycache) refreshAllocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
 	return r.allocate(ctx, alloc, true)
 }
 
 // refresh flag indicates if the allocation is initiated for a refresh
-func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.Request, refresh bool) (*allocpb.Response, error) {
+func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.AllocRequest, refresh bool) (*allocpb.AllocResponse, error) {
 	allocClient, err := r.getClient()
 	if err != nil {
 		return nil, err
@@ -245,7 +266,7 @@ func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.Request, refre
 	return allocResp, err
 }
 
-func (r *proxycache) DeAllocate(ctx context.Context, alloc *allocpb.Request) error {
+func (r *proxycache) DeAllocate(ctx context.Context, alloc *allocpb.AllocRequest) error {
 	allocClient, err := r.getClient()
 	if err != nil {
 		return err
@@ -257,5 +278,4 @@ func (r *proxycache) DeAllocate(ctx context.Context, alloc *allocpb.Request) err
 	// delete the cache only if the DeAllocation is successfull
 	r.cache.Delete(getKey(alloc))
 	return nil
-
 }

@@ -48,8 +48,8 @@ func (r *proxycache) startWatch(ctx context.Context, gvk schema.GroupVersionKind
 		if stream == nil {
 			if stream, err = allocClient.WatchAlloc(ctx, &allocpb.WatchRequest{
 				Header: &allocpb.Header{
-					OwnerGvk: meta.GetAllocPbGVKFromSchemaGVK(gvk),
-					Gvk:      meta.GetAllocPbGVKFromSchemaGVK(ipamv1alpha1.IPAllocationGroupVersionKind), // TODO make it independent
+					OwnerGvk: meta.PointerAllocPBGVK(meta.GetAllocPbGVKFromSchemaGVK(gvk)),
+					Gvk:      meta.PointerAllocPBGVK(meta.GetAllocPbGVKFromSchemaGVK(ipamv1alpha1.IPAllocationGroupVersionKind)), // TODO make it independent
 				}}); err != nil && !errors.Is(err, context.Canceled) {
 				if er, ok := status.FromError(err); ok {
 					switch er.Code() {

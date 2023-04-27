@@ -28,6 +28,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,13 +41,16 @@ import (
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/internal/allochandler"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipam/serverproxy"
+	"github.com/nokia/k8s-ipam/internal/vlanbackend"
+	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/proxy/serverproxy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -57,7 +61,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(porchv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -161,8 +164,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	ipambe, err := ipam.New(mgr.GetClient())
+	if err != nil {
+		setupLog.Error(err, "Cannot add controllers to manager")
+		os.Exit(1)
+	}
+	vlanbe, err := vlanbackend.New(mgr.GetClient())
+	if err != nil {
+		setupLog.Error(err, "Cannot add controllers to manager")
+		os.Exit(1)
+	}
+
 	ipamServerProxy := serverproxy.New(&serverproxy.Config{
-		Ipam: ipam.New(mgr.GetClient()),
+		Backends: map[schema.GroupVersion]backend.Backend{
+			ipamv1alpha1.GroupVersion: ipambe,
+			vlanv1alpha1.GroupVersion: vlanbe,
+		},
 	})
 	ah := allochandler.New(
 		allochandler.WithRoutes(map[string]allochandler.AlloHandler{

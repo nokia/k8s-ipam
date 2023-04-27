@@ -78,10 +78,10 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 	for _, p := range d.Items {
 		// only enqueue if the network-instance matches
 		prefixNiNamespace := "default"
-		if p.GetNetworkInstance().Namespace != "" {
-			prefixNiNamespace = p.GetNetworkInstance().Namespace
+		if p.Spec.NetworkInstance.Namespace != "" {
+			prefixNiNamespace = p.Spec.NetworkInstance.Namespace
 		}
-		if ni.GetName() == p.GetNetworkInstance().Name && ni.GetNamespace() == prefixNiNamespace {
+		if ni.GetName() == p.Spec.NetworkInstance.Name && ni.GetNamespace() == prefixNiNamespace {
 			e.l.Info("event requeue prefix", "name", p.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: p.GetNamespace(),

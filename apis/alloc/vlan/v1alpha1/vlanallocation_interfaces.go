@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -128,5 +129,19 @@ func (r *VLANAllocation) AddOwnerLabelsToCR() {
 	}
 	for k, v := range allocv1alpha1.GetOwnerLabelsFromCR(r) {
 		r.Spec.UserDefinedLabels.Labels[k] = v
+	}
+}
+
+// BuildVLANAllocation returns a VLANAllocation from a client Object a crName and
+// an VLANAllocation Spec/Status
+func BuildVLANAllocation(meta metav1.ObjectMeta, spec VLANAllocationSpec, status VLANAllocationStatus) *VLANAllocation {
+	return &VLANAllocation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			Kind:       VLANAllocationKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
 	}
 }

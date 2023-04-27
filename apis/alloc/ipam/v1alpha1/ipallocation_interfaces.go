@@ -22,6 +22,7 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
+	"github.com/nokia/k8s-ipam/internal/utils/util"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 
 	corev1 "k8s.io/api/core/v1"
@@ -203,7 +204,7 @@ func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
 		Kind:            cr.Spec.Kind,
 		NetworkInstance: cr.Spec.NetworkInstance,
 		Prefix:          &cr.Spec.Prefix,
-		PrefixLength:    pointerUint8(pi.GetPrefixLength().Int()),
+		PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
 		CreatePrefix:    pointer.Bool(true),
 		AllocationLabels: allocv1alpha1.AllocationLabels{
 			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
@@ -240,7 +241,7 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix Pref
 			Namespace: cr.GetNamespace(),
 		},
 		Prefix:       &prefix.Prefix,
-		PrefixLength: pointerUint8(pi.GetPrefixLength().Int()),
+		PrefixLength: util.PointerUint8(pi.GetPrefixLength().Int()),
 		CreatePrefix: pointer.Bool(true),
 		AllocationLabels: allocv1alpha1.AllocationLabels{
 			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
@@ -262,7 +263,7 @@ func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix Pref
 }
 
 // AddSpecLabelsWithTypeMeta returns a map based on the owner GVK/NSN
-func AddSpecLabelsWithTypeMeta(ownerGvk *schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
+func AddSpecLabelsWithTypeMeta(ownerGvk schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
 	labels := map[string]string{
 		allocv1alpha1.NephioOwnerGvkKey:          meta.GVKToString(ownerGvk),
 		allocv1alpha1.NephioOwnerNsnNameKey:      ownerNsn.Name,
@@ -289,9 +290,4 @@ func BuildIPAllocation(meta metav1.ObjectMeta, spec IPAllocationSpec, status IPA
 		Spec:       spec,
 		Status:     status,
 	}
-}
-
-func pointerUint8(i int) *uint8 {
-	x := uint8(i)
-	return &x
 }

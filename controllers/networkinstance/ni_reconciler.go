@@ -37,7 +37,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/pkg/errors"
 )
 
@@ -77,7 +77,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 type reconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
-	IpamClientProxy clientproxy.Proxy
+	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
 
@@ -148,7 +148,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		if !found {
 			// the prefix was deleted from the network instance, so we need to delete it
-			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, allocatedPrefix); err != nil {
+			if err := r.IpamClientProxy.DeAllocate(ctx, cr, allocatedPrefix); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
 					cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Failed(err.Error()))
@@ -161,15 +161,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// if prefixes are provided from the network instance we treat them as
 	// aggregate prefixes.
 	for _, prefix := range cr.Spec.Prefixes {
-		allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, prefix)
+		allocResp, err := r.IpamClientProxy.Allocate(ctx, cr, prefix)
 		if err != nil {
 			r.l.Info("cannot allocate prefix", "err", err)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		if allocResp.Status.AllocatedPrefix != prefix.Prefix {
+		if allocResp.Status.Prefix != &prefix.Prefix {
 			//we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.AllocatedPrefix)
+			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.Prefix)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

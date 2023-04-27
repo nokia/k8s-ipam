@@ -125,7 +125,7 @@ func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
 	ownerGVKValue, ok := cr.GetLabels()[NephioOwnerGvkKey]
 	if !ok {
 		ownerGVK := cr.GetObjectKind().GroupVersionKind()
-		ownerGVKValue = meta.GVKToString(&ownerGVK)
+		ownerGVKValue = meta.GVKToString(ownerGVK)
 	}
 	// if the ownerNSN is in the labels we use this as ownerNSN
 	ownerNSN := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()}
@@ -142,7 +142,7 @@ func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
 		NephioOwnerGvkKey:          ownerGVKValue,
 		NephioOwnerNsnNameKey:      ownerNSN.Name,
 		NephioOwnerNsnNamespaceKey: ownerNSN.Namespace,
-		NephioGvkKey:               meta.GVKToString(&crGVK),
+		NephioGvkKey:               meta.GVKToString(crGVK),
 		NephioNsnNameKey:           cr.GetName(),
 		NephioNsnNamespaceKey:      cr.GetNamespace(),
 	}

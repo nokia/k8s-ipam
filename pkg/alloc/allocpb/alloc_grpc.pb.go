@@ -22,9 +22,13 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AllocationClient interface {
-	Get(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	Allocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	DeAllocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*EmptyResponse, error)
+	// create an index in the cache
+	CreateIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
+	DeleteIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
+	// services within an index in the cache
+	Get(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error)
+	Allocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error)
+	DeAllocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 	WatchAlloc(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Allocation_WatchAllocClient, error)
 }
 
@@ -36,8 +40,26 @@ func NewAllocationClient(cc grpc.ClientConnInterface) AllocationClient {
 	return &allocationClient{cc}
 }
 
-func (c *allocationClient) Get(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
+func (c *allocationClient) CreateIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	out := new(EmptyResponse)
+	err := c.cc.Invoke(ctx, "/alloc.Allocation/CreateIndex", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *allocationClient) DeleteIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	out := new(EmptyResponse)
+	err := c.cc.Invoke(ctx, "/alloc.Allocation/DeleteIndex", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *allocationClient) Get(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error) {
+	out := new(AllocResponse)
 	err := c.cc.Invoke(ctx, "/alloc.Allocation/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -45,8 +67,8 @@ func (c *allocationClient) Get(ctx context.Context, in *Request, opts ...grpc.Ca
 	return out, nil
 }
 
-func (c *allocationClient) Allocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
+func (c *allocationClient) Allocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error) {
+	out := new(AllocResponse)
 	err := c.cc.Invoke(ctx, "/alloc.Allocation/Allocate", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -54,7 +76,7 @@ func (c *allocationClient) Allocate(ctx context.Context, in *Request, opts ...gr
 	return out, nil
 }
 
-func (c *allocationClient) DeAllocate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*EmptyResponse, error) {
+func (c *allocationClient) DeAllocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
 	out := new(EmptyResponse)
 	err := c.cc.Invoke(ctx, "/alloc.Allocation/DeAllocate", in, out, opts...)
 	if err != nil {
@@ -99,9 +121,13 @@ func (x *allocationWatchAllocClient) Recv() (*WatchResponse, error) {
 // All implementations must embed UnimplementedAllocationServer
 // for forward compatibility
 type AllocationServer interface {
-	Get(context.Context, *Request) (*Response, error)
-	Allocate(context.Context, *Request) (*Response, error)
-	DeAllocate(context.Context, *Request) (*EmptyResponse, error)
+	// create an index in the cache
+	CreateIndex(context.Context, *AllocRequest) (*EmptyResponse, error)
+	DeleteIndex(context.Context, *AllocRequest) (*EmptyResponse, error)
+	// services within an index in the cache
+	Get(context.Context, *AllocRequest) (*AllocResponse, error)
+	Allocate(context.Context, *AllocRequest) (*AllocResponse, error)
+	DeAllocate(context.Context, *AllocRequest) (*EmptyResponse, error)
 	WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error
 	mustEmbedUnimplementedAllocationServer()
 }
@@ -110,13 +136,19 @@ type AllocationServer interface {
 type UnimplementedAllocationServer struct {
 }
 
-func (UnimplementedAllocationServer) Get(context.Context, *Request) (*Response, error) {
+func (UnimplementedAllocationServer) CreateIndex(context.Context, *AllocRequest) (*EmptyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateIndex not implemented")
+}
+func (UnimplementedAllocationServer) DeleteIndex(context.Context, *AllocRequest) (*EmptyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteIndex not implemented")
+}
+func (UnimplementedAllocationServer) Get(context.Context, *AllocRequest) (*AllocResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedAllocationServer) Allocate(context.Context, *Request) (*Response, error) {
+func (UnimplementedAllocationServer) Allocate(context.Context, *AllocRequest) (*AllocResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Allocate not implemented")
 }
-func (UnimplementedAllocationServer) DeAllocate(context.Context, *Request) (*EmptyResponse, error) {
+func (UnimplementedAllocationServer) DeAllocate(context.Context, *AllocRequest) (*EmptyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeAllocate not implemented")
 }
 func (UnimplementedAllocationServer) WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error {
@@ -135,8 +167,44 @@ func RegisterAllocationServer(s grpc.ServiceRegistrar, srv AllocationServer) {
 	s.RegisterService(&Allocation_ServiceDesc, srv)
 }
 
+func _Allocation_CreateIndex_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllocRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AllocationServer).CreateIndex(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/alloc.Allocation/CreateIndex",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AllocationServer).CreateIndex(ctx, req.(*AllocRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Allocation_DeleteIndex_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllocRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AllocationServer).DeleteIndex(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/alloc.Allocation/DeleteIndex",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AllocationServer).DeleteIndex(ctx, req.(*AllocRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Allocation_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
+	in := new(AllocRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -148,13 +216,13 @@ func _Allocation_Get_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/alloc.Allocation/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).Get(ctx, req.(*Request))
+		return srv.(AllocationServer).Get(ctx, req.(*AllocRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Allocation_Allocate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
+	in := new(AllocRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -166,13 +234,13 @@ func _Allocation_Allocate_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/alloc.Allocation/Allocate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).Allocate(ctx, req.(*Request))
+		return srv.(AllocationServer).Allocate(ctx, req.(*AllocRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Allocation_DeAllocate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
+	in := new(AllocRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -184,7 +252,7 @@ func _Allocation_DeAllocate_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/alloc.Allocation/DeAllocate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).DeAllocate(ctx, req.(*Request))
+		return srv.(AllocationServer).DeAllocate(ctx, req.(*AllocRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -217,6 +285,14 @@ var Allocation_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "alloc.Allocation",
 	HandlerType: (*AllocationServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateIndex",
+			Handler:    _Allocation_CreateIndex_Handler,
+		},
+		{
+			MethodName: "DeleteIndex",
+			Handler:    _Allocation_DeleteIndex_Handler,
+		},
 		{
 			MethodName: "Get",
 			Handler:    _Allocation_Get_Handler,

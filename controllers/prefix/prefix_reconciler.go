@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-logr/logr"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
@@ -39,7 +39,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/pkg/errors"
 )
 
@@ -89,7 +89,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 type reconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
-	IpamClientProxy clientproxy.Proxy
+	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
 
@@ -118,8 +118,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if meta.WasDeleted(cr) {
 		// if the prefix condition is false it means the prefix was not active in the ipam
 		// we can delete it w/o deleting it from the IPAM
-		if cr.GetCondition(allocv1alpha1.ConditionKindReady).Status == corev1.ConditionTrue {
-			if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
+		if cr.GetCondition(allocv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
+			if err := r.IpamClientProxy.DeAllocate(ctx, cr, nil); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
 					cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
@@ -168,7 +168,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// The spec got changed we check the existing prefix against the status
 	// if there is a difference, we need to delete the prefix
 	if cr.Status.Prefix != "" && cr.Status.Prefix != cr.Spec.Prefix {
-		if err := r.IpamClientProxy.DeAllocateIPPrefix(ctx, cr, nil); err != nil {
+		if err := r.IpamClientProxy.DeAllocate(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
@@ -177,15 +177,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	allocResp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, cr, nil)
+	allocResp, err := r.IpamClientProxy.Allocate(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if allocResp.Status.AllocatedPrefix != cr.Spec.Prefix {
+	if *allocResp.Status.Prefix != cr.Spec.Prefix {
 		//we got a different prefix than requested
-		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", allocResp.Status.AllocatedPrefix)
+		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", allocResp.Status.Prefix)
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}

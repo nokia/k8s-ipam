@@ -88,7 +88,7 @@ var (
 	VLANDatabaseGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: VLANDatabaseKind}.String()
 	VLANDatabaseKindAPIVersion   = VLANDatabaseKind + "." + GroupVersion.String()
 	VLANDatabaseGroupVersionKind = GroupVersion.WithKind(VLANDatabaseKind)
-	VLANDatabaseKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+	VLANDatabaseKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    VLANDatabaseKind,

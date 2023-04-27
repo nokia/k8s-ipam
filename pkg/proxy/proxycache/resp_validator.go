@@ -6,7 +6,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 )
 
-type RefreshRespValidatorFn func(origResp *allocpb.Response, newResp *allocpb.Response) bool
+type RefreshRespValidatorFn func(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool
 
 type ResponseValidator interface {
 	Add(string, RefreshRespValidatorFn)

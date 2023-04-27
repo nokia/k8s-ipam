@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/utils/util"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,7 +71,7 @@ func TestBuildIPAllocationFromNetworkInstancePrefix(t *testing.T) {
 						Namespace: "default",
 					},
 					Prefix:       pointer.String("10.0.0.0/8"),
-					PrefixLength: pointerUint8(8),
+					PrefixLength: util.PointerUint8(8),
 					CreatePrefix: pointer.Bool(true),
 					AllocationLabels: allocv1alpha1.AllocationLabels{
 						UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
@@ -146,7 +147,7 @@ func TestBuildIPAllocationFromIPPrefix(t *testing.T) {
 						Name: "vpc",
 					},
 					Prefix:       pointer.String("10.0.0.3/24"),
-					PrefixLength: pointerUint8(24),
+					PrefixLength: util.PointerUint8(24),
 					CreatePrefix: pointer.Bool(true),
 					AllocationLabels: allocv1alpha1.AllocationLabels{
 						UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
@@ -200,7 +201,7 @@ func TestIsCreatePrefixAllcationValid(t *testing.T) {
 				Spec: IPAllocationSpec{
 					Kind:         PrefixKindNetwork,
 					CreatePrefix: pointer.Bool(true),
-					PrefixLength: pointerUint8(24),
+					PrefixLength: util.PointerUint8(24),
 				},
 			},
 			want:        true,
@@ -230,8 +231,8 @@ func TestIsCreatePrefixAllcationValid(t *testing.T) {
 		"CreateAddress": {
 			o: &IPAllocation{
 				Spec: IPAllocationSpec{
-					Kind:         PrefixKindNetwork,
-					Prefix:       pointer.String("10.0.0.4/32"),
+					Kind:   PrefixKindNetwork,
+					Prefix: pointer.String("10.0.0.4/32"),
 				},
 			},
 			want:        false,
@@ -240,8 +241,8 @@ func TestIsCreatePrefixAllcationValid(t *testing.T) {
 		"CreatePrefixWithoutCreatePrefix": {
 			o: &IPAllocation{
 				Spec: IPAllocationSpec{
-					Kind:         PrefixKindNetwork,
-					Prefix:       pointer.String("10.0.0.4/24"),
+					Kind:   PrefixKindNetwork,
+					Prefix: pointer.String("10.0.0.4/24"),
 				},
 			},
 			want:        false,

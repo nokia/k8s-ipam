@@ -37,7 +37,7 @@ func buildVlanDatabase(name string) *vlanv1alpha1.VLANDatabase {
 			Name:      name,
 		},
 		Spec: vlanv1alpha1.VLANDatabaseSpec{
-			VLANDBKind: "esg",
+			Kind: "esg",
 		},
 	}
 }

@@ -13,15 +13,15 @@ import (
 )
 
 type Cache interface {
-	Get(ObjectKindKey) *allocpb.Response
-	Add(ObjectKindKey, *allocpb.Response)
+	Get(ObjectKindKey) *allocpb.AllocResponse
+	Add(ObjectKindKey, *allocpb.AllocResponse)
 	Delete(ObjectKindKey)
-	ValidateExpiryTime(context.Context) map[ObjectKindKey]*allocpb.Response
+	ValidateExpiryTime(context.Context) map[ObjectKindKey]*allocpb.AllocResponse
 }
 
 func NewCache() Cache {
 	return &cache{
-		c: map[ObjectKindKey]*allocpb.Response{},
+		c: map[ObjectKindKey]*allocpb.AllocResponse{},
 	}
 }
 
@@ -33,11 +33,11 @@ type ObjectKindKey struct {
 
 type cache struct {
 	m sync.RWMutex
-	c map[ObjectKindKey]*allocpb.Response
+	c map[ObjectKindKey]*allocpb.AllocResponse
 	l logr.Logger
 }
 
-func (r *cache) Get(key ObjectKindKey) *allocpb.Response {
+func (r *cache) Get(key ObjectKindKey) *allocpb.AllocResponse {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	if allocRsp, ok := r.c[key]; ok {
@@ -46,7 +46,7 @@ func (r *cache) Get(key ObjectKindKey) *allocpb.Response {
 	return nil
 }
 
-func (r *cache) Add(key ObjectKindKey, allocRsp *allocpb.Response) {
+func (r *cache) Add(key ObjectKindKey, allocRsp *allocpb.AllocResponse) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.c[key] = allocRsp
@@ -58,7 +58,7 @@ func (r *cache) Delete(key ObjectKindKey) {
 	delete(r.c, key)
 }
 
-func getKey(alloc *allocpb.Request) ObjectKindKey {
+func getKey(alloc *allocpb.AllocRequest) ObjectKindKey {
 	return ObjectKindKey{
 		gvk: schema.GroupVersionKind{
 			Group:   alloc.Header.Gvk.Group,
@@ -72,7 +72,7 @@ func getKey(alloc *allocpb.Request) ObjectKindKey {
 	}
 }
 
-func isCacheDataValid(cacheResp *allocpb.Response, allocReq *allocpb.Request) bool {
+func isCacheDataValid(cacheResp *allocpb.AllocResponse, allocReq *allocpb.AllocRequest) bool {
 	if cacheResp.Spec != allocReq.Spec {
 		return false
 	}
@@ -82,11 +82,11 @@ func isCacheDataValid(cacheResp *allocpb.Response, allocReq *allocpb.Request) bo
 	return true
 }
 
-func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*allocpb.Response {
+func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*allocpb.AllocResponse {
 	r.l = log.FromContext(ctx)
 	r.m.RLock()
 	defer r.m.RUnlock()
-	allocsToRefresh := map[ObjectKindKey]*allocpb.Response{}
+	allocsToRefresh := map[ObjectKindKey]*allocpb.AllocResponse{}
 	for key, allocpbResp := range r.c {
 		if allocpbResp.ExpiryTime != "never" && allocpbResp.StatusCode == allocpb.StatusCode_Valid {
 			t, err := time.Parse(time.RFC3339, allocpbResp.ExpiryTime)

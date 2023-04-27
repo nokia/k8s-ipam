@@ -26,12 +26,12 @@ import (
 func TestGVKToString(t *testing.T) {
 	tests := []struct {
 		name string
-		gvk  *schema.GroupVersionKind
+		gvk  schema.GroupVersionKind
 		want string
 	}{
 		{
 			name: "full gvk input",
-			gvk: &schema.GroupVersionKind{
+			gvk: schema.GroupVersionKind{
 				Group:   "1.2.3.4",
 				Version: "v0",
 				Kind:    "a",
@@ -40,12 +40,12 @@ func TestGVKToString(t *testing.T) {
 		},
 		{
 			name: "empty gvk",
-			gvk:  nil,
+			gvk:  schema.GroupVersionKind{},
 			want: emptyGvk,
 		},
 		{
 			name: "empty gvk",
-			gvk: &schema.GroupVersionKind{
+			gvk: schema.GroupVersionKind{
 				Group:   "1.2.3.4",
 				Version: "v0",
 			},
@@ -53,7 +53,7 @@ func TestGVKToString(t *testing.T) {
 		},
 		{
 			name: "empty version",
-			gvk: &schema.GroupVersionKind{
+			gvk: schema.GroupVersionKind{
 				Group: "1.2.3.4",
 				Kind:  "a",
 			},
@@ -61,7 +61,7 @@ func TestGVKToString(t *testing.T) {
 		},
 		{
 			name: "empty group",
-			gvk: &schema.GroupVersionKind{
+			gvk: schema.GroupVersionKind{
 				Kind:    "a",
 				Version: "v0",
 			},
@@ -69,7 +69,7 @@ func TestGVKToString(t *testing.T) {
 		},
 		{
 			name: "empty group and version",
-			gvk: &schema.GroupVersionKind{
+			gvk: schema.GroupVersionKind{
 				Kind: "a",
 			},
 			want: "a",
@@ -217,8 +217,8 @@ func TestGetGVKFromAPIVersionKind(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetGVKFromAPIVersionKind(tt.input[0], tt.input[1]); *got != *tt.want {
-				t.Errorf("GetGVKFromAPIVersionKind() = %v, want %v", *got, *tt.want)
+			if got := GetGVKFromAPIVersionKind(tt.input[0], tt.input[1]); got != *tt.want {
+				t.Errorf("GetGVKFromAPIVersionKind() = %v, want %v", got, *tt.want)
 			}
 		})
 	}
@@ -245,7 +245,7 @@ func TestGetGVKFromObject(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetGVKFromObject(tt.input); *got != *tt.want {
+			if got := GetGVKFromObject(tt.input); got != *tt.want {
 				t.Errorf("GVKToString() = %v, want %v", got, tt.want)
 			}
 		})

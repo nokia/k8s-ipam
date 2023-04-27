@@ -126,7 +126,7 @@ var (
 	IPAllocationGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: IPAllocationKind}.String()
 	IPAllocationKindAPIVersion   = IPAllocationKind + "." + GroupVersion.String()
 	IPAllocationGroupVersionKind = GroupVersion.WithKind(IPAllocationKind)
-	IPAllocationKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+	IPAllocationKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    IPAllocationKind,

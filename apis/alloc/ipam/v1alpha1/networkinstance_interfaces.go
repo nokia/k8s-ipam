@@ -49,7 +49,11 @@ func (r *NetworkInstance) GetNamespacedName() types.NamespacedName {
 // with a predefined name (aggregate) and a prefix, compliant to the naming
 // convention of k8s
 func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string {
-	return fmt.Sprintf("%s-%s-%s", r.GetName(), "aggregate", strings.ReplaceAll(prefix, "/", "-"))
+	return GetNameFromNetworkInstancePrefix(r.GetName(), prefix)
+}
+
+func GetNameFromNetworkInstancePrefix(name, prefix string) string {
+	return fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
 }
 
 // GetGenericNamespacedName return a namespace and name

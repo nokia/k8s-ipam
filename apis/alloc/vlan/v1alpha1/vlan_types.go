@@ -21,12 +21,18 @@ import (
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // VLANSpec defines the desired state of VLAN
 type VLANSpec struct {
+	// VLANDatabases defines the vlan database contexts for the VLAN Allocation
+	// For Local vlan allocation a single vlan database is required,
+	// For global vlan allocations all vlan databases from which
+	// this vlan must be alloctaed must be specified
+	VLANDatabases []corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
 	// VLANID defines the VLAN ID
 	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines a range of vlans
@@ -85,7 +91,7 @@ var (
 	VLANGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: VLANKind}.String()
 	VLANKindAPIVersion   = VLANKind + "." + GroupVersion.String()
 	VLANGroupVersionKind = GroupVersion.WithKind(VLANKind)
-	VLANKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+	VLANKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    VLANKind,

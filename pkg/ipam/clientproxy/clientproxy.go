@@ -1,10 +1,10 @@
 package clientproxy
 
+/*
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -14,6 +14,7 @@ import (
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxycache"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,24 +23,24 @@ import (
 
 type Proxy interface {
 	AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent)
-	//GetProxyCache() proxycache.ProxyCache
 	// Create creates the network instance in the ipam
 	Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	// Delete deletes the network instance in the ipam
 	Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
-	// Get returns the allocated prefix
+	// Get returns the allocated resource
 	Get(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
-	// AllocateIPPrefix allocates an ip prefix
-	AllocateIPPrefix(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
-	// DeAllocateIPPrefix
-	DeAllocateIPPrefix(ctx context.Context, cr client.Object, d any) error
+	// Allocate allocates a resource
+	Allocate(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error)
+	// DeAllocate deallocates a resource
+	DeAllocate(ctx context.Context, cr client.Object, d any) error
 }
 
 type Config struct {
 	Registrator registrator.Registrator
+	Group string // Group of GVK for event handling
 }
 
-func New(ctx context.Context, c *Config) Proxy {
+func New(ctx context.Context, c Config) Proxy {
 	l := ctrl.Log.WithName("ipam-client-proxy")
 
 	pc := proxycache.New(&proxycache.Config{
@@ -49,7 +50,9 @@ func New(ctx context.Context, c *Config) Proxy {
 		pc: pc,
 		l:  l,
 	}
-	pc.RegisterRefreshRespValidator(ipamv1alpha1.GroupVersion.Group, cp.ValidateIpamResponse)
+	// this is a helper to validate the response since the proxy is content unaware. It understands
+	// KRM but nothing else
+	pc.RegisterRefreshRespValidator(c.Group, cp.ValidateIpamResponse)
 	pc.Start(ctx)
 	return cp
 }
@@ -109,10 +112,9 @@ func (r *clientproxy) Get(ctx context.Context, o client.Object, d any) (*ipamv1a
 	}
 	r.l.Info("allocate prefix done", "result", ipAlloc.Status)
 	return ipAlloc, nil
-
 }
 
-func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
+func (r *clientproxy) Allocate(ctx context.Context, o client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
 	r.l.Info("allocate prefix", "cr", o)
 	// normalizes the input to the proxycache generalized allocation
 	req, err := NormalizeKRMToProxyCacheAllocation(o, d)
@@ -133,7 +135,7 @@ func (r *clientproxy) AllocateIPPrefix(ctx context.Context, o client.Object, d a
 	return ipAlloc, nil
 }
 
-func (r *clientproxy) DeAllocateIPPrefix(ctx context.Context, o client.Object, d any) error {
+func (r *clientproxy) DeAllocate(ctx context.Context, o client.Object, d any) error {
 	// normalizes the input to the proxycache generalized allocation
 	req, err := NormalizeKRMToProxyCacheAllocation(o, d)
 	if err != nil {
@@ -167,7 +169,7 @@ func NormalizeKRMToProxyCacheAllocation(o client.Object, d any) (*allocpb.Reques
 		if !ok {
 			return nil, fmt.Errorf("unexpected error casting object to NetworkInstance failed")
 		}
-		ipPrefix, ok := d.(*ipamv1alpha1.Prefix)
+		ipPrefix, ok := d.(ipamv1alpha1.Prefix)
 		if !ok {
 			return nil, fmt.Errorf("unexpected error casting object to Ip Prefix failed")
 		}
@@ -186,17 +188,17 @@ func BuildAllocationFromIPPrefix(cr *ipamv1alpha1.IPPrefix) (*allocpb.Request, e
 		return nil, err
 	}
 
-	return buildAllocPb(cr, cr.GetName(), string(b), "never", getIPAllocGVK(), ownerGvk), nil
+	return buildAllocPb(cr, cr.GetName(), string(b), "never", ipamv1alpha1.IPAllocationGroupVersionKind, ownerGvk), nil
 }
 
-func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix *ipamv1alpha1.Prefix) (*allocpb.Request, error) {
+func BuildAllocationFromNetworkInstancePrefix(cr *ipamv1alpha1.NetworkInstance, prefix ipamv1alpha1.Prefix) (*allocpb.Request, error) {
 	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
 	ipalloc := ipamv1alpha1.BuildIPAllocationFromNetworkInstancePrefix(cr, prefix)
 	b, err := json.Marshal(ipalloc)
 	if err != nil {
 		return nil, err
 	}
-	return buildAllocPb(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), string(b), "never", getIPAllocGVK(), ownerGvk), nil
+	return buildAllocPb(cr, cr.GetNameFromNetworkInstancePrefix(prefix.Prefix), string(b), "never", ipamv1alpha1.IPAllocationGroupVersionKind, ownerGvk), nil
 }
 
 func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime string) (*allocpb.Request, error) {
@@ -207,25 +209,18 @@ func BuildAllocationFromIPAllocation(cr *ipamv1alpha1.IPAllocation, expiryTime s
 	if ok {
 		ownerGvk = meta.StringToGVK(ownerGVKValue)
 	}
-	newCr := ipamv1alpha1.BuildIPAllocationFromIPAllocation(cr)
+	newCr := cr.DeepCopy()
+	newCr.AddOwnerLabelsToCR()
 
-	ipalloc := ipamv1alpha1.BuildIPAllocation(cr, cr.GetName(), newCr.Spec, ipamv1alpha1.IPAllocationStatus{AllocatedPrefix: cr.Status.AllocatedPrefix})
+	ipalloc := ipamv1alpha1.BuildIPAllocation(metav1.ObjectMeta{}, newCr.Spec, ipamv1alpha1.IPAllocationStatus{Prefix: cr.Status.Prefix})
 	b, err := json.Marshal(ipalloc)
 	if err != nil {
 		return nil, err
 	}
-	return buildAllocPb(cr, cr.GetName(), string(b), expiryTime, getIPAllocGVK(), ownerGvk), nil
+	return buildAllocPb(cr, cr.GetName(), string(b), expiryTime, ipamv1alpha1.IPAllocationGroupVersionKind, ownerGvk), nil
 }
 
-func getIPAllocGVK() *schema.GroupVersionKind {
-	return &schema.GroupVersionKind{
-		Group:   ipamv1alpha1.GroupVersion.Group,
-		Version: ipamv1alpha1.GroupVersion.Version,
-		Kind:    ipamv1alpha1.IPAllocationKind,
-	}
-}
-
-func buildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk, ownerGvk *schema.GroupVersionKind) *allocpb.Request {
+func buildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk, ownerGvk schema.GroupVersionKind) *allocpb.Request {
 	return &allocpb.Request{
 		Header: &allocpb.Header{
 			Gvk: &allocpb.GVK{
@@ -252,10 +247,6 @@ func buildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk, ow
 	}
 }
 
-func GetNameFromNetworkInstancePrefix(name, prefix string) string {
-	return fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
-}
-
 func (r *clientproxy) ValidateIpamResponse(origResp *allocpb.Response, newResp *allocpb.Response) bool {
 	origAlloc := &ipamv1alpha1.IPAllocation{}
 	if err := json.Unmarshal([]byte(origResp.Status), origAlloc); err != nil {
@@ -266,15 +257,16 @@ func (r *clientproxy) ValidateIpamResponse(origResp *allocpb.Response, newResp *
 		return false
 	}
 	r.l.Info("validate ipam response",
-		"orig allocatedPrefix", origAlloc.Status.AllocatedPrefix,
-		"new allocatedPrefix", newAlloc.Status.AllocatedPrefix,
+		"orig allocatedPrefix", origAlloc.Status.Prefix,
+		"new allocatedPrefix", newAlloc.Status.Prefix,
 		"orig gateway", origAlloc.Status.Gateway,
 		"new gateway", newAlloc.Status.Gateway,
 	)
-	if origAlloc.Status.AllocatedPrefix != newAlloc.Status.AllocatedPrefix ||
+	if origAlloc.Status.Prefix != newAlloc.Status.Prefix ||
 		origAlloc.Status.Gateway != newAlloc.Status.Gateway {
 		return false
 	}
 	return true
 
 }
+*/

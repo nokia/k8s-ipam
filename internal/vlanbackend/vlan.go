@@ -172,5 +172,5 @@ func (r *be) DeAllocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) err
 		return err
 	}
 
-	return r.store.Get().SaveAll(ctx, *a.Spec.VLANDatabases[0])
+	return r.store.Get().SaveAll(ctx, a.Spec.VLANDatabases[0])
 }

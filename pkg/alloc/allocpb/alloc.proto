@@ -22,9 +22,13 @@ package alloc;
 option go_package = "github.com/nephio-project/ipam/pkg/alloc/allocpb";
 
 service Allocation {
-  rpc Get (Request) returns (Response) {}
-  rpc Allocate (Request) returns (Response) {}
-  rpc DeAllocate (Request) returns (EmptyResponse) {}
+  // create an index in the cache
+  rpc CreateIndex (AllocRequest) returns (EmptyResponse) {}
+  rpc DeleteIndex (AllocRequest) returns (EmptyResponse) {}
+  // services within an index in the cache
+  rpc Get (AllocRequest) returns (AllocResponse) {}
+  rpc Allocate (AllocRequest) returns (AllocResponse) {}
+  rpc DeAllocate (AllocRequest) returns (EmptyResponse) {}
   rpc WatchAlloc (WatchRequest) returns (stream WatchResponse) {}
 }
 
@@ -32,7 +36,7 @@ message Instance {
   NSN nsn = 1;
 }
 
-message Request {
+message AllocRequest {
   Header header = 1;
   string spec = 2;
   string expiryTime = 3;
@@ -40,7 +44,7 @@ message Request {
 
 message EmptyResponse{}
 
-message Response {
+message AllocResponse {
   Header header = 1;
   string spec = 2;
   string status = 3;

@@ -18,25 +18,23 @@ package backend
 
 import (
 	"context"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Backend[T1 client.Object, T2, T3 any] interface {
-	// Create and initialize a backend Instance db
-	Create(ctx context.Context, cr T1) error
-	// Delete the backend instance db
-	Delete(ctx context.Context, cr T1) error
-	// List the data from the backend instance db
-	List(ctx context.Context, cr T1) (T3, error)
-	// Add a dynamic watch with callback to the backend db
+type Backend interface {
+	// CreateIndex creates a backend index
+	CreateIndex(ctx context.Context, cr []byte) error
+	// DeleteIndex deletes a backend index
+	DeleteIndex(ctx context.Context, cr []byte) error
+	// List the data from the backend index
+	List(ctx context.Context, cr []byte) ([]byte, error)
+	// Add a dynamic watch with callback to the backend index
 	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
-	// Delete a dynamic watch with callback to the backend db
+	// Delete a dynamic watch with callback deom the backend index
 	DeleteWatch(ownerGvkKey, ownerGvk string)
-	//GetAllocatedPrefix return the requested allocated prefix
-	Get(ctx context.Context, cr T2) (T2, error)
-	// Allocate allocates an intry in the backend db
-	Allocate(ctx context.Context, cr T2) (T2, error)
-	// DeAllocateIPPrefix deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-	DeAllocate(ctx context.Context, cr T2) error
+	//GetAllocation return the allocation if it exists
+	GetAllocation(ctx context.Context, cr []byte) ([]byte, error)
+	// Allocate allocates an entry in the backend index
+	Allocate(ctx context.Context, cr []byte) ([]byte, error)
+	// DeAllocate deallocates an entry in the backend index
+	DeAllocate(ctx context.Context, cr []byte) error
 }

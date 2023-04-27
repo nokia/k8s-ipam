@@ -99,7 +99,7 @@ var (
 	IPPrefixGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: IPPrefixKind}.String()
 	IPPrefixKindAPIVersion   = IPPrefixKind + "." + GroupVersion.String()
 	IPPrefixGroupVersionKind = GroupVersion.WithKind(IPPrefixKind)
-	IPPrefixKindGVKString    = meta.GVKToString(&schema.GroupVersionKind{
+	IPPrefixKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
 		Kind:    IPPrefixKind,

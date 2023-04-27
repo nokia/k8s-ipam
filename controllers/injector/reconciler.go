@@ -27,16 +27,19 @@ import (
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
+	"github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/ipam/clientproxy"
+	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -87,7 +90,7 @@ type reconciler struct {
 	kind string
 	client.Client
 	porchClient     client.Client
-	IpamClientProxy clientproxy.Proxy
+	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	Scheme          *runtime.Scheme
 	pollInterval    time.Duration
 	finalizer       *resource.APIFinalizer
@@ -248,7 +251,7 @@ func (r *reconciler) injectAllocatedIPs(
 				return prResources, pkgBuf, fmt.Errorf("cannot convert ip allocation to a typed spec: %s", rn.GetName())
 			}
 
-			resp, err := r.IpamClientProxy.AllocateIPPrefix(ctx, ipAlloc, nil)
+			resp, err := r.IpamClientProxy.Allocate(ctx, ipAlloc, nil)
 			if err != nil {
 				r.l.Error(err, "grpc ipam allocation request error", "ipAlloc", ipAlloc)
 				return prResources, pkgBuf, errors.Wrap(err, "cannot allocate ip")
@@ -360,22 +363,24 @@ func (r *IpamAllocation) GetSpec() (*ipamv1alpha1.IPAllocationSpec, error) {
 	networkInstanceRef := spec.GetMap("networkInstanceRef")
 
 	creatPrefix := false
-	prefixLength := uint8(spec.GetInt("prefixLength"))
+	prefixLength := int(spec.GetInt("prefixLength"))
 	if prefixLength > 0 {
 		creatPrefix = true
 	}
 
 	ipAllocSpec := &ipamv1alpha1.IPAllocationSpec{
 		Kind: ipamv1alpha1.PrefixKind(spec.GetString("kind")),
-		NetworkInstance: &corev1.ObjectReference{
+		NetworkInstance: corev1.ObjectReference{
 			Namespace: networkInstanceRef.GetString("namespace"),
 			Name:      networkInstanceRef.GetString("name"),
 		},
-		Prefix:       spec.GetString("prefix"),
-		PrefixLength: prefixLength,
-		CreatePrefix: creatPrefix,
-		Selector: &metav1.LabelSelector{
-			MatchLabels: selectorLabels,
+		Prefix:       pointer.String(spec.GetString("prefix")),
+		PrefixLength: util.PointerUint8(prefixLength),
+		CreatePrefix: pointer.Bool(creatPrefix),
+		AllocationLabels: v1alpha1.AllocationLabels{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			},
 		},
 	}
 
@@ -398,7 +403,7 @@ func GetUpdatedAllocation(resp *ipamv1alpha1.IPAllocation, prefixKind ipamv1alph
 	// update prefix status with the allocated prefix
 	ipAlloc := &ipamv1alpha1.IPAllocation{
 		Status: ipamv1alpha1.IPAllocationStatus{
-			AllocatedPrefix: resp.Status.AllocatedPrefix,
+			Prefix: resp.Status.Prefix,
 		},
 	}
 

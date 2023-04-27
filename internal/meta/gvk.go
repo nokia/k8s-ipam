@@ -29,11 +29,7 @@ const (
 	emptyKind = "empty kind in gvk"
 )
 
-func GVKToString(gvk *schema.GroupVersionKind) string {
-	if gvk == nil {
-		return emptyGvk
-	}
-
+func GVKToString(gvk schema.GroupVersionKind) string {
 	if gvk.Kind == "" {
 		return emptyKind
 	}
@@ -49,11 +45,7 @@ func GVKToString(gvk *schema.GroupVersionKind) string {
 
 }
 
-func AllocPbGVKTostring(gvk *allocpb.GVK) string {
-	if gvk == nil {
-		return emptyGvk
-	}
-
+func AllocPbGVKTostring(gvk allocpb.GVK) string {
 	if gvk.Kind == "" {
 		return emptyKind
 	}
@@ -85,9 +77,9 @@ func StringToGVK(s string) schema.GroupVersionKind {
 	}
 }
 
-func StringToAllocPbGVK(s string) *allocpb.GVK {
+func StringToAllocPbGVK(s string) allocpb.GVK {
 	group, version, kind := StringToGroupVersionKind(s)
-	return &allocpb.GVK{
+	return allocpb.GVK{
 		Group:   group,
 		Version: version,
 		Kind:    kind,
@@ -102,23 +94,23 @@ func apiVersionToGroupVersion(apiVersion string) (string, string) {
 	return "", apiVersion
 }
 
-func GetGVKFromAPIVersionKind(apiVersion, kind string) *schema.GroupVersionKind {
+func GetGVKFromAPIVersionKind(apiVersion, kind string) schema.GroupVersionKind {
 	ownerGroup, ownerVersion := apiVersionToGroupVersion(apiVersion)
 
-	return &schema.GroupVersionKind{
+	return schema.GroupVersionKind{
 		Group: ownerGroup, Version: ownerVersion, Kind: kind}
 }
 
-func GetGVKFromObject(o client.Object) *schema.GroupVersionKind {
-	return &schema.GroupVersionKind{
+func GetGVKFromObject(o client.Object) schema.GroupVersionKind {
+	return schema.GroupVersionKind{
 		Group:   o.GetObjectKind().GroupVersionKind().Group,
 		Version: o.GetObjectKind().GroupVersionKind().Version,
 		Kind:    o.GetObjectKind().GroupVersionKind().Kind,
 	}
 }
 
-func GetAllocPbGVKFromSchemaGVK(gvk schema.GroupVersionKind) *allocpb.GVK {
-	return &allocpb.GVK{
+func GetAllocPbGVKFromSchemaGVK(gvk schema.GroupVersionKind) allocpb.GVK {
+	return allocpb.GVK{
 		Group:   gvk.Group,
 		Version: gvk.Version,
 		Kind:    gvk.Kind,
@@ -131,4 +123,12 @@ func GetSchemaGVKFromAllocPbGVK(gvk *allocpb.GVK) schema.GroupVersionKind {
 		Version: gvk.Version,
 		Kind:    gvk.Kind,
 	}
+}
+
+func PointerGVK(gvk schema.GroupVersionKind) *schema.GroupVersionKind {
+	return &gvk
+}
+
+func PointerAllocPBGVK(gvk allocpb.GVK) *allocpb.GVK {
+	return &gvk
 }
