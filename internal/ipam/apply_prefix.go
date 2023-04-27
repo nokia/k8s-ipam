@@ -46,14 +46,14 @@ type applicator struct {
 }
 
 func (r *applicator) ApplyPrefix(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.GetPrefixKind(), "prefix", r.pi.GetIPPrefix().String(), "createPrefix", r.alloc.GetCreatePrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.Spec.Kind, "prefix", r.pi.GetIPPrefix().String(), "createPrefix", r.alloc.Spec.CreatePrefix)
 	r.l.Info("prefix allocation")
 
 	// get route
 	var route table.Route
 	var ok bool
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		if !r.alloc.GetCreatePrefix() {
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.alloc.Spec.CreatePrefix == nil {
 			route, ok = r.rib.Get(r.pi.GetIPAddressPrefix())
 		} else {
 			route, ok = r.rib.Get(r.pi.GetIPSubnet())

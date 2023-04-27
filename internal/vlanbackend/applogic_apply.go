@@ -5,6 +5,8 @@ import (
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
+	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"k8s.io/utils/pointer"
 )
 
 func applyHandlerDynamicVlan(entries db.Entries[uint16], alloc *vlanv1alpha1.VLANAllocation) error {
@@ -12,7 +14,7 @@ func applyHandlerDynamicVlan(entries db.Entries[uint16], alloc *vlanv1alpha1.VLA
 		return fmt.Errorf("allocate for single entry returned multiple: %v", entries)
 	}
 	// update the status
-	alloc.Status.AllocatedVlanID = entries[0].ID()
+	alloc.Status.VLANID = util.PointerUint16(entries[0].ID())
 	return nil
 }
 
@@ -21,8 +23,8 @@ func applyHandlerStaticVlan(entries db.Entries[uint16], alloc *vlanv1alpha1.VLAN
 		return fmt.Errorf("allocate for single entry returned multiple: %v", entries)
 	}
 	// update the status
-	if alloc.Spec.VLANID == entries[0].ID() {
-		alloc.Status.AllocatedVlanID = entries[0].ID()
+	if *alloc.Status.VLANID == entries[0].ID() {
+		alloc.Status.VLANID = util.PointerUint16(entries[0].ID())
 	} else {
 		return fmt.Errorf("vlan allocated with a different vlan ID")
 	}
@@ -40,9 +42,9 @@ func applyHandlerNewDynamicVlan(table db.DB[uint16], vctx *vlanv1alpha1.VLANAllo
 	if err != nil {
 		return err
 	}
-	alloc.Status.AllocatedVlanID = e.ID()
+	alloc.Status.VLANID = util.PointerUint16(e.ID())
 
-	e = db.NewEntry(e.ID(), alloc.GetSpecLabels())
+	e = db.NewEntry(e.ID(), alloc.GetUserDefinedLabels())
 	if err := table.Set(e); err != nil {
 		return err
 	}
@@ -54,7 +56,7 @@ func applyHandlerNewStaticVlan(table db.DB[uint16], vctx *vlanv1alpha1.VLANAlloc
 	if err != nil {
 		return err
 	}
-	alloc.Status.AllocatedVlanID = e.ID()
+	alloc.Status.VLANID = util.PointerUint16(e.ID())
 	return nil
 }
 
@@ -63,7 +65,7 @@ func applyHandlerNewVlanRange(table db.DB[uint16], vctx *vlanv1alpha1.VLANAlloca
 	if err != nil {
 		return err
 	}
-	alloc.Status.AllocatedVlanRange = fmt.Sprintf("%d:%d", vctx.Start, vctx.Start+vctx.Size-1)
+	alloc.Status.VLANRange = pointer.String(fmt.Sprintf("%d:%d", vctx.Start, vctx.Start+vctx.Size-1))
 	return nil
 }
 
@@ -72,6 +74,6 @@ func applyHandlerNewVlanSize(table db.DB[uint16], vctx *vlanv1alpha1.VLANAllocat
 	if err != nil {
 		return err
 	}
-	alloc.Status.AllocatedVlanRange = "TBD update status "
+	alloc.Status.VLANRange = pointer.String("TBD update status ")
 	return nil
 }

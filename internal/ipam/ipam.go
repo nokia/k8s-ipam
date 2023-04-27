@@ -18,6 +18,7 @@ package ipam
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -29,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func New(c client.Client) (backend.Backend[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation, table.Routes], error) {
+func New(c client.Client) (backend.Backend, error) {
 	//ipamRib := newIpamRib()
 	cache := backend.NewCache[*table.RIB]()
 	watcher := newWatcher()
@@ -71,8 +72,12 @@ func (r *be) DeleteWatch(ownerGvkKey, ownerGvk string) {
 	r.watcher.deleteWatch(ownerGvkKey, ownerGvk)
 }
 
-// Create the cache instance and/or restore the cache instance
-func (r *be) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+// CreateIndex creates the instance from the cache
+func (r *be) CreateIndex(ctx context.Context, b []byte) error {
+	cr := &ipamv1alpha1.NetworkInstance{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
@@ -92,8 +97,12 @@ func (r *be) Create(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	return nil
 }
 
-// Delete the cache instance
-func (r *be) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error {
+// DeleteIndex deletes the index from the cache
+func (r *be) DeleteIndex(ctx context.Context, b []byte) error {
+	cr := &ipamv1alpha1.NetworkInstance{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
@@ -109,7 +118,11 @@ func (r *be) Delete(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error
 	return nil
 }
 
-func (r *be) List(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) (table.Routes, error) {
+func (r *be) List(ctx context.Context, b []byte) (any, error) {
+	cr := &ipamv1alpha1.NetworkInstance{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
@@ -121,17 +134,21 @@ func (r *be) List(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) (table.
 	return rib.GetTable(), nil
 }
 
-// List entries in the cache instance
-func (r *be) Get(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
-	r.l.Info("get allocated entry", "selectors", a.GetSelectorLabels())
+func (r *be) GetAllocation(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
+
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	r.l.Info("get allocated entry", "selectors", cr.GetSelectorLabels())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(a, false)
+	op, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		return nil, err
 	}
@@ -140,21 +157,25 @@ func (r *be) Get(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv1alph
 		return nil, err
 	}
 	r.l.Info("get allocated entry done", "allocatedPrefix", allocatedPrefix)
-	return allocatedPrefix, nil
-
+	return json.Marshal(allocatedPrefix)
 }
 
-// AllocateIPPrefix allocates the prefix
-func (r *be) Allocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
-	r.l.Info("allocate entry", "prefix", a.GetPrefix())
+// Allocate allocates the prefix
+func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
+
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	r.l.Info("allocate entry", "prefix", cr.Spec.Prefix)
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	op, err := r.runtimes.Get(a, false)
+	op, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		return nil, err
 	}
@@ -167,24 +188,32 @@ func (r *be) Allocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) (*ipamv
 		r.l.Error(fmt.Errorf("%s", msg), "validation failed")
 		return nil, fmt.Errorf("validated failed: %s", msg)
 	}
-	updatedAlloc, err := op.Apply(ctx)
+	cr, err = op.Apply(ctx)
 	if err != nil {
 		return nil, err
 	}
-	r.l.Info("allocate prefix done", "updatedAlloc", updatedAlloc)
+	r.l.Info("allocate prefix done", "updatedAlloc", cr)
 	//return updatedAlloc, r.updateConfigMap(ctx, alloc)
-	return updatedAlloc, r.store.Get().SaveAll(ctx, a.GetNetworkInstance())
+	if err := r.store.Get().SaveAll(ctx, cr.Spec.NetworkInstance); err != nil {
+		return nil, err
+	}
+	return json.Marshal(cr)
 }
 
-func (r *be) DeAllocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) error {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+func (r *be) DeAllocate(ctx context.Context, b []byte) error {
+	cr := &ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
+
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
 	// initialized with alloc, rib and prefix if present
-	rt, err := r.runtimes.Get(a, false)
+	rt, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		r.l.Error(err, "cannot get runtime")
 		return err
@@ -194,5 +223,5 @@ func (r *be) DeAllocate(ctx context.Context, a *ipamv1alpha1.IPAllocation) error
 		r.l.Error(err, "cannot deallocate prefix")
 		return err
 	}
-	return r.store.Get().SaveAll(ctx, a.GetNetworkInstance())
+	return r.store.Get().SaveAll(ctx, cr.Spec.NetworkInstance)
 }

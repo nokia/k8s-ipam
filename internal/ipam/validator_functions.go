@@ -27,44 +27,44 @@ import (
 
 func validateInput(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 	if pi == nil {
-		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate {
-			return fmt.Sprintf("a dynamic prefix allocation is not supported for: %s", alloc.GetPrefixKind())
+		if alloc.Spec.Kind == ipamv1alpha1.PrefixKindAggregate {
+			return fmt.Sprintf("a dynamic prefix allocation is not supported for: %s", alloc.Spec.Kind)
 		}
 		// this is an allocation w/o a prefix
-		if alloc.GetCreatePrefix() {
+		if alloc.Spec.CreatePrefix != nil {
 			// this is request for a dynamic prefix allocation
 			// based on prefixlength set by the user, the prefix length has to be specified
-			if alloc.GetPrefixLengthFromSpec() == 0 {
+			if alloc.Spec.PrefixLength == nil {
 				return "a dynamic prefix allocation w/o a prefix length need a prefix length to be set"
 			}
 			return ""
 		}
-		if alloc.GetPrefixLengthFromSpec() != 0 {
-			return fmt.Sprintf("a dynamic prefix allocation with prefixlength <> 0 need to set create prefix, got: %d", alloc.GetPrefixLengthFromSpec())
+		if alloc.Spec.PrefixLength != nil {
+			return fmt.Sprintf("a dynamic prefix allocation with prefixlength <> 0 need to set create prefix, got: %d", alloc.Spec.PrefixLength)
 		}
-		if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate ||
-			alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
-			return fmt.Sprintf("a dynamic allocation of kind %s is not supported unless prefixlength and create prefix is set", alloc.GetPrefixKind())
+		if alloc.Spec.Kind == ipamv1alpha1.PrefixKindAggregate ||
+			alloc.Spec.Kind == ipamv1alpha1.PrefixKindPool {
+			return fmt.Sprintf("a dynamic allocation of kind %s is not supported unless prefixlength and create prefix is set", alloc.Spec.Kind)
 		}
 		return ""
 	}
 	// validate generic prefix handling
 	// validate address based prefix if prefix has a notation of /32 or /128
-	if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindAggregate ||
-		alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+	if alloc.Spec.Kind == ipamv1alpha1.PrefixKindAggregate ||
+		alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 		if pi.IsAddressPrefix() {
-			return fmt.Sprintf("a prefix allocation for kind %s is not allowed with /32 or /128 notation", alloc.GetPrefixKind())
+			return fmt.Sprintf("a prefix allocation for kind %s is not allowed with /32 or /128 notation", alloc.Spec.Kind)
 		}
 	}
 
 	// validation check net <> address
-	if alloc.GetPrefixKind() != ipamv1alpha1.PrefixKindNetwork {
+	if alloc.Spec.Kind != ipamv1alpha1.PrefixKindNetwork {
 		if pi.GetIPSubnet().String() != pi.GetIPPrefix().String() {
-			return fmt.Sprintf("net <> address is not allowed for prefixkind: %s", alloc.GetPrefixKind())
+			return fmt.Sprintf("net <> address is not allowed for prefixkind: %s", alloc.Spec.Kind)
 		}
 	}
 
-	if alloc.GetCreatePrefix() {
+	if alloc.Spec.CreatePrefix != nil {
 		if pi.IsAddressPrefix() {
 			// a create prefix should have an address different from /32 or /128
 			return fmt.Sprintf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
@@ -75,11 +75,11 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 }
 
 func validatePrefixOwner(route table.Route, alloc *ipamv1alpha1.IPAllocation) string {
-	if route.Labels()[allocv1alpha1.NephioNsnNamespaceKey] != alloc.GetSpecLabels()[allocv1alpha1.NephioNsnNamespaceKey] ||
-		route.Labels()[allocv1alpha1.NephioNsnNameKey] != alloc.GetSpecLabels()[allocv1alpha1.NephioNsnNameKey] ||
-		route.Labels()[allocv1alpha1.NephioOwnerNsnNamespaceKey] != alloc.GetSpecLabels()[allocv1alpha1.NephioOwnerNsnNamespaceKey] ||
-		route.Labels()[allocv1alpha1.NephioOwnerNsnNameKey] != alloc.GetSpecLabels()[allocv1alpha1.NephioOwnerNsnNameKey] ||
-		route.Labels()[allocv1alpha1.NephioOwnerGvkKey] != alloc.GetSpecLabels()[allocv1alpha1.NephioOwnerGvkKey] {
+	if route.Labels()[allocv1alpha1.NephioNsnNamespaceKey] != alloc.GetUserDefinedLabels()[allocv1alpha1.NephioNsnNamespaceKey] ||
+		route.Labels()[allocv1alpha1.NephioNsnNameKey] != alloc.GetUserDefinedLabels()[allocv1alpha1.NephioNsnNameKey] ||
+		route.Labels()[allocv1alpha1.NephioOwnerNsnNamespaceKey] != alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerNsnNamespaceKey] ||
+		route.Labels()[allocv1alpha1.NephioOwnerNsnNameKey] != alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerNsnNameKey] ||
+		route.Labels()[allocv1alpha1.NephioOwnerGvkKey] != alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerGvkKey] {
 		return fmt.Sprintf("%s by owner gvk %s, owner nsn %s/%s with nsn %s/%s",
 			errValidateDuplicatePrefix,
 			route.Labels()[allocv1alpha1.NephioOwnerGvkKey],
@@ -126,7 +126,7 @@ func validateNoParentExist(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) 
 }
 
 func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
-	switch alloc.GetPrefixKind() {
+	switch alloc.Spec.Kind {
 	case ipamv1alpha1.PrefixKindAggregate:
 		if route.Labels().Get(allocv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
 			return fmt.Sprintf("nesting aggregate prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s",
@@ -161,7 +161,7 @@ func validateParentExist(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi
 		}
 		return ""
 	case ipamv1alpha1.PrefixKindNetwork:
-		if alloc.GetCreatePrefix() {
+		if alloc.Spec.CreatePrefix != nil {
 			if route.Labels().Get(allocv1alpha1.NephioPrefixKindKey) != string(ipamv1alpha1.PrefixKindAggregate) {
 				return fmt.Sprintf("nesting network prefixes with anything other than an aggregate prefix is not allowed, prefix nested with %s/%s of kind %s",
 					route.Labels().Get(allocv1alpha1.NephioNsnNamespaceKey),

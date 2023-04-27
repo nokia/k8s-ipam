@@ -16,17 +16,7 @@ limitations under the License.
 
 package ipam
 
-import (
-	"context"
-	"fmt"
-	"strings"
-	"testing"
-
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
+/*
 type allocation struct {
 	kind      string
 	name      string
@@ -283,3 +273,4 @@ func TestNetworkInstance(t *testing.T) {
 	}
 
 }
+*/

@@ -51,7 +51,7 @@ type allocRuntime struct {
 }
 
 func (r *allocRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("get")
 	g := NewGetter(&GetterConfig{
 		alloc: r.alloc,
@@ -66,7 +66,7 @@ func (r *allocRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, err
 }
 
 func (r *allocRuntime) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix",  r.alloc.Spec.Prefix)
 	r.l.Info("validate")
 	v := NewAllocValidator(&AllocValidatorConfig{
 		alloc: r.alloc,
@@ -77,7 +77,7 @@ func (r *allocRuntime) Validate(ctx context.Context) (string, error) {
 }
 
 func (r *allocRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix",  r.alloc.Spec.Prefix)
 	r.l.Info("apply dynamic allocation")
 
 	a := NewApplicator(&ApplicatorConfig{
@@ -94,7 +94,7 @@ func (r *allocRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, e
 
 }
 func (r *allocRuntime) Delete(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("delete")
 
 	r.l.Info("deallocate dynamic allocation", "alloc", r.alloc)

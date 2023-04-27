@@ -26,7 +26,7 @@ type Backend interface {
 	// DeleteIndex deletes a backend index
 	DeleteIndex(ctx context.Context, cr []byte) error
 	// List the data from the backend index
-	List(ctx context.Context, cr []byte) ([]byte, error)
+	List(ctx context.Context, cr []byte) (any, error)
 	// Add a dynamic watch with callback to the backend index
 	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
 	// Delete a dynamic watch with callback deom the backend index

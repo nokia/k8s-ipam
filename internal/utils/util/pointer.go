@@ -20,3 +20,7 @@ func PointerUint8(i int) *uint8 {
 	x := uint8(i)
 	return &x
 }
+
+func PointerUint16(i uint16) *uint16 {
+	return &i
+}

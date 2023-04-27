@@ -28,6 +28,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/utils/pointer"
 )
 
 type Applicator interface {
@@ -58,9 +59,9 @@ func (r *applicator) addRib(ctx context.Context) error {
 		}
 	}
 	// update status
-	r.alloc.Status.AllocatedPrefix = r.pi.GetIPPrefix().String()
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork && !r.alloc.GetCreatePrefix() {
-		r.alloc.Status.Gateway = r.getGateway()
+	r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork && r.alloc.Spec.CreatePrefix == nil {
+		r.alloc.Status.Gateway = pointer.String(r.getGateway())
 	}
 	return nil
 }
@@ -84,7 +85,7 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 			// this is an update where the labels changed
 			// only update when not initializing
 			// only update when the prefix is a non /32 or /128
-			if r.pi != nil && !r.initializing && !r.pi.IsAddressPrefix() && r.alloc.GetCreatePrefix() {
+			if r.pi != nil && !r.initializing && !r.pi.IsAddressPrefix() && r.alloc.Spec.CreatePrefix != nil {
 				r.l.Info("prefix allocation: route exists", "inform children of the change/update", route, "labels", r.alloc.GetFullLabels())
 				// delete the children from the rib
 				// update the once that have a nsn different from the origin
@@ -106,17 +107,17 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 		}
 	}
 	// update the status
-	r.alloc.Status.AllocatedPrefix = routes[0].Prefix().String()
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		if !r.alloc.GetCreatePrefix() {
-			r.alloc.Status.Gateway = r.getGateway()
+	r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.alloc.Spec.CreatePrefix == nil {
+			r.alloc.Status.Gateway = pointer.String(r.getGateway())
 		}
-		if r.alloc.GetPrefix() != "" {
+		if r.alloc.Spec.Prefix != nil {
 			// we return the prefix we get in the request
-			r.alloc.Status.AllocatedPrefix = r.alloc.GetPrefix()
+			r.alloc.Status.Prefix = r.alloc.Spec.Prefix
 		} else {
 			// we return the parent prefix that was stored in the applicator context during the mutate label process
-			r.alloc.Status.AllocatedPrefix = r.pi.GetIPPrefix().String()
+			r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
 		}
 	}
 
@@ -126,16 +127,16 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 func (r *applicator) getMutatedRoutesWithLabels() []table.Route {
 	routes := []table.Route{}
 
-	labels := r.alloc.GetSpecLabels()
-	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
+	labels := r.alloc.GetUserDefinedLabels()
+	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.Spec.Kind)
 	labels[allocv1alpha1.NephioAddressFamilyKey] = string(r.pi.GetAddressFamily())
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = r.pi.GetPrefixLength().String()
 	labels[allocv1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
 
 	prefix := r.pi.GetIPPrefix()
 
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		if r.alloc.GetCreatePrefix() {
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.alloc.Spec.CreatePrefix != nil {
 			switch {
 			case r.pi.GetAddressFamily() == iputil.AddressFamilyIpv4 && r.pi.GetPrefixLength().Int() == 31,
 				r.pi.GetAddressFamily() == iputil.AddressFamilyIpv6 && r.pi.GetPrefixLength().Int() == 127:
@@ -207,14 +208,14 @@ func (r *applicator) mutateNetworLastAddressRoute(l map[string]string) table.Rou
 
 func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 	pi := iputil.NewPrefixInfo(route.Prefix())
-	labels := r.alloc.GetSpecLabels()
-	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.GetPrefixKind())
+	labels := r.alloc.GetUserDefinedLabels()
+	labels[allocv1alpha1.NephioPrefixKindKey] = string(r.alloc.Spec.Kind)
 	labels[allocv1alpha1.NephioAddressFamilyKey] = string(pi.GetAddressFamily())
 	//labels[ipamv1alpha1.NephioPrefixLengthKey] = pi.GetPrefixLength().String()
 	labels[allocv1alpha1.NephioSubnetKey] = pi.GetSubnetName()
 	// for network based prefixes the prefixlength in the fib can be /32 but the representation
 	// to the user is parent prefix based
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 		if pi.IsAddressPrefix() {
 			parentRoutes := route.Parents(r.rib)
 			//labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.PrefixLength(parentRoutes[0].Prefix().Bits()).String()
@@ -236,7 +237,7 @@ func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 	}
 
 	// add ip pool labelKey if present
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindPool {
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindPool {
 		labels[allocv1alpha1.NephioPoolKey] = "true"
 	}
 	return labels

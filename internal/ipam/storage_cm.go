@@ -206,7 +206,7 @@ func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB
 
 			// prefixes of prefixkind network need to be expanded in the subnet
 			// we compare against the expanded list
-			if ipPrefix.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+			if ipPrefix.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 				pi, err := iputil.New(ipPrefix.Spec.Prefix)
 				if err != nil {
 					r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing")
@@ -250,15 +250,15 @@ func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.R
 			// for allocations the prefix can be defined in the spec or in the status
 			// we want to make the next logic uniform
 			allocPrefix := alloc.Spec.Prefix
-			if alloc.Spec.Prefix == "" {
-				allocPrefix = alloc.Status.AllocatedPrefix
+			if alloc.Spec.Prefix == nil {
+				allocPrefix = alloc.Status.Prefix
 			}
 
 			// prefixes of prefixkind network need to be expanded in the subnet
 			// we compare against the expanded list
-			if alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+			if alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 				// TODO this can error if the prefix got released since ipam was not available -> to be added to the allocation controller
-				pi, err := iputil.New(allocPrefix)
+				pi, err := iputil.New(*allocPrefix)
 				if err != nil {
 					r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing, unless the prefix got released")
 					break
@@ -266,16 +266,16 @@ func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.R
 				if !pi.IsPrefixPresentInSubnetMap(prefix) {
 					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
 						"mismatch prefixes",
-						"kind", alloc.GetPrefixKind(),
+						"kind", alloc.Spec.Kind,
 						"stored prefix", prefix,
 						"alloc prefix", allocPrefix)
 				}
 
 			} else {
-				if prefix != allocPrefix {
+				if prefix != *allocPrefix {
 					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
 						"mismatch prefixes",
-						"kind", alloc.GetPrefixKind(),
+						"kind", alloc.Spec.Kind,
 						"stored prefix", prefix,
 						"alloc prefix", allocPrefix)
 				}

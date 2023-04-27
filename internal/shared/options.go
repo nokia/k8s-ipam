@@ -19,11 +19,9 @@ package shared
 import (
 	"time"
 
-	"github.com/hansthienpondt/nipam/pkg/table"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +35,6 @@ type Options struct {
 	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	Poll            time.Duration
 	Copts           controller.Options
-	Ipam            backend.Backend[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation, table.Routes]
-	Vlan            backend.Backend[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation, db.Entries[uint16]]
+	Ipam            backend.Backend
+	Vlan            backend.Backend
 }

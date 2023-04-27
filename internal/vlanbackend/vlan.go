@@ -18,6 +18,7 @@ package vlanbackend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -30,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func New(c client.Client) (backend.Backend[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation, db.Entries[uint16]], error) {
+func New(c client.Client) (backend.Backend, error) {
 
 	ca := backend.NewCache[db.DB[uint16]]()
 
@@ -63,7 +64,11 @@ func (r *be) DeleteWatch(ownerGvkKey, ownerGvk string) {
 }
 
 // Create the cache instance and/or restore the cache instance
-func (r *be) Create(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
+func (r *be) CreateIndex(ctx context.Context, b []byte) error {
+	cr := &vlanv1alpha1.VLANDatabase{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
@@ -85,7 +90,11 @@ func (r *be) Create(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
 }
 
 // Delete the cache instance
-func (r *be) Delete(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
+func (r *be) DeleteIndex(ctx context.Context, b []byte) error {
+	cr := &vlanv1alpha1.VLANDatabase{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
@@ -102,45 +111,57 @@ func (r *be) Delete(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
 }
 
 // List entries in the db instance
-func (r *be) List(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) (db.Entries[uint16], error) {
+func (r *be) List(ctx context.Context, b []byte) (any, error) {
+	cr := &vlanv1alpha1.VLANDatabase{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
 	cacheID := cr.GetCacheID()
 	r.l = log.FromContext(ctx).WithValues("cache id", cacheID)
 
 	d, err := r.cache.Get(cacheID, false)
 	if err != nil {
 		r.l.Error(err, "cannpt get cache instance")
-		return db.Entries[uint16]{}, nil
+		return nil, err
 	}
 	return d.GetAll(), err
 }
 
 // Gwt return the allocated entry if found
-func (r *be) Get(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
-	r.l.Info("get allocated entry", "selectors", a.GetSelectorLabels())
+func (r *be) GetAllocation(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &vlanv1alpha1.VLANAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
+	r.l.Info("get allocated entry", "selectors", cr.GetSelectorLabels())
 
-	al, err := r.newApplogic(a, false)
+	al, err := r.newApplogic(cr, false)
 	if err != nil {
 		return nil, err
 	}
-	a, err = al.Get(ctx, a)
+	cr, err = al.Get(ctx, cr)
 	if err != nil {
 		return nil, err
 	}
 
-	r.l.Info("get allocated entry done", "allocatedVLAN", a.Status)
-	return a, nil
+	r.l.Info("get allocated entry done", "allocatedVLAN", cr.Status)
+	return json.Marshal(cr)
 }
 
-func (r *be) Allocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &vlanv1alpha1.VLANAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return nil, err
+	}
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
 	r.l.Info("allocate")
 
-	al, err := r.newApplogic(a, false)
+	al, err := r.newApplogic(cr, false)
 	if err != nil {
 		return nil, err
 	}
-	msg, err := al.Validate(ctx, a)
+	msg, err := al.Validate(ctx, cr)
 	if err != nil {
 		return nil, err
 	}
@@ -148,29 +169,35 @@ func (r *be) Allocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vla
 		r.l.Error(fmt.Errorf("%s", msg), "validation failed")
 		return nil, fmt.Errorf("validation failed: %s", msg)
 	}
-	a, err = al.Apply(ctx, a)
+	cr, err = al.Apply(ctx, cr)
 	if err != nil {
 		return nil, err
 	}
 
-	r.l.Info("allocate  done", "updatedAlloc", a)
-	return a, nil
-	//r.store.Get().SaveAll(ctx, *a.Spec.VLANDatabases[0])
+	r.l.Info("allocate  done", "updatedAlloc", cr)
+	if err := r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabases[0]); err != nil {
+		return nil, err
+	}
+	return json.Marshal(cr)
 }
 
 // DeAllocateVLAN deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-func (r *be) DeAllocate(ctx context.Context, a *vlanv1alpha1.VLANAllocation) error {
-	r.l = log.FromContext(ctx).WithValues("name", a.GetName())
+func (r *be) DeAllocate(ctx context.Context, b []byte) error {
+	cr := &vlanv1alpha1.VLANAllocation{}
+	if err := json.Unmarshal(b, cr); err != nil {
+		return err
+	}
+	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
 	r.l.Info("deallocate")
 
-	al, err := r.newApplogic(a, false)
+	al, err := r.newApplogic(cr, false)
 	if err != nil {
 		return err
 	}
-	if err := al.Delete(ctx, a); err != nil {
+	if err := al.Delete(ctx, cr); err != nil {
 		r.l.Error(err, "cannot deallocate prefix")
 		return err
 	}
 
-	return r.store.Get().SaveAll(ctx, a.Spec.VLANDatabases[0])
+	return r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabases[0])
 }

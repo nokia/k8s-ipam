@@ -51,7 +51,7 @@ type allocvalidator struct {
 }
 
 func (r *allocvalidator) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "cr", r.alloc.GetGenericNamespacedName())
+	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.Spec.Kind, "cr", r.alloc.GetGenericNamespacedName())
 	r.l.Info("validate alloc without prefix")
 
 	// validate input

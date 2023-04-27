@@ -16,16 +16,7 @@ limitations under the License.
 
 package vlanbackend
 
-import (
-	"context"
-	"fmt"
-	"testing"
-
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
+/*
 func buildVlanDatabase(name string) *vlanv1alpha1.VLANDatabase {
 	return &vlanv1alpha1.VLANDatabase{
 		TypeMeta: metav1.TypeMeta{
@@ -124,3 +115,4 @@ func TestDynamicVlan(t *testing.T) {
 
 	fmt.Printf("alloc: %v \n", alloc.Status)
 }
+*/

@@ -29,7 +29,7 @@ import (
 // Delete deletes the allocation based on the ownerslector and deletes all prefixes associated with the ownerseelctor
 // if no prefixes are found, no error is returned
 func (r *applicator) Delete(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "kind", r.alloc.GetPrefixKind())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "kind", r.alloc.Spec.Kind)
 	r.l.Info("delete")
 
 	ownerSelector, err := r.alloc.GetOwnerSelector()
@@ -46,7 +46,7 @@ func (r *applicator) Delete(ctx context.Context) error {
 		// only update when not initializing
 		// only update when the prefix is a non /32 or /128
 		// only update when the parent is a create prefix type
-		if !r.initializing && !iputil.NewPrefixInfo(route.Prefix()).IsAddressPrefix() && r.alloc.GetCreatePrefix() {
+		if !r.initializing && !iputil.NewPrefixInfo(route.Prefix()).IsAddressPrefix() && (r.alloc.Spec.CreatePrefix != nil) {
 			r.l.Info("route exists", "handle update for route", route, "labels", r.alloc.GetFullLabels())
 			// delete the children from the rib
 			// update the once that have a nsn different from the origin

@@ -176,7 +176,7 @@ func main() {
 	}
 
 	ipamServerProxy := serverproxy.New(&serverproxy.Config{
-		Backends: map[schema.GroupVersion]backend.Backend{
+		Backends: map[schema.GroupVersion]backend.Backend[any]{
 			ipamv1alpha1.GroupVersion: ipambe,
 			vlanv1alpha1.GroupVersion: vlanbe,
 		},

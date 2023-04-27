@@ -30,7 +30,7 @@ import (
 )
 
 func (r *applicator) ApplyAlloc(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.GetPrefixKind())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.Spec.Kind)
 	r.l.Info("dynamic allocation")
 
 	// check if the prefix/alloc already exists in the routing table
@@ -68,13 +68,13 @@ func (r *applicator) ApplyAlloc(ctx context.Context) error {
 	}
 
 	// if the status indicated an allocated prefix, the client suggests to reallocate this prefix if possible
-	if r.alloc.GetAllocatedPrefix() != "" {
-		pi, err := iputil.New(r.alloc.GetAllocatedPrefix())
+	if r.alloc.Status.Prefix != nil {
+		pi, err := iputil.New(*r.alloc.Status.Prefix)
 		if err != nil {
 			return err
 		}
 		r.l.Info("dynamic allocation, refresh allocated prefix",
-			"allocatedPrefix", r.alloc.Status.AllocatedPrefix,
+			"allocatedPrefix", r.alloc.Status.Prefix,
 			"prefix", pi.GetIPPrefix(),
 			"prefixlength", pi.GetPrefixLength())
 
@@ -131,23 +131,23 @@ func (r *applicator) GetSelectedRouteWithPrefixLength(routes table.Routes, prefi
 		ownKindRoutes := make([]table.Route, 0)
 		otherKindRoutes := make([]table.Route, 0)
 		for _, route := range routes {
-			switch r.alloc.GetPrefixKind() {
+			switch r.alloc.Spec.Kind {
 			case ipamv1alpha1.PrefixKindLoopback:
-				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.Spec.Kind) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
 				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindNetwork:
-				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.Spec.Kind) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
 				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(ipamv1alpha1.PrefixKindAggregate) {
 					otherKindRoutes = append(otherKindRoutes, route)
 				}
 			case ipamv1alpha1.PrefixKindPool:
-				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.GetPrefixKind()) {
+				if route.Labels()[allocv1alpha1.NephioPrefixKindKey] == string(r.alloc.Spec.Kind) {
 					ownKindRoutes = append(ownKindRoutes, route)
 				}
 			default:
@@ -183,7 +183,7 @@ func (r *applicator) getRoutesByOwner() (table.Routes, error) {
 	if len(routes) != 0 {
 		// for a prefixkind network with create prefix flag set it is possible that multiple
 		// routes are returned since they were expanded
-		if len(routes) > 1 && !(r.alloc.GetCreatePrefix() && r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork) {
+		if len(routes) > 1 && !(r.alloc.Spec.CreatePrefix != nil && r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork) {
 			return []table.Route{}, fmt.Errorf("multiple prefixes match the nsn labelselector, %v", routes)
 		}
 		// route found
@@ -224,15 +224,15 @@ func (r *applicator) updateRouteIfChanged(routes table.Routes) error {
 */
 
 func (r *applicator) getPrefixLengthFromRoute(route table.Route) iputil.PrefixLength {
-	if r.alloc.GetPrefixLengthFromSpec() != 0 {
-		return r.alloc.GetPrefixLengthFromSpec()
+	if r.alloc.Spec.PrefixLength != nil {
+		return iputil.PrefixLength(*r.alloc.Spec.PrefixLength)
 	}
 	return iputil.PrefixLength(route.Prefix().Addr().BitLen())
 }
 
 func (r *applicator) updatePrefixInfo(pi *iputil.Prefix, p netip.Prefix, prefixLength iputil.PrefixLength) *iputil.Prefix {
-	if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
-		if r.alloc.GetCreatePrefix() {
+	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.alloc.Spec.CreatePrefix != nil {
 
 			return iputil.NewPrefixInfo(p)
 		}

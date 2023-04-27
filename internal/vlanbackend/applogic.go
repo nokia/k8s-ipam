@@ -8,15 +8,15 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/backend"
 )
 
-func (r *be) newApplogic(a *vlanv1alpha1.VLANAllocation, initializing bool) (backend.AppLogic[*vlanv1alpha1.VLANAllocation], error) {
+func (r *be) newApplogic(cr *vlanv1alpha1.VLANAllocation, initializing bool) (backend.AppLogic[*vlanv1alpha1.VLANAllocation], error) {
 	// we assume right now 1 database ID
-	cacheID := *a.Spec.VLANDatabases[0]
+	cacheID := cr.Spec.VLANDatabases[0]
 	t, err := r.cache.Get(cacheID, initializing)
 	if err != nil {
 		return nil, err
 	}
 
-	vlanAllocCtx, err := a.GetAllocationKind()
+	vlanAllocCtx, err := cr.GetVLANAllocationCtx()
 	if err != nil {
 		return nil, err
 	}

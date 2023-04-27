@@ -32,7 +32,7 @@ func NewPrefixRuntime(cfg any) (Runtime, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config expecting IPAMPrefixOperatorConfig")
 	}
-	pi, err := iputil.New(c.alloc.GetPrefix())
+	pi, err := iputil.New(*c.alloc.Spec.Prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ type prefixRuntime struct {
 }
 
 func (r *prefixRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("get")
 	g := NewGetter(&GetterConfig{
 		alloc: r.alloc,
@@ -72,7 +72,7 @@ func (r *prefixRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, er
 }
 
 func (r *prefixRuntime) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("validate")
 	v := NewPrefixValidator(&PrefixValidatorConfig{
 		alloc: r.alloc,
@@ -84,10 +84,10 @@ func (r *prefixRuntime) Validate(ctx context.Context) (string, error) {
 }
 
 func (r *prefixRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("apply")
 
-	pi, err := iputil.New(r.alloc.GetPrefix())
+	pi, err := iputil.New(*r.alloc.Spec.Prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *prefixRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, 
 
 }
 func (r *prefixRuntime) Delete(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.GetPrefixKind(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("delete")
 
 	r.l.Info("deallocate prefix allocation", "alloc", r.alloc)

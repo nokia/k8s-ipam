@@ -69,7 +69,7 @@ type prefixvalidator struct {
 }
 
 func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.GetPrefixKind(), "name", r.alloc.GetName(), "prefix", r.alloc.GetPrefix())
+	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.Spec.Kind, "name", r.alloc.GetName(), "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("validate")
 
 	// validate input
@@ -86,14 +86,14 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	// (10.0.0.x/24 which is turned into 10.0.0.x/32)
 	route, ok := dryrunRib.Get(r.pi.GetIPSubnet())
 	r.l.Info("validate if route exists",
-		"createprefix", r.alloc.GetCreatePrefix(),
+		"createprefix", r.alloc.Spec.CreatePrefix,
 		"prefix", r.pi.GetIPPrefix(),
 		"ok", ok,
 		"route", route,
-		"labels", r.alloc.GetSpecLabels())
+		"labels", r.alloc.GetUserDefinedLabels())
 	// Route exists
 	if ok {
-		if r.alloc.GetCreatePrefix() {
+		if r.alloc.Spec.CreatePrefix != nil {
 			// this is a create/allocate prefix:
 			// ip prefix or a dynamic allocation with a prefix
 			if msg := validatePrefixOwner(route, r.alloc); msg != "" {
@@ -105,7 +105,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		// in case of a network prefix we need to turn this in an address and validate again
 		// since the initial validation is for the network subnet and not for the individual address
 		// in the subnet
-		if r.alloc.GetPrefixKind() == ipamv1alpha1.PrefixKindNetwork {
+		if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 			// if parent is prefixkind network
 			if route.Labels()[allocv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
 				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[allocv1alpha1.NephioPrefixKindKey]), nil
@@ -147,14 +147,14 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	routes := route.Children(dryrunRib)
 	if len(routes) > 0 {
 		r.l.Info("got children", "routes", routes)
-		if msg := r.fnc.validateChildrenExistFn(routes[0], r.alloc.GetPrefixKind()); msg != "" {
+		if msg := r.fnc.validateChildrenExistFn(routes[0], r.alloc.Spec.Kind); msg != "" {
 			return msg, nil
 		}
 	}
 	// get parents
 	routes = route.Parents(dryrunRib)
 	if len(routes) == 0 {
-		if msg := r.fnc.validateNoParentExistFn(r.alloc.GetPrefixKind(), r.alloc.GetOwnerGvk()); msg != "" {
+		if msg := r.fnc.validateNoParentExistFn(r.alloc.Spec.Kind, r.alloc.GetOwnerGvk()); msg != "" {
 			return msg, nil
 		}
 		return "", nil

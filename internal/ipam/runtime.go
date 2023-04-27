@@ -47,7 +47,7 @@ type runtimes struct {
 }
 
 func (r *runtimes) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
-	if alloc.GetPrefix() == "" {
+	if alloc.Spec.Prefix != nil {
 		return r.allocRuntime.Get(alloc, initializing)
 	}
 	return r.prefixRuntime.Get(alloc, initializing)
@@ -125,7 +125,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
+	rib, err := r.cache.Get(alloc.Spec.NetworkInstance, initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 		alloc:        alloc,
 		rib:          rib,
 		watcher:      r.watcher,
-		fnc:          r.oc[alloc.GetPrefixKind()],
+		fnc:          r.oc[ipamv1alpha1.PrefixKind(*alloc.Spec.Prefix)],
 	})
 
 }
@@ -172,7 +172,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.cache.Get(alloc.GetNetworkInstance(), initializing)
+	rib, err := r.cache.Get(alloc.Spec.NetworkInstance, initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +182,6 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 		alloc:        alloc,
 		rib:          rib,
 		watcher:      r.watcher,
-		fnc:          r.oc[alloc.GetPrefixKind()],
+		fnc:          r.oc[alloc.Spec.Kind],
 	})
 }
