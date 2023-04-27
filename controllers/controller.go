@@ -22,13 +22,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/nokia/k8s-ipam/controllers/allocation"
-	"github.com/nokia/k8s-ipam/controllers/injector"
-	"github.com/nokia/k8s-ipam/controllers/networkinstance"
-	"github.com/nokia/k8s-ipam/controllers/prefix"
+	"github.com/nokia/k8s-ipam/controllers/ipamallocation"
+	"github.com/nokia/k8s-ipam/controllers/ipamnetworkinstance"
+	"github.com/nokia/k8s-ipam/controllers/ipamprefix"
+	"github.com/nokia/k8s-ipam/controllers/vlanallocation"
+	"github.com/nokia/k8s-ipam/controllers/vlandatabase"
+	"github.com/nokia/k8s-ipam/controllers/vlanvlan"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -41,9 +43,12 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 
 	eventChs := map[schema.GroupVersionKind]chan event.GenericEvent{}
 	for _, setup := range []func(ctrl.Manager, *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error){
-		networkinstance.Setup,
-		prefix.Setup,
-		allocation.Setup,
+		ipamnetworkinstance.Setup,
+		vlandatabase.Setup,
+		ipamprefix.Setup,
+		vlanvlan.Setup,
+		ipamallocation.Setup,
+		vlanallocation.Setup,
 	} {
 		gvk, geCh, err := setup(mgr, opts)
 		if err != nil {
@@ -51,13 +56,15 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 		}
 		eventChs[gvk] = geCh
 	}
-	for _, setup := range []func(ctrl.Manager, *shared.Options) error{
-		injector.Setup,
-	} {
-		if err := setup(mgr, opts); err != nil {
-			return err
+	/*
+		for _, setup := range []func(ctrl.Manager, *shared.Options) error{
+			injector.Setup,
+		} {
+			if err := setup(mgr, opts); err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	ipamproxyClient.AddEventChs(eventChs)
 

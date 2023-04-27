@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *GrpcServer) Get(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) CreateIndex(ctx context.Context, req *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -32,14 +32,44 @@ func (s *GrpcServer) Get(ctx context.Context, req *allocpb.Request) (*allocpb.Re
 		return nil, err
 	}
 	defer s.sem.Release(1)
-	resp, err := s.allocGetHandler(ctx, req)
+	resp, err := s.createIndexHandler(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.Request) (*allocpb.Response, error) {
+func (s *GrpcServer) DeleteIndex(ctx context.Context, req *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
+	defer cancel()
+	err := s.acquireSem(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.sem.Release(1)
+	resp, err := s.deleteIndexHandler(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (s *GrpcServer) GetAllocation(ctx context.Context, req *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
+	defer cancel()
+	err := s.acquireSem(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.sem.Release(1)
+	resp, err := s.getAllocHandler(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)
@@ -54,7 +84,7 @@ func (s *GrpcServer) Allocate(ctx context.Context, req *allocpb.Request) (*alloc
 	return resp, nil
 }
 
-func (s *GrpcServer) DeAllocate(ctx context.Context, req *allocpb.Request) (*allocpb.EmptyResponse, error) {
+func (s *GrpcServer) DeAllocate(ctx context.Context, req *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	err := s.acquireSem(ctx)

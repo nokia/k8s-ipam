@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,8 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-package prefix
+package ipamallocation
 
 import (
 	"context"
@@ -70,22 +69,22 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 	e.l = log.FromContext(e.ctx)
 	e.l.Info("event", "kind", obj.GetObjectKind(), "name", ni.GetName())
 
-	d := &ipamv1alpha1.IPPrefixList{}
+	d := &ipamv1alpha1.IPAllocationList{}
 	if err := e.client.List(e.ctx, d); err != nil {
 		return
 	}
 
-	for _, p := range d.Items {
+	for _, alloc := range d.Items {
 		// only enqueue if the network-instance matches
-		prefixNiNamespace := "default"
-		if p.Spec.NetworkInstance.Namespace != "" {
-			prefixNiNamespace = p.Spec.NetworkInstance.Namespace
+		allocNiNamespace := "default"
+		if alloc.Spec.NetworkInstance.Namespace != "" {
+			allocNiNamespace = alloc.Spec.NetworkInstance.Namespace
 		}
-		if ni.GetName() == p.Spec.NetworkInstance.Name && ni.GetNamespace() == prefixNiNamespace {
-			e.l.Info("event requeue prefix", "name", p.GetName())
+		if ni.GetName() == alloc.Spec.NetworkInstance.Name && ni.GetNamespace() == allocNiNamespace {
+			e.l.Info("event requeue allocation", "name", alloc.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: p.GetNamespace(),
-				Name:      p.GetName()}})
+				Namespace: alloc.GetNamespace(),
+				Name:      alloc.GetName()}})
 		}
 	}
 }

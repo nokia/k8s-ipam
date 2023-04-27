@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allocation
+package vlanallocation
 
 import (
 	"context"
@@ -34,7 +34,7 @@ import (
 
 	"github.com/go-logr/logr"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	finalizer = "ipam.nephio.org/finalizer"
+	finalizer = "vlan.nephio.org/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -62,23 +62,15 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 	ge := make(chan event.GenericEvent)
 
 	r := &reconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		IpamClientProxy: options.IpamClientProxy,
-		pollInterval:    options.Poll,
-		finalizer:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		ClientProxy:  options.VlanClientProxy,
+		pollInterval: options.Poll,
+		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
-	/*
-		niHandler := &EnqueueRequestForAllNetworkInstances{
-			client: mgr.GetClient(),
-			ctx:    context.Background(),
-		}
-	*/
-
-	return ipamv1alpha1.IPAllocationGroupVersionKind, ge, ctrl.NewControllerManagedBy(mgr).
-		For(&ipamv1alpha1.IPAllocation{}).
-		//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
+	return vlanv1alpha1.VLANAllocationGroupVersionKind, ge, ctrl.NewControllerManagedBy(mgr).
+		For(&vlanv1alpha1.VLANAllocation{}).
 		Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
@@ -86,10 +78,10 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 // reconciler reconciles a IPPrefix object
 type reconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
-	pollInterval    time.Duration
-	finalizer       *resource.APIFinalizer
+	Scheme       *runtime.Scheme
+	ClientProxy  clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
+	pollInterval time.Duration
+	finalizer    *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -98,7 +90,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.l = log.FromContext(ctx)
 	r.l.Info("reconcile", "req", req)
 
-	cr := &ipamv1alpha1.IPAllocation{}
+	cr := &vlanv1alpha1.VLANAllocation{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
@@ -111,7 +103,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if meta.WasDeleted(cr) {
 		if cr.GetCondition(allocv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
-			if err := r.IpamClientProxy.DeAllocate(ctx, cr, nil); err != nil {
+			if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
 					cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
@@ -139,64 +131,37 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// check if the network instance exists in the allocation request
-	//niName, ok := cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioNetworkInstanceKey]
-	//if !ok {
-	//	r.l.Info("cannot allocate prefix, network-intance not found in cr")
-	//	cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("network-instance not found in cr"))
-	//	return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	//}
-
-	// check the network instance existance, to ensure we update the condition in the cr
-	// when a network instance get deleted
-	ni := &ipamv1alpha1.NetworkInstance{}
+	// check the existance of the index, to ensure we update the condition in the cr
+	// when a index get deleted
+	idx := &vlanv1alpha1.VLANDatabase{}
 	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: cr.Spec.NetworkInstance.Namespace,
-		Name:      cr.Spec.NetworkInstance.Name,
-	}, ni); err != nil {
+		Namespace: cr.Spec.VLANDatabase.Namespace,
+		Name:      cr.Spec.VLANDatabase.Name,
+	}, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate prefix, network-intance not found")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not found"))
+		r.l.Info("cannot allocate prefix, index not found")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// check the network instance existance, to ensure we update the condition in the cr
 	// when a network instance get deleted
-	if meta.WasDeleted(ni) {
-		r.l.Info("cannot allocate prefix, network-intance not ready")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not ready"))
+	if meta.WasDeleted(idx) {
+		r.l.Info("cannot allocate prefix, index not ready")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not ready"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// for prefixKind network validate if the label exists
-	/*
-		if cr.Spec.PrefixKind == ipamv1alpha1.PrefixKindNetwork {
-			_, ok := cr.Spec.Selector.MatchLabels[ipamv1alpha1.NephioSubnetNameKey]
-			if !ok {
-				r.l.Info("cannot allocate prefix, matchLabels must contain a network key")
-				cr.SetConditions(ipamv1alpha1.ReconcileSuccess(), ipamv1alpha1.Failed("cannot allocate prefix, matchLabels must contain a network key"))
-				return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-			}
-		}
-	*/
-
-	// set origin to label allocation
-	/*
-		if len(cr.Labels) == 0 {
-			cr.Labels = map[string]string{}
-		}
-		cr.Labels[ipamv1alpha1.NephioOriginKey] = string(ipamv1alpha1.OriginIPAllocation)
-	*/
-	// The spec got changed we check the existing prefix against the status
-	// if there is a difference, we need to delete the prefix
+	// The spec got changed we check the existing allocation against the status
+	// if there is a difference, we need to delete the allocation
 	// w/o the prefix in the spec
-	specPrefix := cr.Spec.Prefix
-	if cr.Status.Prefix != nil && cr.Spec.Prefix != nil &&
-		cr.Status.Prefix != cr.Spec.Prefix {
+	specId := cr.Spec.VLANID
+	if cr.Status.VLANID != nil && cr.Spec.VLANID != nil &&
+		cr.Status.VLANID != cr.Spec.VLANID {
 		// we set the prefix to "", to ensure the deallocation works
-		cr.Spec.Prefix = nil
-		if err := r.IpamClientProxy.DeAllocate(ctx, cr, nil); err != nil {
+		cr.Spec.VLANID = nil
+		if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
@@ -204,30 +169,30 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	cr.Spec.Prefix = specPrefix
+	cr.Spec.VLANID = specId
 
-	allocResp, err := r.IpamClientProxy.Allocate(ctx, cr, nil)
+	// TODO VLAn Range
+
+	allocResp, err := r.ClientProxy.Allocate(ctx, cr, nil)
 	if err != nil {
 		r.l.Info("cannot allocate prefix", "err", err)
 
 		// TODO -> Depending on the error we should clear the prefix
 		// e.g. when the ni instance is not yet available we should not clear the error
-		cr.Status.Gateway = nil
-		cr.Status.Prefix = nil
+		cr.Status.VLANID = nil
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	// if the prefix is allocated in the spec, we need to ensure we get the same allocation
-	if cr.Spec.Prefix != nil {
-		if allocResp.Status.Prefix != cr.Spec.Prefix {
+	if cr.Spec.VLANID != nil {
+		if allocResp.Status.VLANID != nil && allocResp.Status.VLANID != cr.Spec.VLANID {
 			// we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "alloc Resp", allocResp.Status)
+			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.VLANID, "alloc Resp", allocResp.Status)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
-	cr.Status.Gateway = allocResp.Status.Gateway
-	cr.Status.Prefix = allocResp.Status.Prefix
+	cr.Status.VLANID = allocResp.Status.VLANID
 	r.l.Info("Successfully reconciled resource", "allocResp", allocResp.Status)
 	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)

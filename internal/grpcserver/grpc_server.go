@@ -40,10 +40,12 @@ type GrpcServer struct {
 	l logr.Logger
 
 	//Alloc Handlers
-	allocGetHandler   AllocGetHandler
-	allocHandler      AllocHandler
-	deallocHandler    DeAllocHandler
-	watchAllocHandler WatchAllocHandler
+	createIndexHandler CreateIndexHandler
+	deleteIndexHandler DeleteIndexHandler
+	getAllocHandler    GetAllocHandler
+	allocHandler       AllocHandler
+	deallocHandler     DeAllocHandler
+	watchAllocHandler  WatchAllocHandler
 
 	//health handlers
 	checkHandler CheckHandler
@@ -59,11 +61,15 @@ type CheckHandler func(context.Context, *healthpb.HealthCheckRequest) (*healthpb
 type WatchHandler func(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer) error
 
 // Alloc Handlers
-type AllocGetHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
+type CreateIndexHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
 
-type AllocHandler func(context.Context, *allocpb.Request) (*allocpb.Response, error)
+type DeleteIndexHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
 
-type DeAllocHandler func(context.Context, *allocpb.Request) (*allocpb.EmptyResponse, error)
+type GetAllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
+
+type AllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
+
+type DeAllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
 
 type WatchAllocHandler func(*allocpb.WatchRequest, allocpb.Allocation_WatchAllocServer) error
 
@@ -132,9 +138,21 @@ func WithWatchHandler(h WatchHandler) func(*GrpcServer) {
 	}
 }
 
-func WithAllocGetHandler(h AllocGetHandler) func(*GrpcServer) {
+func WithCreateIndexHandler(h CreateIndexHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
-		s.allocGetHandler = h
+		s.createIndexHandler = h
+	}
+}
+
+func WithDeleteIndexHandler(h DeleteIndexHandler) func(*GrpcServer) {
+	return func(s *GrpcServer) {
+		s.deleteIndexHandler = h
+	}
+}
+
+func WithGetAllocHandler(h GetAllocHandler) func(*GrpcServer) {
+	return func(s *GrpcServer) {
+		s.getAllocHandler = h
 	}
 }
 

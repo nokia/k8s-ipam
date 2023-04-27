@@ -175,7 +175,7 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 	}
 
 	r.l.Info("allocate  done", "updatedAlloc", cr)
-	if err := r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabases[0]); err != nil {
+	if err := r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabase); err != nil {
 		return nil, err
 	}
 	return json.Marshal(cr)
@@ -199,5 +199,5 @@ func (r *be) DeAllocate(ctx context.Context, b []byte) error {
 		return err
 	}
 
-	return r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabases[0])
+	return r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabase)
 }

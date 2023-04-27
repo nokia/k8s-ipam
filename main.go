@@ -39,11 +39,9 @@ import (
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/henderiw-k8s-lcnc/discovery/discovery"
 	"github.com/henderiw-k8s-lcnc/discovery/registrator"
-	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
-	"github.com/nokia/k8s-ipam/internal/allochandler"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
@@ -122,7 +120,7 @@ func main() {
 
 	podName := os.Getenv("POD_NAME")
 	if podName == "" {
-		podName = "local-ipam"
+		podName = "local-resource-backend"
 	}
 	address := os.Getenv("POD_IP")
 	if address == "" {
@@ -130,13 +128,13 @@ func main() {
 	}
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
-		namespace = "ipam"
+		namespace = "resource-backend"
 	}
 
 	// register the service
 	go func() {
 		reg.Register(ctx, &registrator.Service{
-			Name:         "ipam",
+			Name:         "resource-backend",
 			ID:           podName,
 			Port:         9999,
 			Address:      address,
@@ -145,17 +143,19 @@ func main() {
 		})
 	}()
 
-	porchClient, err := porch.CreateClient()
-	if err != nil {
-		setupLog.Error(err, "unable to create porch client")
-		os.Exit(1)
-	}
+	/*
+		porchClient, err := porch.CreateClient()
+		if err != nil {
+			setupLog.Error(err, "unable to create porch client")
+			os.Exit(1)
+		}
+	*/
 
 	// initialize controllers
 	if err := controllers.Setup(ctx, mgr, &shared.Options{
 		Registrator: reg,
-		PorchClient: porchClient,
-		Poll:        5 * time.Second,
+		//PorchClient: porchClient,
+		Poll: 5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
@@ -176,25 +176,23 @@ func main() {
 	}
 
 	ipamServerProxy := serverproxy.New(&serverproxy.Config{
-		Backends: map[schema.GroupVersion]backend.Backend[any]{
+		Backends: map[schema.GroupVersion]backend.Backend{
 			ipamv1alpha1.GroupVersion: ipambe,
 			vlanv1alpha1.GroupVersion: vlanbe,
 		},
 	})
-	ah := allochandler.New(
-		allochandler.WithRoutes(map[string]allochandler.AlloHandler{
-			ipamv1alpha1.GroupVersion.Group: ipamServerProxy,
-		}),
-	)
 	wh := healthhandler.New()
 
 	s := grpcserver.New(grpcserver.Config{
 		Address:  ":" + strconv.Itoa(9999),
 		Insecure: true,
 	},
-		grpcserver.WithAllocHandler(ah.Allocate),
-		grpcserver.WithDeAllocHandler(ah.DeAllocate),
-		grpcserver.WithWatchAllocHandler(ah.Watch),
+		grpcserver.WithCreateIndexHandler(ipamServerProxy.CreateIndex),
+		grpcserver.WithDeleteIndexHandler(ipamServerProxy.DeleteIndex),
+		grpcserver.WithGetAllocHandler(ipamServerProxy.GetAllocation),
+		grpcserver.WithAllocHandler(ipamServerProxy.Allocate),
+		grpcserver.WithDeAllocHandler(ipamServerProxy.DeAllocate),
+		grpcserver.WithWatchAllocHandler(ipamServerProxy.Watch),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)

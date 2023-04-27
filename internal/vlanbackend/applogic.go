@@ -10,7 +10,7 @@ import (
 
 func (r *be) newApplogic(cr *vlanv1alpha1.VLANAllocation, initializing bool) (backend.AppLogic[*vlanv1alpha1.VLANAllocation], error) {
 	// we assume right now 1 database ID
-	cacheID := cr.Spec.VLANDatabases[0]
+	cacheID := cr.Spec.VLANDatabase
 	t, err := r.cache.Get(cacheID, initializing)
 	if err != nil {
 		return nil, err

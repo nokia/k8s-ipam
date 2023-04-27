@@ -28,11 +28,8 @@ import (
 
 // VLANAllocationSpec defines the desired state of VLANAllocation
 type VLANAllocationSpec struct {
-	// VLANDatabases defines the vlan database contexts for the VLAN Allocation
-	// For Local vlan allocation a single vlan database is required, 
-	// For global vlan allocations all vlan databases from which
-	// this vlan must be alloctaed must be specified
-	VLANDatabases []corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
+	// VLANDatabase defines the vlan database contexts for the VLAN Allocation
+	VLANDatabase corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
 	// VLANID defines the vlan for the VLAN allocation
 	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines the vlan range for the VLAN allocation

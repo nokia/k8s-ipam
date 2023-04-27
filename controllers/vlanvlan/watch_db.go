@@ -13,14 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package allocation
+package vlanvlan
 
 import (
 	"context"
 
-	//ndddvrv1 "github.com/yndd/ndd-core/apis/dvr/v1"
 	"github.com/go-logr/logr"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -34,53 +33,53 @@ type adder interface {
 	Add(item interface{})
 }
 
-type EnqueueRequestForAllNetworkInstances struct {
+type EnqueueRequestForAllVlanDatabases struct {
 	client client.Client
 	l      logr.Logger
 	ctx    context.Context
 }
 
-// Create enqueues a request for all ip allocation within the ipam
-func (e *EnqueueRequestForAllNetworkInstances) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+// Create enqueues a request for create
+func (e *EnqueueRequestForAllVlanDatabases) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
-func (e *EnqueueRequestForAllNetworkInstances) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+// Create enqueues a request for update
+func (e *EnqueueRequestForAllVlanDatabases) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.ObjectOld, q)
 	e.add(evt.ObjectNew, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
-func (e *EnqueueRequestForAllNetworkInstances) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+// Create enqueues a request for delete
+func (e *EnqueueRequestForAllVlanDatabases) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
-func (e *EnqueueRequestForAllNetworkInstances) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+// Create enqueues a request for generic event
+func (e *EnqueueRequestForAllVlanDatabases) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
 
-func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue adder) {
-	ni, ok := obj.(*ipamv1alpha1.NetworkInstance)
+func (e *EnqueueRequestForAllVlanDatabases) add(obj runtime.Object, queue adder) {
+	idx, ok := obj.(*vlanv1alpha1.VLANDatabase)
 	if !ok {
 		return
 	}
 	e.l = log.FromContext(e.ctx)
-	e.l.Info("event", "kind", obj.GetObjectKind(), "name", ni.GetName())
+	e.l.Info("event", "kind", obj.GetObjectKind(), "name", idx.GetName())
 
-	d := &ipamv1alpha1.IPAllocationList{}
+	d := &vlanv1alpha1.VLANList{}
 	if err := e.client.List(e.ctx, d); err != nil {
 		return
 	}
 
 	for _, alloc := range d.Items {
-		// only enqueue if the network-instance matches
-		allocNiNamespace := "default"
-		if alloc.Spec.NetworkInstance.Namespace != "" {
-			allocNiNamespace = alloc.Spec.NetworkInstance.Namespace
+		// only enqueue if the vlan index matches
+		allocNamespace := "default"
+		if alloc.Spec.VLANDatabase.Namespace != "" {
+			allocNamespace = alloc.Spec.VLANDatabase.Namespace
 		}
-		if ni.GetName() == alloc.Spec.NetworkInstance.Name && ni.GetNamespace() == allocNiNamespace {
+		if idx.GetName() == alloc.Spec.VLANDatabase.Name && alloc.Spec.VLANDatabase.Namespace == allocNamespace {
 			e.l.Info("event requeue allocation", "name", alloc.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: alloc.GetNamespace(),

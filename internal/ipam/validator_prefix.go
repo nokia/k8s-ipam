@@ -154,7 +154,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	// get parents
 	routes = route.Parents(dryrunRib)
 	if len(routes) == 0 {
-		if msg := r.fnc.validateNoParentExistFn(r.alloc.Spec.Kind, r.alloc.GetOwnerGvk()); msg != "" {
+		if msg := r.fnc.validateNoParentExistFn(r.alloc.Spec.Kind, r.alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerGvkKey]); msg != "" {
 			return msg, nil
 		}
 		return "", nil

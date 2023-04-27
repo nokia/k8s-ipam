@@ -76,7 +76,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		alloc = vlanv1alpha1.BuildVLANAllocation(
 			cr.ObjectMeta,
 			vlanv1alpha1.VLANAllocationSpec{
-				VLANDatabases: cr.Spec.VLANDatabases,
+				VLANDatabase: cr.Spec.VLANDatabase,
 				VLANID:        cr.Spec.VLANID,
 				VLANRange:     cr.Spec.VLANRange,
 			},

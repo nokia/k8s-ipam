@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package networkinstance
+package ipamnetworkinstance
 
 import (
 	"context"
@@ -103,7 +103,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		// When the network instance is deleted we can remove the network instance entry
 		// from th IPAM table
-		if err := r.IpamClientProxy.Delete(ctx, cr); err != nil {
+		if err := r.IpamClientProxy.DeleteIndex(ctx, cr); err != nil {
 			r.l.Error(err, "cannot delete networkInstance")
 			cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -131,7 +131,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// create and initialize the IPAM with the network instance if it does not exist
 	// the prefixes that are within the spec of the network-instance need to be allocated first
 	// since they serve as an aggregate
-	if err := r.IpamClientProxy.Create(ctx, cr); err != nil {
+	if err := r.IpamClientProxy.CreateIndex(ctx, cr); err != nil {
 		r.l.Error(err, "cannot initialize ipam")
 		cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
