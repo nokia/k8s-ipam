@@ -63,29 +63,25 @@ func (e *EnqueueRequestForAllNetworkInstances) Generic(evt event.GenericEvent, q
 }
 
 func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue adder) {
-	ni, ok := obj.(*ipamv1alpha1.NetworkInstance)
+	idx, ok := obj.(*ipamv1alpha1.NetworkInstance)
 	if !ok {
 		return
 	}
 	e.l = log.FromContext(e.ctx)
-	e.l.Info("event", "kind", obj.GetObjectKind(), "name", ni.GetName())
+	e.l.Info("event", "kind", obj.GetObjectKind(), "name", idx.GetName())
 
 	d := &ipamv1alpha1.IPPrefixList{}
 	if err := e.client.List(e.ctx, d); err != nil {
 		return
 	}
 
-	for _, p := range d.Items {
+	for _, r := range d.Items {
 		// only enqueue if the network-instance matches
-		prefixNiNamespace := "default"
-		if p.Spec.NetworkInstance.Namespace != "" {
-			prefixNiNamespace = p.Spec.NetworkInstance.Namespace
-		}
-		if ni.GetName() == p.Spec.NetworkInstance.Name && ni.GetNamespace() == prefixNiNamespace {
-			e.l.Info("event requeue prefix", "name", p.GetName())
+		if idx.GetCacheID().Name == r.GetCacheID().Name && idx.GetCacheID().Namespace == r.GetCacheID().Namespace {
+			e.l.Info("event requeue prefix", "name", r.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: p.GetNamespace(),
-				Name:      p.GetName()}})
+				Namespace: r.GetNamespace(),
+				Name:      r.GetName()}})
 		}
 	}
 }

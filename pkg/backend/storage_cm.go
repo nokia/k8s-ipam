@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const ConfigMapKey = "data"
+
 type GetDataFn func(ctx context.Context, ref corev1.ObjectReference) ([]byte, error)
 type RestoreDataFn func(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error
 
@@ -21,6 +23,7 @@ type CMConfig struct {
 	Client      client.Client
 	GetData     GetDataFn
 	RestoreData RestoreDataFn
+	Prefix      string
 }
 
 func NewCMBackend[alloc, entry any](cfg *CMConfig) (Storage[alloc, entry], error) {
@@ -32,30 +35,32 @@ func NewCMBackend[alloc, entry any](cfg *CMConfig) (Storage[alloc, entry], error
 	}
 
 	return &cm[alloc, entry]{
-		c:   cfg.Client,
-		cfg: cfg,
+		c:      cfg.Client,
+		cfg:    cfg,
+		prefix: cfg.Prefix,
 	}, nil
 }
 
 type cm[alloc, entry any] struct {
-	c   client.Client
-	cfg *CMConfig
-	l   logr.Logger
+	c      client.Client
+	cfg    *CMConfig
+	prefix string
+	l      logr.Logger
 }
 
 func (r *cm[alloc, entry]) Restore(ctx context.Context, ref corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
-	r.l.Info("restore", "niRef", ref)
+	r.l.Info("restore", "indexRef", ref)
 
 	// if no client provided dont try to restore
 	if r.c == nil {
 		return nil
 	}
 
-	cm := buildConfigMap(ref)
-	if err := r.c.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}, cm); err != nil {
+	cm := buildConfigMap(ref, r.prefix)
+	if err := r.c.Get(ctx, types.NamespacedName{Name: r.prefix + "-" + ref.Name, Namespace: ref.Namespace}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrap(r.c.Create(ctx, cm), "canno create configmap")
+			return errors.Wrap(r.c.Create(ctx, cm), "cannot create configmap")
 		}
 	}
 
@@ -77,9 +82,9 @@ func (r *cm[alloc, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReferen
 		return nil
 	}
 
-	cm := buildConfigMap(ref)
+	cm := buildConfigMap(ref, r.prefix)
 
-	if err := r.c.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, cm); err != nil {
+	if err := r.c.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: r.prefix + "-" + ref.Name}, cm); err != nil {
 		if kerrors.IsNotFound(err) {
 			return errors.Wrap(r.c.Create(ctx, cm), "cannot create configmap")
 		}
@@ -94,7 +99,7 @@ func (r *cm[alloc, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReferen
 	}
 
 	cm.Data = map[string]string{}
-	cm.Data["data"] = string(b)
+	cm.Data[ConfigMapKey] = string(b)
 	return r.c.Update(ctx, cm)
 }
 
@@ -104,7 +109,7 @@ func (r *cm[alloc, entry]) Destroy(ctx context.Context, ref corev1.ObjectReferen
 	if r.c == nil {
 		return nil
 	}
-	cm := buildConfigMap(ref)
+	cm := buildConfigMap(ref, r.prefix)
 	if err := r.c.Delete(ctx, cm); err != nil {
 		if !kerrors.IsNotFound(err) {
 			r.l.Error(err, "ipam delete instance cm", "name", ref.Name)
@@ -126,15 +131,15 @@ func (r *cm[alloc, entry]) Delete(ctx context.Context, a alloc) error {
 	return nil
 }
 
-func buildConfigMap(niRef corev1.ObjectReference) *corev1.ConfigMap {
+func buildConfigMap(indexRef corev1.ObjectReference, prefix string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: niRef.Namespace,
-			Name:      niRef.Name,
+			Namespace: indexRef.Namespace,
+			Name:      prefix + "-" + indexRef.Name,
 		},
 	}
 }

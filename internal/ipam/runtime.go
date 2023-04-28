@@ -125,7 +125,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.cache.Get(alloc.Spec.NetworkInstance, initializing)
+	rib, err := r.cache.Get(alloc.GetCacheID(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bo
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.cache.Get(alloc.Spec.NetworkInstance, initializing)
+	rib, err := r.cache.Get(alloc.GetCacheID(), initializing)
 	if err != nil {
 		return nil, err
 	}

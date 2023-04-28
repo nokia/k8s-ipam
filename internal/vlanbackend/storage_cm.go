@@ -18,14 +18,19 @@ package vlanbackend
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,6 +45,7 @@ type storageConfig struct {
 
 func newCMStorage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Set](cfg *storageConfig) (Storage[alloc, entry], error) {
 	r := &cm[alloc, entry]{
+		c:     cfg.client,
 		cache: cfg.cache,
 	}
 
@@ -47,6 +53,7 @@ func newCMStorage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Se
 		Client:      cfg.client,
 		GetData:     r.GetData,
 		RestoreData: r.RestoreData,
+		Prefix:      "vlan",
 	})
 	if err != nil {
 		return nil, err
@@ -58,6 +65,7 @@ func newCMStorage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Se
 }
 
 type cm[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Set] struct {
+	c     client.Client
 	be    backend.Storage[alloc, entry]
 	cache backend.Cache[db.DB[uint16]]
 	l     logr.Logger
@@ -68,6 +76,7 @@ func (r *cm[alloc, entry]) Get() backend.Storage[alloc, entry] {
 }
 
 func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
+	r.l = log.FromContext(ctx)
 	ca, err := r.cache.Get(ref, false)
 	if err != nil {
 		r.l.Error(err, "cannot get db info")
@@ -86,20 +95,109 @@ func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReferen
 }
 
 func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
+	r.l = log.FromContext(ctx)
 	allocations := map[uint16]labels.Set{}
-	if err := yaml.Unmarshal([]byte(cm.Data["ipam"]), &allocations); err != nil {
+	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &allocations); err != nil {
 		r.l.Error(err, "unmarshal error from configmap data")
 		return err
 	}
-	r.l.Info("restored data", "ref", ref, "allocations", allocations)
+	r.l.Info("restore data", "ref", ref, "allocations", allocations)
 
+	// Get
 	ca, err := r.cache.Get(ref, true)
 	if err != nil {
 		return err
 	}
 
-	for vlanID, labels := range allocations {
-		ca.Set(db.NewEntry(vlanID, labels))
+	vlanList := &vlanv1alpha1.VLANList{}
+	if err := r.c.List(context.Background(), vlanList); err != nil {
+		return errors.Wrap(err, "cannot get vlan list")
 	}
+	r.restoreVLANs(ctx, ca, allocations, vlanList)
+
+	vlanAllocationList := &vlanv1alpha1.VLANAllocationList{}
+	if err := r.c.List(context.Background(), vlanList); err != nil {
+		return errors.Wrap(err, "cannot get vlan allocation list")
+	}
+	r.restoreVLANs(ctx, ca, allocations, vlanAllocationList)
+
 	return nil
+}
+
+func (r *cm[alloc, entry]) restoreVLANs(ctx context.Context, ca db.DB[uint16], allocations map[uint16]labels.Set, input any) {
+	var ownerGVK string
+	var restoreFunc func(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, specData any)
+	switch input.(type) {
+	case *vlanv1alpha1.VLANList:
+		ownerGVK = vlanv1alpha1.VLANKindGVKString
+		restoreFunc = r.restoreStaticVLANs
+	case *vlanv1alpha1.VLANAllocationList:
+		ownerGVK = vlanv1alpha1.VLANAllocationKindGVKString
+		restoreFunc = r.restoreDynamicVLANs
+	default:
+		r.l.Error(fmt.Errorf("expecting networkInstance, ipprefixList or ipALlocaationList, got %T", reflect.TypeOf(input)), "unexpected input data to restore")
+	}
+	for vlanID, labels := range allocations {
+		r.l.Info("restore allocation", "vlanID", vlanID, "labels", labels)
+		// handle the allocation owned by the network instance
+		if labels[allocv1alpha1.NephioOwnerGvkKey] == ownerGVK {
+			restoreFunc(ctx, ca, vlanID, labels, input)
+		}
+	}
+}
+
+func (r *cm[alloc, entry]) restoreStaticVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
+	r.l = log.FromContext(ctx).WithValues("type", "staticVLANs", "vlanID", vlanID)
+	vlanList, ok := input.(*vlanv1alpha1.VLANList)
+	if !ok {
+		r.l.Error(fmt.Errorf("expecting VLANList got %T", reflect.TypeOf(input)), "unexpected input data to restore")
+		return
+	}
+	for _, vlan := range vlanList.Items {
+		r.l.Info("restore static VLANs", "vlanName", vlan.GetName(), "vlanID", vlan.Spec.VLANID)
+		if labels[allocv1alpha1.NephioNsnNameKey] == vlan.GetName() &&
+			labels[allocv1alpha1.NephioNsnNamespaceKey] == vlan.GetNamespace() {
+
+			if vlanID != *vlan.Spec.VLANID {
+				// could happen if the db is initializing
+				r.l.Error(fmt.Errorf("strange that the vlanID(S) dont match"),
+					"mismatch vlanIDs",
+					"stored vlanID", vlanID,
+					"spec vlanID", vlan.Spec.VLANID)
+			}
+			r.l.Info("restored Static VLAN", "VLANID", vlanID)
+			ca.Set(db.NewEntry(vlanID, labels))
+		}
+	}
+}
+
+func (r *cm[alloc, entry]) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
+	r.l = log.FromContext(ctx).WithValues("type", "VLANAllocations", "vlanID", vlanID)
+	vlanAllocationList, ok := input.(*vlanv1alpha1.VLANAllocationList)
+	if !ok {
+		r.l.Error(fmt.Errorf("expecting VLANAllocationList got %T", reflect.TypeOf(input)), "unexpected input data to restore")
+		return
+	}
+	for _, alloc := range vlanAllocationList.Items {
+		r.l.Info("restore Dynamic allocation", "alloc", alloc.GetName(), "vlanID", alloc.Spec.VLANID)
+		if labels[allocv1alpha1.NephioNsnNameKey] == alloc.GetName() &&
+			labels[allocv1alpha1.NephioNsnNamespaceKey] == alloc.GetNamespace() {
+
+			// for allocations the vlanID can be defined in the spec or in the status
+			// we want to make the next logic uniform
+			allocVLANID := alloc.Spec.VLANID
+			if alloc.Spec.VLANID == nil {
+				allocVLANID = alloc.Status.VLANID
+			}
+
+			if allocVLANID == nil || (allocVLANID != nil && vlanID != *allocVLANID) {
+				r.l.Error(fmt.Errorf("strange that the vlanID(S) dont match"),
+					"mismatch vlanIDs",
+					"stored vlanID", vlanID,
+					"alloc vlanID", allocVLANID)
+			}
+			r.l.Info("restored Dynamic VLAN", "VLANID", vlanID)
+			ca.Set(db.NewEntry(vlanID, labels))
+		}
+	}
 }

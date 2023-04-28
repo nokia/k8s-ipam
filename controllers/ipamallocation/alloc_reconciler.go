@@ -149,23 +149,24 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// check the network instance existance, to ensure we update the condition in the cr
 	// when a network instance get deleted
-	ni := &ipamv1alpha1.NetworkInstance{}
-	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: cr.Spec.NetworkInstance.Namespace,
-		Name:      cr.Spec.NetworkInstance.Name,
-	}, ni); err != nil {
+	idxName := types.NamespacedName{
+		Namespace: cr.GetCacheID().Namespace,
+		Name:      cr.GetCacheID().Name,
+	}
+	idx := &ipamv1alpha1.NetworkInstance{}
+	if err := r.Get(ctx, idxName, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate prefix, network-intance not found")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not found"))
+		r.l.Info("cannot allocate prefix, index not found")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// check the network instance existance, to ensure we update the condition in the cr
 	// when a network instance get deleted
-	if meta.WasDeleted(ni) {
-		r.l.Info("cannot allocate prefix, network-intance not ready")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not ready"))
+	if meta.WasDeleted(idx) {
+		r.l.Info("cannot allocate prefix, index not ready")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not ready"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -208,7 +209,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	allocResp, err := r.IpamClientProxy.Allocate(ctx, cr, nil)
 	if err != nil {
-		r.l.Info("cannot allocate prefix", "err", err)
+		r.l.Info("cannot allocate resource", "err", err)
 
 		// TODO -> Depending on the error we should clear the prefix
 		// e.g. when the ni instance is not yet available we should not clear the error
@@ -221,7 +222,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if cr.Spec.Prefix != nil {
 		if allocResp.Status.Prefix != cr.Spec.Prefix {
 			// we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "alloc Resp", allocResp.Status)
+			r.l.Error(err, "resource allocation failed", "requested", cr.Spec.Prefix, "alloc Resp", allocResp.Status)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

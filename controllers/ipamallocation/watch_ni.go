@@ -62,12 +62,12 @@ func (e *EnqueueRequestForAllNetworkInstances) Generic(evt event.GenericEvent, q
 }
 
 func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue adder) {
-	ni, ok := obj.(*ipamv1alpha1.NetworkInstance)
+	idx, ok := obj.(*ipamv1alpha1.NetworkInstance)
 	if !ok {
 		return
 	}
 	e.l = log.FromContext(e.ctx)
-	e.l.Info("event", "kind", obj.GetObjectKind(), "name", ni.GetName())
+	e.l.Info("event", "kind", obj.GetObjectKind(), "name", idx.GetName())
 
 	d := &ipamv1alpha1.IPAllocationList{}
 	if err := e.client.List(e.ctx, d); err != nil {
@@ -75,12 +75,8 @@ func (e *EnqueueRequestForAllNetworkInstances) add(obj runtime.Object, queue add
 	}
 
 	for _, alloc := range d.Items {
-		// only enqueue if the network-instance matches
-		allocNiNamespace := "default"
-		if alloc.Spec.NetworkInstance.Namespace != "" {
-			allocNiNamespace = alloc.Spec.NetworkInstance.Namespace
-		}
-		if ni.GetName() == alloc.Spec.NetworkInstance.Name && ni.GetNamespace() == allocNiNamespace {
+		// only enqueue if the index matches
+		if idx.GetCacheID().Name == alloc.GetCacheID().Name && idx.GetCacheID().Namespace == alloc.GetCacheID().Namespace {
 			e.l.Info("event requeue allocation", "name", alloc.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: alloc.GetNamespace(),

@@ -61,7 +61,7 @@ type VLANStatus struct {
 // +kubebuilder:printcolumn:name="VLAN-ALLOC",type="string",JSONPath=".status.vlanID"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:categories={nephio,alloc}
-// VLANAllocation is the Schema for the vlan allocations API
+// VLAN is the Schema for the vlan API
 type VLAN struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
@@ -76,11 +76,11 @@ type VLAN struct {
 type VLANList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []VLANAllocation `json:"items" yaml:"items"`
+	Items           []VLAN `json:"items" yaml:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&VLAN{}, &VLAN{})
+	SchemeBuilder.Register(&VLAN{}, &VLANList{})
 }
 
 var (

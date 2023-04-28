@@ -550,7 +550,7 @@ func TestFindFreeID(t *testing.T) {
 				NewEntry(uint16(11), map[string]string{}),
 			},
 			id:          5,
-			errExpected: true,
+			errExpected: false,
 		},
 		"FindFreeIDMax": {
 			maxEntries: 10,

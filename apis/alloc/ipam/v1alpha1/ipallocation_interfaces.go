@@ -54,6 +54,15 @@ func (r *IPAllocation) GetGenericNamespacedName() string {
 	})
 }
 
+// GetCacheID return the cache id validating the namespace
+func (r *IPAllocation) GetCacheID() corev1.ObjectReference {
+	namespace := r.Spec.NetworkInstance.Namespace
+	if namespace == "" {
+		namespace = r.GetNamespace()
+	}
+	return corev1.ObjectReference{Name: r.Spec.NetworkInstance.Name, Namespace: namespace}
+}
+
 // GetPrefixLengthFromRoute returns the prefixlength of the ip allocation if defined in the spec
 // otherwise the route prefix is returned
 func (r *IPAllocation) GetPrefixLengthFromRoute(route table.Route) iputil.PrefixLength {

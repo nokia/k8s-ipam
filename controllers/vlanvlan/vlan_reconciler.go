@@ -35,7 +35,6 @@ import (
 
 	"github.com/go-logr/logr"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/resource"
@@ -71,9 +70,9 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
-	return ipamv1alpha1.IPPrefixGroupVersionKind, ge,
+	return vlanv1alpha1.VLANGroupVersionKind, ge,
 		ctrl.NewControllerManagedBy(mgr).
-			For(&ipamv1alpha1.IPPrefix{}).
+			For(&vlanv1alpha1.VLAN{}).
 			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			Complete(r)
 }
@@ -136,36 +135,38 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// this block is here to deal with network instance deletion
-	// we ensure the condition is set to false if the networkinstance is deleted
-	nsName := types.NamespacedName{
-		Namespace: cr.Spec.VLANDatabase.Namespace,
-		Name:      cr.Spec.VLANDatabase.Name,
+	// this block is here to deal with index deletion
+	// we ensure the condition is set to false if the index is deleted
+	idxName := types.NamespacedName{
+		Namespace: cr.GetCacheID().Namespace,
+		Name:      cr.GetCacheID().Name,
 	}
 	idx := &vlanv1alpha1.VLANDatabase{}
-	if err := r.Get(ctx, nsName, idx); err != nil {
+	if err := r.Get(ctx, idxName, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate prefix, network-intance not found")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not found"))
+		r.l.Info("cannot allocate resource, index not found", "idx", idxName)
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// check deletion timestamp of the network instance
 	if meta.WasDeleted(idx) {
-		r.l.Info("cannot allocate prefix, network-intance not ready")
+		r.l.Info("cannot allocate resource, network-intance not ready")
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not ready"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// The spec got changed we check the existing prefix against the status
 	// if there is a difference, we need to delete the prefix
-	if cr.Status.VLANID != nil && cr.Status.VLANID != cr.Spec.VLANID {
+	if cr.Status.VLANID != nil && cr.Spec.VLANID != nil &&
+		*cr.Status.VLANID != *cr.Spec.VLANID {
+		r.l.Info("deallocate resource", "spec VLANID", cr.Spec.VLANID, "status VLANID", cr.Status.VLANID)
 		if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
-			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
+			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") || !strings.Contains(err.Error(), "initalizing") {
 				r.l.Error(err, "cannot delete resource")
 				cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
-				return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 	}
@@ -173,7 +174,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	allocResp, err := r.ClientProxy.Allocate(ctx, cr, nil)
 	if err != nil {
-		r.l.Info("cannot allocate prefix", "err", err)
+		r.l.Error(err, "cannot allocate resource")
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}

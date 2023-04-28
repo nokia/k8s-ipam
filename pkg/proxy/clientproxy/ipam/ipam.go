@@ -23,7 +23,9 @@ import (
 	"reflect"
 	"time"
 
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/internal/utils/util"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
@@ -37,7 +39,7 @@ func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*ipamv1a
 	return clientproxy.New[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation](
 		ctx, clientproxy.Config{
 			Registrator: cfg.Registrator,
-			Name:        "vlan-client-proxy",
+			Name:        "ipam-client-proxy",
 			Group:       ipamv1alpha1.GroupVersion.Group, // Group of GVK for event handling
 			Normalizefn: NormalizeKRMToAllocPb,
 			ValidateFn:  ValidateResponse,
@@ -81,8 +83,13 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		if err != nil {
 			return nil, err
 		}
+		objectMeta := cr.ObjectMeta
+		if len(objectMeta.GetLabels()) == 0 {
+			objectMeta.Labels = map[string]string{}
+		}
+		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.IPPrefixGroupVersionKind)
 		alloc = ipamv1alpha1.BuildIPAllocation(
-			cr.ObjectMeta,
+			objectMeta,
 			ipamv1alpha1.IPAllocationSpec{
 				Kind:            cr.Spec.Kind,
 				NetworkInstance: cr.Spec.NetworkInstance,
@@ -115,17 +122,21 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 			return nil, fmt.Errorf("unexpected error casting object to Ip Prefix failed")
 		}
 		// create a new allocation CR from the owner CR
-		meta := cr.ObjectMeta
+		objectMeta := cr.ObjectMeta
 		// the name of the nsn is set to the prefixName within the network instance
-		meta.Name = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
+		objectMeta.Name = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
 		nsnName = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
+		if len(objectMeta.GetLabels()) == 0 {
+			objectMeta.Labels = map[string]string{}
+		}
+		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind)
 
 		pi, err := iputil.New(prefix.Prefix)
 		if err != nil {
 			return nil, err
 		}
 		alloc = ipamv1alpha1.BuildIPAllocation(
-			meta,
+			objectMeta,
 			ipamv1alpha1.IPAllocationSpec{
 				Kind: ipamv1alpha1.PrefixKindAggregate,
 				NetworkInstance: corev1.ObjectReference{

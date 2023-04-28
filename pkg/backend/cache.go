@@ -113,10 +113,10 @@ func (r *caches[T1]) Get(id corev1.ObjectReference, ignoreInitializing bool) (T1
 	defer r.m.RUnlock()
 	i, ok := r.db[id]
 	if !ok {
-		return i.instance, fmt.Errorf("db not initialized: %v", id)
+		return *new(T1), fmt.Errorf("db not initialized: %v", id)
 	}
 	if !ignoreInitializing && !i.IsInitialized() {
-		return i.instance, fmt.Errorf("db is initializing: %v", id)
+		return *new(T1), fmt.Errorf("db is initializing: %v", id)
 	}
 	return i.instance, nil
 }

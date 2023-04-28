@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"time"
 
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	"github.com/nokia/k8s-ipam/internal/meta"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,8 +75,13 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 			return nil, fmt.Errorf("unexpected error casting object to IPPrefix failed")
 		}
 		// create a new allocation CR from the owner CR
+		objectMeta := cr.ObjectMeta
+		if len(objectMeta.GetLabels()) == 0 {
+			objectMeta.Labels = map[string]string{}
+		}
+		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(vlanv1alpha1.VLANGroupVersionKind)
 		alloc = vlanv1alpha1.BuildVLANAllocation(
-			cr.ObjectMeta,
+			objectMeta,
 			vlanv1alpha1.VLANAllocationSpec{
 				VLANDatabase: cr.Spec.VLANDatabase,
 				VLANID:       cr.Spec.VLANID,
@@ -96,7 +103,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		}
 		expiryTime = string(b)
 	default:
-		return nil, fmt.Errorf("cannot allocate prefix for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
+		return nil, fmt.Errorf("cannot allocate resource for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
 	}
 
 	// generic processing

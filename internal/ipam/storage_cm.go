@@ -49,6 +49,7 @@ type storageConfig struct {
 
 func newCMStorage[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set](cfg *storageConfig) (Storage[alloc, entry], error) {
 	r := &cm[alloc, entry]{
+		c:        cfg.client,
 		cache:    cfg.cache,
 		runtimes: cfg.runtimes,
 	}
@@ -57,6 +58,7 @@ func newCMStorage[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set]
 		Client:      cfg.client,
 		GetData:     r.GetData,
 		RestoreData: r.RestoreData,
+		Prefix:      "ipam",
 	})
 	if err != nil {
 		return nil, err
@@ -80,6 +82,7 @@ func (r *cm[alloc, entry]) Get() backend.Storage[alloc, entry] {
 }
 
 func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
+	r.l = log.FromContext(ctx)
 	rib, err := r.cache.Get(ref, false)
 	if err != nil {
 		r.l.Error(err, "cannot get db info")
@@ -98,8 +101,9 @@ func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReferen
 }
 
 func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
+	r.l = log.FromContext(ctx)
 	allocations := map[string]labels.Set{}
-	if err := yaml.Unmarshal([]byte(cm.Data["ipam"]), &allocations); err != nil {
+	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &allocations); err != nil {
 		r.l.Error(err, "unmarshal error from configmap data")
 		return err
 	}

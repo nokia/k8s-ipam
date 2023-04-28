@@ -29,7 +29,7 @@ type ProxyCache interface {
 	DeleteIndex(ctx context.Context, alloc *allocpb.AllocRequest) error
 	// Get returns the allocated prefix
 	GetAllocation(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
-	// Allocate -> lookup in local cache based on (ipam, etc) gvknsn
+	// Allocate -> lookup in local cache based on gvknsn
 	Allocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
 	// DeAllocate removes the cache data
 	DeAllocate(ctx context.Context, alloc *allocpb.AllocRequest) error
@@ -56,9 +56,9 @@ func New(c *Config) ProxyCache {
 
 type proxycache struct {
 	informer Informer
-	// this is the ipam GVK namespace, name
+	// this is the cache with GVK namespace, name
 	cache Cache
-	// registrator finds the ipam
+	// registrator finds the backend
 	registrator registrator.Registrator
 	svcInfo     *registrator.Service
 	m           sync.RWMutex
@@ -250,10 +250,10 @@ func (r *proxycache) allocate(ctx context.Context, alloc *allocpb.AllocRequest, 
 		}
 	}
 	if refresh {
-		r.l.Info("cache hit NOK -> refresh from ipam server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+		r.l.Info("cache hit NOK -> refresh from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
 	} else {
-		// allocate the prefix from the central ipam server
-		r.l.Info("cache hit NOK -> response from ipam server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+		// allocate the resource from the central backend server
+		r.l.Info("cache hit NOK -> response from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
 	}
 
 	allocResp, err := allocClient.Allocate(ctx, alloc)

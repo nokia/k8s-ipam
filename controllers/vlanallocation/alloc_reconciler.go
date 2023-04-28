@@ -131,16 +131,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// check the existance of the index, to ensure we update the condition in the cr
-	// when a index get deleted
+	// this block is here to deal with index deletion
+	// we ensure the condition is set to false if the index is deleted
+	idxName := types.NamespacedName{
+		Namespace: cr.GetCacheID().Namespace,
+		Name:      cr.GetCacheID().Name,
+	}
 	idx := &vlanv1alpha1.VLANDatabase{}
-	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: cr.Spec.VLANDatabase.Namespace,
-		Name:      cr.Spec.VLANDatabase.Name,
-	}, idx); err != nil {
+	if err := r.Get(ctx, idxName, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate prefix, index not found")
+		r.l.Info("cannot allocate resource, index not found")
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -158,7 +159,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// w/o the prefix in the spec
 	specId := cr.Spec.VLANID
 	if cr.Status.VLANID != nil && cr.Spec.VLANID != nil &&
-		cr.Status.VLANID != cr.Spec.VLANID {
+		*cr.Status.VLANID != *cr.Spec.VLANID {
 		// we set the prefix to "", to ensure the deallocation works
 		cr.Spec.VLANID = nil
 		if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
@@ -175,7 +176,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	allocResp, err := r.ClientProxy.Allocate(ctx, cr, nil)
 	if err != nil {
-		r.l.Info("cannot allocate prefix", "err", err)
+		r.l.Info("cannot allocate resource", "err", err)
 
 		// TODO -> Depending on the error we should clear the prefix
 		// e.g. when the ni instance is not yet available we should not clear the error
@@ -187,7 +188,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if cr.Spec.VLANID != nil {
 		if allocResp.Status.VLANID != nil && allocResp.Status.VLANID != cr.Spec.VLANID {
 			// we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.VLANID, "alloc Resp", allocResp.Status)
+			r.l.Error(err, "resource allocation failed", "requested", cr.Spec.VLANID, "alloc Resp", allocResp.Status)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

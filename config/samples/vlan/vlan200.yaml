@@ -1,0 +1,8 @@
+apiVersion: vlan.alloc.nephio.org/v1alpha1
+kind: VLAN
+metadata:
+  name: vlan200
+spec:
+  vlanDatabase:
+    name: edge1
+  vlanID: 200

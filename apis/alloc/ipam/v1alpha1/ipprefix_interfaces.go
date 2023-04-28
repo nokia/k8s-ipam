@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -39,6 +40,15 @@ func (r *IPPrefix) GetGenericNamespacedName() string {
 		Namespace: r.GetNamespace(),
 		Name:      r.GetName(),
 	})
+}
+
+// GetCacheID return the cache id validating the namespace
+func (r *IPPrefix) GetCacheID() corev1.ObjectReference {
+	namespace := r.Spec.NetworkInstance.Namespace
+	if namespace == "" {
+		namespace = r.GetNamespace()
+	}
+	return corev1.ObjectReference{Name: r.Spec.NetworkInstance.Name, Namespace: namespace}
 }
 
 // GetUserDefinedLabels returns the user defined labels in the spec

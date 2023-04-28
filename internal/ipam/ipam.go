@@ -194,7 +194,7 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 	}
 	r.l.Info("allocate prefix done", "updatedAlloc", cr)
 	//return updatedAlloc, r.updateConfigMap(ctx, alloc)
-	if err := r.store.Get().SaveAll(ctx, cr.Spec.NetworkInstance); err != nil {
+	if err := r.store.Get().SaveAll(ctx, cr.GetCacheID()); err != nil {
 		return nil, err
 	}
 	return json.Marshal(cr)
@@ -220,8 +220,8 @@ func (r *be) DeAllocate(ctx context.Context, b []byte) error {
 	}
 	// we trust the create prefix since it was already allocated
 	if err := rt.Delete(ctx); err != nil {
-		r.l.Error(err, "cannot deallocate prefix")
+		r.l.Error(err, "cannot deallocate resource")
 		return err
 	}
-	return r.store.Get().SaveAll(ctx, cr.Spec.NetworkInstance)
+	return r.store.Get().SaveAll(ctx, cr.GetCacheID())
 }

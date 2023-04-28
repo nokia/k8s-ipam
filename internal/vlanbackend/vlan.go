@@ -155,7 +155,7 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 		return nil, err
 	}
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("allocate")
+	r.l.Info("allocate", "cr spec", cr.Spec)
 
 	al, err := r.newApplogic(cr, false)
 	if err != nil {
@@ -175,7 +175,7 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 	}
 
 	r.l.Info("allocate  done", "updatedAlloc", cr)
-	if err := r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabase); err != nil {
+	if err := r.store.Get().SaveAll(ctx, cr.GetCacheID()); err != nil {
 		return nil, err
 	}
 	return json.Marshal(cr)
@@ -195,9 +195,9 @@ func (r *be) DeAllocate(ctx context.Context, b []byte) error {
 		return err
 	}
 	if err := al.Delete(ctx, cr); err != nil {
-		r.l.Error(err, "cannot deallocate prefix")
+		r.l.Error(err, "cannot deallocate resource")
 		return err
 	}
 
-	return r.store.Get().SaveAll(ctx, cr.Spec.VLANDatabase)
+	return r.store.Get().SaveAll(ctx, cr.GetCacheID())
 }

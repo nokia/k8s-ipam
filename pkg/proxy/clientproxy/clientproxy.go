@@ -68,7 +68,7 @@ func New[T1, T2 client.Object](ctx context.Context, cfg Config) Proxy[T1, T2] {
 		l:           l,
 	}
 	// This is a helper to validate the response since the proxy is content unaware.
-	// It understands KRM but nothing else
+	// It understands KRM but not the details of the spec
 	pc.RegisterRefreshRespValidator(cfg.Group, cfg.ValidateFn)
 	pc.Start(ctx)
 	return cp
@@ -104,18 +104,18 @@ func (r *clientproxy[T1, T2]) DeleteIndex(ctx context.Context, cr T1) error {
 		return err
 	}
 	req := BuildAllocPb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
-	return r.pc.DeAllocate(ctx, req)
+	return r.pc.DeleteIndex(ctx, req)
 }
 
 func (r *clientproxy[T1, T2]) GetAllocation(ctx context.Context, o client.Object, d any) (T2, error) {
-	r.l.Info("get allocated prefix", "cr", o)
+	r.l.Info("get allocated resource", "cr", o)
 	var x T2
 	// normalizes the input to the proxycache generalized allocation
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return x, err
 	}
-	r.l.Info("get allocated prefix", "allobrequest", req)
+	r.l.Info("get allocated resource", "allocPbRequest", req)
 	resp, err := r.pc.GetAllocation(ctx, req)
 	if err != nil {
 		return x, err
@@ -124,19 +124,19 @@ func (r *clientproxy[T1, T2]) GetAllocation(ctx context.Context, o client.Object
 	if err := json.Unmarshal([]byte(resp.Status), &x); err != nil {
 		return x, err
 	}
-	r.l.Info("allocate prefix done", "result", x)
+	r.l.Info("allocate resource done", "result", x)
 	return x, nil
 }
 
 func (r *clientproxy[T1, T2]) Allocate(ctx context.Context, o client.Object, d any) (T2, error) {
-	r.l.Info("allocate prefix", "cr", o)
+	r.l.Info("allocate resource", "cr", o)
 	var x T2
 	// normalizes the input to the proxycache generalized allocation
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return x, err
 	}
-	r.l.Info("allocate prefix", "allobrequest", req)
+	r.l.Info("allocate resource", "allobrequest", req)
 
 	resp, err := r.pc.Allocate(ctx, req)
 	if err != nil {
@@ -145,7 +145,7 @@ func (r *clientproxy[T1, T2]) Allocate(ctx context.Context, o client.Object, d a
 	if err := json.Unmarshal([]byte(resp.Status), &x); err != nil {
 		return x, err
 	}
-	r.l.Info("allocate prefix done", "result", x)
+	r.l.Info("allocate resource done", "result", x)
 	return x, nil
 }
 

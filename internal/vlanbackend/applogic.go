@@ -10,8 +10,7 @@ import (
 
 func (r *be) newApplogic(cr *vlanv1alpha1.VLANAllocation, initializing bool) (backend.AppLogic[*vlanv1alpha1.VLANAllocation], error) {
 	// we assume right now 1 database ID
-	cacheID := cr.Spec.VLANDatabase
-	t, err := r.cache.Get(cacheID, initializing)
+	t, err := r.cache.Get(cr.GetCacheID(), initializing)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +75,7 @@ type applogicFunctionConfig struct {
 func (r *applogic) GetHandler(ctx context.Context, a *vlanv1alpha1.VLANAllocation) (*vlanv1alpha1.VLANAllocation, error) {
 	// get the entries in the table based on the lebels in the spec
 	alloc := a.DeepCopy()
-	entries, err := r.getEntriesByLabel(r.table, a)
+	entries, err := r.getEntriesByOwner(r.table, a)
 	if err != nil {
 		return nil, err
 	}
@@ -139,18 +138,6 @@ func (r *applogic) getEntriesByOwner(t db.DB[uint16], a *vlanv1alpha1.VLANAlloca
 		return db.Entries[uint16]{}, err
 	}
 	entries := t.GetByLabel(ownerSelector)
-	if len(entries) != 0 {
-		return entries, nil
-	}
-	return db.Entries[uint16]{}, nil
-}
-
-func (r *applogic) getEntriesByLabel(t db.DB[uint16], a *vlanv1alpha1.VLANAllocation) (db.Entries[uint16], error) { // get vlan by owner
-	labelSelector, err := a.GetLabelSelector()
-	if err != nil {
-		return db.Entries[uint16]{}, err
-	}
-	entries := t.GetByLabel(labelSelector)
 	if len(entries) != 0 {
 		return entries, nil
 	}

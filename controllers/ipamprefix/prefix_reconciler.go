@@ -110,10 +110,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return reconcile.Result{}, nil
 	}
-	niName := types.NamespacedName{
-		Namespace: cr.Spec.NetworkInstance.Namespace,
-		Name:      cr.Spec.NetworkInstance.Name,
-	}
 
 	if meta.WasDeleted(cr) {
 		// if the prefix condition is false it means the prefix was not active in the ipam
@@ -147,21 +143,25 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// this block is here to deal with network instance deletion
-	// we ensure the condition is set to false if the networkinstance is deleted
-	ni := &ipamv1alpha1.NetworkInstance{}
-	if err := r.Get(ctx, niName, ni); err != nil {
+	// this block is here to deal with index deletion
+	// we ensure the condition is set to false if the index is deleted
+	idxName := types.NamespacedName{
+		Namespace: cr.GetCacheID().Namespace,
+		Name:      cr.GetCacheID().Name,
+	}
+	idx := &ipamv1alpha1.NetworkInstance{}
+	if err := r.Get(ctx, idxName, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate prefix, network-intance not found")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not found"))
+		r.l.Info("cannot allocate resource, index not found")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// check deletion timestamp of the network instance
-	if meta.WasDeleted(ni) {
-		r.l.Info("cannot allocate prefix, network-intance not ready")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not ready"))
+	if meta.WasDeleted(idx) {
+		r.l.Info("cannot allocate resource, index not ready")
+		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not ready"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 

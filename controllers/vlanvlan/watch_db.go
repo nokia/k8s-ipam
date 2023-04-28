@@ -73,17 +73,13 @@ func (e *EnqueueRequestForAllVlanDatabases) add(obj runtime.Object, queue adder)
 		return
 	}
 
-	for _, alloc := range d.Items {
-		// only enqueue if the vlan index matches
-		allocNamespace := "default"
-		if alloc.Spec.VLANDatabase.Namespace != "" {
-			allocNamespace = alloc.Spec.VLANDatabase.Namespace
-		}
-		if idx.GetName() == alloc.Spec.VLANDatabase.Name && alloc.Spec.VLANDatabase.Namespace == allocNamespace {
-			e.l.Info("event requeue allocation", "name", alloc.GetName())
+	for _, r := range d.Items {
+		// only enqueue if the index matches
+		if idx.GetCacheID().Name == r.GetCacheID().Name && idx.GetCacheID().Namespace == r.GetCacheID().Namespace {
+			e.l.Info("event requeue allocation", "name", r.GetName())
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: alloc.GetNamespace(),
-				Name:      alloc.GetName()}})
+				Namespace: r.GetNamespace(),
+				Name:      r.GetName()}})
 		}
 	}
 }

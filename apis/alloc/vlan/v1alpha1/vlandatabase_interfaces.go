@@ -57,5 +57,5 @@ func (r *VLANDatabase) GetUserDefinedLabels() map[string]string {
 
 // GetCacheID returns a CacheID as an objectReference
 func (r *VLANDatabase) GetCacheID() corev1.ObjectReference {
-	return corev1.ObjectReference{Kind: string(r.Spec.Kind), Name: r.GetName(), Namespace: r.GetNamespace()}
+	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
 }

@@ -277,7 +277,7 @@ func (in *VLANList) DeepCopyInto(out *VLANList) {
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]VLANAllocation, len(*in))
+		*out = make([]VLAN, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

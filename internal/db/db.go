@@ -197,7 +197,7 @@ func (r *db[T]) FindFreeID(id T) (Entry[T], error) {
 		//free
 		return NewEntry(T(id), map[string]string{}), nil
 	}
-	return nil, fmt.Errorf("id in use")
+	return r.store[id], nil
 }
 
 func (r *db[T]) FindFreeRange(start, size T) (Entries[T], error) {

@@ -50,7 +50,7 @@ func (r *serverproxy) CreateIndex(ctx context.Context, alloc *allocpb.AllocReque
 	}
 	err := be.CreateIndex(ctx, []byte(alloc.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot create index")
+		r.l.Error(err, "cannot create index", "spec", alloc.Spec)
 		return nil, err
 	}
 	r.l.Info("create index done")
@@ -65,7 +65,7 @@ func (r *serverproxy) DeleteIndex(ctx context.Context, alloc *allocpb.AllocReque
 	}
 	err := be.DeleteIndex(ctx, []byte(alloc.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot delete index")
+		r.l.Error(err, "cannot delete index", "spec", alloc.Spec)
 		return nil, err
 	}
 	r.l.Info("delete index done")
@@ -80,7 +80,7 @@ func (r *serverproxy) GetAllocation(ctx context.Context, alloc *allocpb.AllocReq
 	}
 	b, err := be.GetAllocation(ctx, []byte(alloc.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot create index")
+		r.l.Error(err, "cannot get allocation", "spec", alloc.Spec)
 		return nil, err
 	}
 	resp := &allocpb.AllocResponse{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
@@ -96,9 +96,10 @@ func (r *serverproxy) Allocate(ctx context.Context, alloc *allocpb.AllocRequest)
 		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
 		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
 	}
+
 	b, err := be.Allocate(ctx, []byte(alloc.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot allocate")
+		r.l.Error(err, "cannot allocate", "spec", alloc.Spec)
 		return nil, err
 	}
 	resp := &allocpb.AllocResponse{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
@@ -114,9 +115,9 @@ func (r *serverproxy) DeAllocate(ctx context.Context, alloc *allocpb.AllocReques
 		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
 		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
 	}
-	err := be.DeleteIndex(ctx, []byte(alloc.Spec))
+	err := be.DeAllocate(ctx, []byte(alloc.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot deallocate")
+		r.l.Error(err, "cannot deallocate", "spec", alloc.Spec)
 		return nil, err
 	}
 	r.l.Info("deallocate done")
