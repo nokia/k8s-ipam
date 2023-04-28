@@ -19,6 +19,7 @@ func (r *be) newApplogic(cr *vlanv1alpha1.VLANAllocation, initializing bool) (ba
 	if err != nil {
 		return nil, err
 	}
+	r.l.Info("newApplogic", "vlanAllocCtx", vlanAllocCtx)
 
 	return newVLANApplogic(t, vlanAllocCtx, false)
 
@@ -107,6 +108,7 @@ func (r *applogic) ApplyHandler(ctx context.Context, a *vlanv1alpha1.VLANAllocat
 			if err := r.fnc[r.vctx.Kind].applyHandlerFound(entries, alloc); err != nil {
 				return nil, err
 			}
+			return alloc, nil
 		}
 	}
 	// new allocation required
@@ -135,7 +137,7 @@ func (r *applogic) DeleteHandler(ctx context.Context, a *vlanv1alpha1.VLANAlloca
 func (r *applogic) getEntriesByOwner(t db.DB[uint16], a *vlanv1alpha1.VLANAllocation) (db.Entries[uint16], error) { // get vlan by owner
 	ownerSelector, err := a.GetOwnerSelector()
 	if err != nil {
-		return db.Entries[uint16]{}, err
+		return nil, err
 	}
 	entries := t.GetByLabel(ownerSelector)
 	if len(entries) != 0 {

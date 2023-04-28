@@ -46,8 +46,6 @@ const (
 	// errors
 	errGetCr        = "cannot get resource"
 	errUpdateStatus = "cannot update status"
-
-	//reconcileFailed = "reconcile failed"
 )
 
 //+kubebuilder:rbac:groups=ipam.nephio.org,resources=networkinstances,verbs=get;list;watch;create;update;patch;delete
@@ -167,9 +165,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 			return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		if allocResp.Status.Prefix != &prefix.Prefix {
+		if allocResp.Status.Prefix == nil || *allocResp.Status.Prefix != prefix.Prefix {
 			//we got a different prefix than requested
-			r.l.Error(err, "prefix allocation failed", "requested", prefix, "allocated", allocResp.Status.Prefix)
+			r.l.Error(err, "prefix allocation failed", "requested", prefix.Prefix, "allocated", allocResp.Status.Prefix)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

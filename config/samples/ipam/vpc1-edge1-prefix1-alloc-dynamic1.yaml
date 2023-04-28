@@ -1,0 +1,11 @@
+apiVersion: ipam.alloc.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name: vpc1-edge1-net1-prefix1-dynamic1
+spec:
+  kind: network
+  networkInstance: 
+    name: vpc1
+  selector:
+    matchLabels:
+      nephio.org/site: edge1

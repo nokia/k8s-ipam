@@ -1,0 +1,7 @@
+apiVersion: vlan.alloc.nephio.org/v1alpha1
+kind: VLANAllocation
+metadata:
+  name: dynamic2
+spec:
+  vlanDatabase:
+    name: edge1

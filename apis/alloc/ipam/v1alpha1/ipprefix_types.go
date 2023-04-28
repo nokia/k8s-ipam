@@ -38,7 +38,7 @@ type IPPrefixSpec struct {
 	Kind PrefixKind `json:"kind" yaml:"kind"`
 	// NetworkInstance defines the networkInstance context for the IP prefix
 	// Name and optionally Namespace is used here
-	NetworkInstance corev1.ObjectReference `json:"networkInstanceReference" yaml:"networkReference"`
+	NetworkInstance corev1.ObjectReference `json:"networkInstance" yaml:"networkInstance"`
 	// Prefix defines the ip cidr in prefix or address notation.
 	// +kubebuilder:validation:Pattern=`(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))|((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))`
 	Prefix string `json:"prefix" yaml:"prefix"`
@@ -57,14 +57,14 @@ type IPPrefixStatus struct {
 	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 	// Prefix defines the prefix, allocated by the IPAM backend
 	// +kubebuilder:validation:Optional
-	Prefix string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
+	Prefix *string `json:"prefix,omitempty" yaml:"prefix,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SYNC",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".spec.networkInstance"
+// +kubebuilder:printcolumn:name="NETWORK-INSTANCE",type="string",JSONPath=".spec.networkInstance.name"
 // +kubebuilder:printcolumn:name="KIND",type="string",JSONPath=".spec.kind"
 // +kubebuilder:printcolumn:name="SUBNET",type="string",JSONPath=".spec.subnetName"
 // +kubebuilder:printcolumn:name="PREFIX-REQ",type="string",JSONPath=".spec.prefix"

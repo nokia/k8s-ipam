@@ -96,6 +96,9 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 				Prefix:          &cr.Spec.Prefix,
 				PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
 				CreatePrefix:    pointer.Bool(true),
+				AllocationLabels: allocv1alpha1.AllocationLabels{
+					UserDefinedLabels: cr.Spec.UserDefinedLabels,
+				},
 			},
 			ipamv1alpha1.IPAllocationStatus{})
 	case ipamv1alpha1.IPAllocationKind:
@@ -146,6 +149,9 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 				Prefix:       &prefix.Prefix,
 				PrefixLength: util.PointerUint8(pi.GetPrefixLength().Int()),
 				CreatePrefix: pointer.Bool(true),
+				AllocationLabels: allocv1alpha1.AllocationLabels{
+					UserDefinedLabels: prefix.UserDefinedLabels,
+				},
 			},
 			ipamv1alpha1.IPAllocationStatus{})
 	default:

@@ -24,7 +24,7 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: STATUS
       type: string
-    - jsonPath: .spec.networkInstance
+    - jsonPath: .spec.networkInstance.name
       name: NETWORK-INSTANCE
       type: string
     - jsonPath: .spec.kind
@@ -72,7 +72,7 @@ spec:
                   type: string
                 description: Labels as user defined labels
                 type: object
-              networkInstanceReference:
+              networkInstance:
                 description: NetworkInstance defines the networkInstance context for the IP prefix Name and optionally Namespace is used here
                 properties:
                   apiVersion:
@@ -104,7 +104,7 @@ spec:
                 type: string
             required:
             - kind
-            - networkInstanceReference
+            - networkInstance
             - prefix
             type: object
           status:

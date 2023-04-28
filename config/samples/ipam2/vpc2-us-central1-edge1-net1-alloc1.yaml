@@ -7,8 +7,7 @@ spec:
   networkInstanceRef: 
     namespace: default
     name: vpc2
-  selector:
-    matchLabels:
+  labels:
       nephio.org/region: us-central1
       nephio.org/site: edge1
       nephio.org/network-name: net1

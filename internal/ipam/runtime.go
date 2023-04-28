@@ -47,7 +47,7 @@ type runtimes struct {
 }
 
 func (r *runtimes) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
-	if alloc.Spec.Prefix != nil {
+	if alloc.Spec.Prefix == nil {
 		return r.allocRuntime.Get(alloc, initializing)
 	}
 	return r.prefixRuntime.Get(alloc, initializing)
@@ -135,7 +135,7 @@ func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing b
 		alloc:        alloc,
 		rib:          rib,
 		watcher:      r.watcher,
-		fnc:          r.oc[ipamv1alpha1.PrefixKind(*alloc.Spec.Prefix)],
+		fnc:          r.oc[alloc.Spec.Kind],
 	})
 
 }

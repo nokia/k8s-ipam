@@ -1,8 +1,8 @@
-apiVersion: ipam.alloc.nephio.org/v1alpha1
+apiVersion: ipam.nephio.org/v1alpha1
 kind: NetworkInstance
 metadata:
   name: vpc1
 spec:
   prefixes:
   - prefix: 10.0.0.0/8
-  - prefix: 192.168.0.0/16
+  - prefix: 10.0.0.0/16

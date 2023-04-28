@@ -220,7 +220,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	// if the prefix is allocated in the spec, we need to ensure we get the same allocation
 	if cr.Spec.Prefix != nil {
-		if allocResp.Status.Prefix != cr.Spec.Prefix {
+		if allocResp.Status.Prefix == nil || *allocResp.Status.Prefix != *cr.Spec.Prefix {
 			// we got a different prefix than requested
 			r.l.Error(err, "resource allocation failed", "requested", cr.Spec.Prefix, "alloc Resp", allocResp.Status)
 			cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())

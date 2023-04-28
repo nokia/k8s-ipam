@@ -48,8 +48,6 @@ const (
 	// error
 	errGetCr        = "cannot get resource"
 	errUpdateStatus = "cannot update status"
-
-	//reconcileFailed = "reconcile failed"
 )
 
 //+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes,verbs=get;list;watch;create;update;patch;delete
@@ -59,9 +57,7 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
-
 	ge := make(chan event.GenericEvent)
-
 	r := &reconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
@@ -70,17 +66,9 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 		finalizer:       resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
-	/*
-		niHandler := &EnqueueRequestForAllNetworkInstances{
-			client: mgr.GetClient(),
-			ctx:    context.Background(),
-		}
-	*/
-
 	return ipamv1alpha1.IPPrefixGroupVersionKind, ge,
 		ctrl.NewControllerManagedBy(mgr).
 			For(&ipamv1alpha1.IPPrefix{}).
-			//Watches(&source.Kind{Type: &ipamv1alpha1.NetworkInstance{}}, niHandler).
 			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			Complete(r)
 }
@@ -110,6 +98,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return reconcile.Result{}, nil
 	}
+
+	r.l.Info("reconcile", "cr spec", cr.Spec)
 
 	if meta.WasDeleted(cr) {
 		// if the prefix condition is false it means the prefix was not active in the ipam
@@ -167,7 +157,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// The spec got changed we check the existing prefix against the status
 	// if there is a difference, we need to delete the prefix
-	if cr.Status.Prefix != "" && cr.Status.Prefix != cr.Spec.Prefix {
+	if cr.Status.Prefix != nil && *cr.Status.Prefix != cr.Spec.Prefix {
 		if err := r.IpamClientProxy.DeAllocate(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 				r.l.Error(err, "cannot delete resource")
@@ -183,7 +173,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if *allocResp.Status.Prefix != cr.Spec.Prefix {
+	if allocResp.Status.Prefix == nil || *allocResp.Status.Prefix != cr.Spec.Prefix {
 		//we got a different prefix than requested
 		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.Prefix, "allocated", allocResp.Status.Prefix)
 		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
@@ -191,7 +181,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	r.l.Info("Successfully reconciled resource")
-	cr.Status.Prefix = cr.Spec.Prefix
+	cr.Status.Prefix = &cr.Spec.Prefix
 	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

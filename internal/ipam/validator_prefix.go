@@ -72,9 +72,13 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.Spec.Kind, "name", r.alloc.GetName(), "prefix", r.alloc.Spec.Prefix)
 	r.l.Info("validate")
 
+	r.l.Info("fnc", "r.fnc", r.fnc)
+
 	// validate input
-	if msg := r.fnc.validateInputFn(r.alloc, r.pi); msg != "" {
-		return msg, nil
+	if r.fnc.validateInputFn != nil {
+		if msg := r.fnc.validateInputFn(r.alloc, r.pi); msg != "" {
+			return msg, nil
+		}
 	}
 
 	// get dryrun rib
@@ -152,6 +156,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		}
 	}
 	// get parents
+
 	routes = route.Parents(dryrunRib)
 	if len(routes) == 0 {
 		if msg := r.fnc.validateNoParentExistFn(r.alloc.Spec.Kind, r.alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerGvkKey]); msg != "" {
