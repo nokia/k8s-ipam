@@ -33,7 +33,7 @@ import (
 func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation] {
 	return clientproxy.New[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation](
 		ctx, clientproxy.Config{
-			Registrator: cfg.Registrator,
+			Address:     cfg.Address,
 			Name:        "vlan-client-proxy",
 			Group:       vlanv1alpha1.GroupVersion.Group, // Group of GVK for event handling
 			Normalizefn: NormalizeKRMToAllocPb,

@@ -262,21 +262,22 @@ func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.R
 			// we compare against the expanded list
 			if alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 				// TODO this can error if the prefix got released since ipam was not available -> to be added to the allocation controller
-				pi, err := iputil.New(*allocPrefix)
-				if err != nil {
-					r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing, unless the prefix got released")
-					break
+				if allocPrefix != nil {
+					pi, err := iputil.New(*allocPrefix)
+					if err != nil {
+						r.l.Error(err, "cannot parse prefix, should not happen since this was already stored after parsing, unless the prefix got released")
+						break
+					}
+					if !pi.IsPrefixPresentInSubnetMap(prefix) {
+						r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
+							"mismatch prefixes",
+							"kind", alloc.Spec.Kind,
+							"stored prefix", prefix,
+							"alloc prefix", allocPrefix)
+					}
 				}
-				if !pi.IsPrefixPresentInSubnetMap(prefix) {
-					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
-						"mismatch prefixes",
-						"kind", alloc.Spec.Kind,
-						"stored prefix", prefix,
-						"alloc prefix", allocPrefix)
-				}
-
 			} else {
-				if prefix != *allocPrefix {
+				if allocPrefix != nil && prefix != *allocPrefix {
 					r.l.Error(fmt.Errorf("strange that the prefixes dont match"),
 						"mismatch prefixes",
 						"kind", alloc.Spec.Kind,

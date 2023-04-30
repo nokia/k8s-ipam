@@ -193,8 +193,6 @@ github.com/hansthienpondt/nipam v0.0.5 h1:83Mdwdgx3l9tvio8u8ufan97MWx49n38IJwgSB
 github.com/hansthienpondt/nipam v0.0.5/go.mod h1:dJI5FdzV6iaQyaOH4htGqJNs6wGieJeX3lhPj1Ah19U=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
-github.com/henderiw-k8s-lcnc/discovery v0.0.5 h1:FL1DUudNMqkn9fc8Yh0IOD94LS0rhwnihvojV8qEs48=
-github.com/henderiw-k8s-lcnc/discovery v0.0.5/go.mod h1:IvojDefpANfXex2IX+n94+I3wfPy5LAVnHQmuqECt0I=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/imdario/mergo v0.3.12 h1:b6R2BslTbIEToALKP7LxUvijTsNI9TAe80pLWN2g/HU=
 github.com/imdario/mergo v0.3.12/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=

@@ -10,7 +10,6 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
 	github.com/hansthienpondt/nipam v0.0.5
-	github.com/henderiw-k8s-lcnc/discovery v0.0.5
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.0

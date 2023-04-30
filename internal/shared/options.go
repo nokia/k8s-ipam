@@ -19,7 +19,6 @@ package shared
 import (
 	"time"
 
-	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
@@ -29,8 +28,9 @@ import (
 )
 
 type Options struct {
-	PorchClient     client.Client
-	Registrator     registrator.Registrator
+	PorchClient client.Client
+	Address     string
+	//Registrator     registrator.Registrator
 	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	Poll            time.Duration

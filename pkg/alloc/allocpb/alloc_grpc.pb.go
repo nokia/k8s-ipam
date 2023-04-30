@@ -26,7 +26,7 @@ type AllocationClient interface {
 	CreateIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 	DeleteIndex(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 	// services within an index in the cache
-	Get(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error)
+	GetAllocation(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error)
 	Allocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error)
 	DeAllocate(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 	WatchAlloc(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Allocation_WatchAllocClient, error)
@@ -58,9 +58,9 @@ func (c *allocationClient) DeleteIndex(ctx context.Context, in *AllocRequest, op
 	return out, nil
 }
 
-func (c *allocationClient) Get(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error) {
+func (c *allocationClient) GetAllocation(ctx context.Context, in *AllocRequest, opts ...grpc.CallOption) (*AllocResponse, error) {
 	out := new(AllocResponse)
-	err := c.cc.Invoke(ctx, "/alloc.Allocation/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/alloc.Allocation/GetAllocation", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ type AllocationServer interface {
 	CreateIndex(context.Context, *AllocRequest) (*EmptyResponse, error)
 	DeleteIndex(context.Context, *AllocRequest) (*EmptyResponse, error)
 	// services within an index in the cache
-	Get(context.Context, *AllocRequest) (*AllocResponse, error)
+	GetAllocation(context.Context, *AllocRequest) (*AllocResponse, error)
 	Allocate(context.Context, *AllocRequest) (*AllocResponse, error)
 	DeAllocate(context.Context, *AllocRequest) (*EmptyResponse, error)
 	WatchAlloc(*WatchRequest, Allocation_WatchAllocServer) error
@@ -142,8 +142,8 @@ func (UnimplementedAllocationServer) CreateIndex(context.Context, *AllocRequest)
 func (UnimplementedAllocationServer) DeleteIndex(context.Context, *AllocRequest) (*EmptyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteIndex not implemented")
 }
-func (UnimplementedAllocationServer) Get(context.Context, *AllocRequest) (*AllocResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+func (UnimplementedAllocationServer) GetAllocation(context.Context, *AllocRequest) (*AllocResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllocation not implemented")
 }
 func (UnimplementedAllocationServer) Allocate(context.Context, *AllocRequest) (*AllocResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Allocate not implemented")
@@ -203,20 +203,20 @@ func _Allocation_DeleteIndex_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Allocation_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Allocation_GetAllocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AllocRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AllocationServer).Get(ctx, in)
+		return srv.(AllocationServer).GetAllocation(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/alloc.Allocation/Get",
+		FullMethod: "/alloc.Allocation/GetAllocation",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AllocationServer).Get(ctx, req.(*AllocRequest))
+		return srv.(AllocationServer).GetAllocation(ctx, req.(*AllocRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -294,8 +294,8 @@ var Allocation_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Allocation_DeleteIndex_Handler,
 		},
 		{
-			MethodName: "Get",
-			Handler:    _Allocation_Get_Handler,
+			MethodName: "GetAllocation",
+			Handler:    _Allocation_GetAllocation_Handler,
 		},
 		{
 			MethodName: "Allocate",

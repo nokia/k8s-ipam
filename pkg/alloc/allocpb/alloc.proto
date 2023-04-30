@@ -26,7 +26,7 @@ service Allocation {
   rpc CreateIndex (AllocRequest) returns (EmptyResponse) {}
   rpc DeleteIndex (AllocRequest) returns (EmptyResponse) {}
   // services within an index in the cache
-  rpc Get (AllocRequest) returns (AllocResponse) {}
+  rpc GetAllocation (AllocRequest) returns (AllocResponse) {}
   rpc Allocate (AllocRequest) returns (AllocResponse) {}
   rpc DeAllocate (AllocRequest) returns (EmptyResponse) {}
   rpc WatchAlloc (WatchRequest) returns (stream WatchResponse) {}

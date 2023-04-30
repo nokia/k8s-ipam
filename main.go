@@ -37,8 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
-	"github.com/henderiw-k8s-lcnc/discovery/discovery"
-	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
@@ -110,39 +108,43 @@ func main() {
 	setupLog.Info("setup controller")
 	ctx := ctrl.SetupSignalHandler()
 
-	reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
-		ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
-		ServiceDiscoveryNamespace: os.Getenv("POD_NAMESPACE"),
-	})
-	if err != nil {
-		setupLog.Error(err, "Cannot create registrator")
-		os.Exit(1)
-	}
+	/*
+		reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
+			ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
+			ServiceDiscoveryNamespace: os.Getenv("POD_NAMESPACE"),
+		})
+		if err != nil {
+			setupLog.Error(err, "Cannot create registrator")
+			os.Exit(1)
+		}
+	*/
 
 	//podName := os.Getenv("POD_NAME")
 	//if podName == "" {
-	podName := "local-resource-backend"
+	//podName := "local-resource-backend"
 	//}
 	//address := os.Getenv("POD_IP")
 	//if address == "" {
-	address := "127.0.0.1"
+	//address := "127.0.0.1"
 	//}
-	namespace := os.Getenv("POD_NAMESPACE")
+	//namespace := os.Getenv("POD_NAMESPACE")
 	//if namespace == "" {
 	//	namespace = "resource-backend"
 	//}
 
 	// register the service
-	go func() {
-		reg.Register(ctx, &registrator.Service{
-			Name:         "resource-backend",
-			ID:           podName,
-			Port:         9999,
-			Address:      address,
-			Tags:         []string{discovery.GetPodServiceTag(namespace, podName)},
-			HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
-		})
-	}()
+	/*
+		go func() {
+			reg.Register(ctx, &registrator.Service{
+				Name:         "resource-backend",
+				ID:           podName,
+				Port:         9999,
+				Address:      address,
+				Tags:         []string{discovery.GetPodServiceTag(namespace, podName)},
+				HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
+			})
+		}()
+	*/
 
 	/*
 		porchClient, err := porch.CreateClient()
@@ -154,7 +156,8 @@ func main() {
 
 	// initialize controllers
 	if err := controllers.Setup(ctx, mgr, &shared.Options{
-		Registrator: reg,
+		Address: "127.0.0.1:9999",
+		//Registrator: reg,
 		//PorchClient: porchClient,
 		Poll: 5 * time.Second,
 		Copts: controller.Options{

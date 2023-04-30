@@ -38,11 +38,13 @@ import (
 // Setup package controllers.
 func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 	ipamproxyClient := ipam.New(ctx, clientproxy.Config{
-		Registrator: opts.Registrator,
+		Address: opts.Address,
+		//Registrator: opts.Registrator,
 	})
 	opts.IpamClientProxy = ipamproxyClient
 	opts.VlanClientProxy = vlan.New(ctx, clientproxy.Config{
-		Registrator: opts.Registrator,
+		//Registrator: opts.Registrator,
+		Address: opts.Address,
 	})
 
 	eventChs := map[schema.GroupVersionKind]chan event.GenericEvent{}

@@ -38,7 +38,7 @@ import (
 func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation] {
 	return clientproxy.New[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation](
 		ctx, clientproxy.Config{
-			Registrator: cfg.Registrator,
+			Address:     cfg.Address,
 			Name:        "ipam-client-proxy",
 			Group:       ipamv1alpha1.GroupVersion.Group, // Group of GVK for event handling
 			Normalizefn: NormalizeKRMToAllocPb,

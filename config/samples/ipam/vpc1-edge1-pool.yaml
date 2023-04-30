@@ -1,0 +1,14 @@
+apiVersion: ipam.alloc.nephio.org/v1alpha1
+kind: IPAllocation
+metadata:
+  name:  vpc1-edge1-pool1
+spec:
+  kind: pool
+  networkInstance: 
+    name: vpc1
+  selector:
+    matchLabels:
+      nephio.org/pool: "true"
+  prefixLength: 16
+  createPrefix: true
+    

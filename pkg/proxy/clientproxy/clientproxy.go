@@ -19,14 +19,16 @@ package clientproxy
 import (
 	"context"
 	"encoding/json"
+	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/henderiw-k8s-lcnc/discovery/registrator"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/meta"
+	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
 	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
-	"github.com/nokia/k8s-ipam/pkg/proxy/proxycache"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -50,43 +52,142 @@ type Normalizefn func(o client.Object, d any) (*allocpb.AllocRequest, error)
 
 type Config struct {
 	Name        string
-	Registrator registrator.Registrator
+	Address     string
 	Group       string // Group of GVK for event handling
 	Normalizefn Normalizefn
-	ValidateFn  proxycache.RefreshRespValidatorFn
+	ValidateFn  RefreshRespValidatorFn
 }
 
 func New[T1, T2 client.Object](ctx context.Context, cfg Config) Proxy[T1, T2] {
 	l := ctrl.Log.WithName(cfg.Name)
 
-	pc := proxycache.New(&proxycache.Config{
-		Registrator: cfg.Registrator,
-	})
+	//pc := proxycache.New(proxycache.Config{
+	//	Address: cfg.Address,
+	//Registrator: cfg.Registrator,
+	//})
 	cp := &clientproxy[T1, T2]{
+		address:     cfg.Address,
 		normalizeFn: cfg.Normalizefn,
-		pc:          pc,
+		informer:    NewNopInformer(),
+		cache:       NewCache(),
+		validator:   NewResponseValidator(),
 		l:           l,
 	}
 	// This is a helper to validate the response since the proxy is content unaware.
 	// It understands KRM but not the details of the spec
-	pc.RegisterRefreshRespValidator(cfg.Group, cfg.ValidateFn)
-	pc.Start(ctx)
+	cp.validator.Add(cfg.Group, RefreshRespValidatorFn(cfg.ValidateFn))
+	cp.start(ctx)
 	return cp
 }
 
 type clientproxy[T1, T2 client.Object] struct {
+	// adress for the server
+	address string
+	// client
+	m           sync.RWMutex
+	allocClient alloc.Client
+	// watch channel for the watch
+	watchCancel context.CancelFunc
+	// normalizes the specific allocation to the AllocPB GRPC message
 	normalizeFn Normalizefn
-	pc          proxycache.ProxyCache
+	// this is the cache with GVK namespace, name
+	cache Cache
+	//pc          proxycache.ProxyCache
+	// informer provides information through the generic event to the owner GVK
+	informer Informer
+	// validator
+	validator ResponseValidator
 	//logger
 	l logr.Logger
 }
 
-func (r *clientproxy[T1, T2]) GetProxyCache() proxycache.ProxyCache {
-	return r.pc
+// AddEventChs add the ownerGvk's event channels to the informer
+func (r *clientproxy[T1, T2]) AddEventChs(eventChannels map[schema.GroupVersionKind]chan event.GenericEvent) {
+	r.informer = NewInformer(eventChannels)
 }
 
-func (r *clientproxy[T1, T2]) AddEventChs(ec map[schema.GroupVersionKind]chan event.GenericEvent) {
-	r.pc.AddEventChs(ec)
+func (r *clientproxy[T1, T2]) start(ctx context.Context) {
+	r.l.Info("starting...")
+	// this is used to control the watch go routine
+	watchCtx, cancel := context.WithCancel(ctx)
+	r.watchCancel = cancel
+
+	// the client connection would always be connected
+	// we expect the connection to reconnect when there is a failure
+	if err := r.createClient(watchCtx); err != nil {
+		r.l.Error(err, "cannot create client")
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				// called when the controller gets cancelled
+				// we cleanup the client
+				r.deleteClient(watchCtx)
+				return
+			case <-time.After(time.Second * 5):
+				// cache refresh handler
+				// walks the cache and check the expiry time
+				keysToRefresh := r.cache.ValidateExpiryTime(ctx)
+				var wg sync.WaitGroup
+				for objKey, allocpbResp := range keysToRefresh {
+					r.l.Info("refresh allocation", "gvk", objKey.gvk, "nsn", objKey.nsn)
+					wg.Add(1)
+					t := time.Now().Add(time.Minute * 60)
+					b, err := t.MarshalText()
+					if err != nil {
+						r.l.Error(err, "cannot marshal the time during refresh")
+					}
+					req := &allocpb.AllocRequest{
+						Header:     allocpbResp.GetHeader(),
+						Spec:       allocpbResp.GetSpec(),
+						ExpiryTime: string(b)}
+
+					ownerGvk := schema.GroupVersionKind{
+						Group:   allocpbResp.GetHeader().GetOwnerGvk().GetGroup(),
+						Version: allocpbResp.GetHeader().GetOwnerGvk().GetVersion(),
+						Kind:    allocpbResp.GetHeader().GetOwnerGvk().GetKind(),
+					}
+					ownerNsn := types.NamespacedName{
+						Namespace: allocpbResp.GetHeader().GetOwnerNsn().GetNamespace(),
+						Name:      allocpbResp.GetHeader().GetOwnerNsn().GetName(),
+					}
+					group := allocpbResp.GetHeader().GetGvk().GetGroup()
+					origresp := allocpbResp
+					objKey := objKey
+
+					go func() {
+						defer wg.Done()
+
+						// refresh the allocation
+						resp, err := r.refreshAllocate(ctx, req)
+						if err != nil {
+							// if we get an error in the response, log it and inform the client
+							r.l.Error(err, "refresh allocation failed")
+							// remove the cache entry
+							r.cache.Delete(objKey)
+							r.informer.NotifyClient(ownerGvk, ownerNsn)
+						}
+						// TBD if we need more protection
+						if resp != nil {
+							r.l.Info("refresh resp", "resp", resp.Status)
+							// Validate the response through the client proxy registered validator
+							// if the validator is not happy with the response we notify the client
+							if r.validator.Get(group) != nil {
+								if !r.validator.Get(group)(origresp, resp) {
+									r.l.Error(err, "refresh validation NOK")
+									// remove the cache entry
+									r.cache.Delete(objKey)
+									r.informer.NotifyClient(ownerGvk, ownerNsn)
+								}
+							}
+						}
+					}()
+				}
+				wg.Wait()
+			}
+		}
+	}()
 }
 
 func (r *clientproxy[T1, T2]) CreateIndex(ctx context.Context, cr T1) error {
@@ -95,7 +196,16 @@ func (r *clientproxy[T1, T2]) CreateIndex(ctx context.Context, cr T1) error {
 		return err
 	}
 	req := BuildAllocPb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
-	return r.pc.CreateIndex(ctx, req)
+	allocClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+	_, err = allocClient.CreateIndex(ctx, req)
+	return err
+}
+
+func (r *clientproxy[T1, T2]) refreshAllocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
+	return r.allocate(ctx, alloc, true)
 }
 
 func (r *clientproxy[T1, T2]) DeleteIndex(ctx context.Context, cr T1) error {
@@ -104,7 +214,12 @@ func (r *clientproxy[T1, T2]) DeleteIndex(ctx context.Context, cr T1) error {
 		return err
 	}
 	req := BuildAllocPb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
-	return r.pc.DeleteIndex(ctx, req)
+	allocClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+	_, err = allocClient.DeleteIndex(ctx, req)
+	return err
 }
 
 func (r *clientproxy[T1, T2]) GetAllocation(ctx context.Context, o client.Object, d any) (T2, error) {
@@ -116,8 +231,13 @@ func (r *clientproxy[T1, T2]) GetAllocation(ctx context.Context, o client.Object
 		return x, err
 	}
 	r.l.Info("get allocated resource", "allocPbRequest", req)
-	resp, err := r.pc.GetAllocation(ctx, req)
+	allocClient, err := r.getClient()
 	if err != nil {
+		return x, err
+	}
+	// TBD if we need to use the cache here
+	resp, err := allocClient.GetAllocation(ctx, req)
+	if err != nil || resp.GetStatusCode() != allocpb.StatusCode_Valid {
 		return x, err
 	}
 
@@ -138,7 +258,7 @@ func (r *clientproxy[T1, T2]) Allocate(ctx context.Context, o client.Object, d a
 	}
 	r.l.Info("allocate resource", "allobrequest", req)
 
-	resp, err := r.pc.Allocate(ctx, req)
+	resp, err := r.allocate(ctx, req, false)
 	if err != nil {
 		return x, err
 	}
@@ -149,13 +269,57 @@ func (r *clientproxy[T1, T2]) Allocate(ctx context.Context, o client.Object, d a
 	return x, nil
 }
 
+// refresh flag indicates if the allocation is initiated for a refresh
+func (r *clientproxy[T1, T2]) allocate(ctx context.Context, alloc *allocpb.AllocRequest, refresh bool) (*allocpb.AllocResponse, error) {
+	allocClient, err := r.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	key := getKey(alloc)
+	if !refresh {
+		cacheData := r.cache.Get(key)
+		if cacheData != nil {
+			// check if the data is available and consistent
+			if isCacheDataValid(cacheData, alloc) {
+				r.l.Info("cache hit OK -> response from cache", "keyGVK", key.gvk, "keyNsn", key.nsn)
+				return cacheData, nil
+			}
+		}
+	}
+	if refresh {
+		r.l.Info("cache hit NOK -> refresh from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+	} else {
+		// allocate the resource from the central backend server
+		r.l.Info("cache hit NOK -> response from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
+	}
+
+	resp, err := allocClient.Allocate(ctx, alloc)
+	if err != nil || resp.GetStatusCode() != allocpb.StatusCode_Valid {
+		return resp, err
+	}
+	// if the allocation is successfull we add the entry in the cache
+	r.cache.Add(key, resp)
+	return resp, err
+}
+
 func (r *clientproxy[T1, T2]) DeAllocate(ctx context.Context, o client.Object, d any) error {
 	// normalizes the input to the proxycache generalized allocation
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return err
 	}
-	return r.pc.DeAllocate(ctx, req)
+	allocClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+	_, err = allocClient.DeAllocate(ctx, req)
+	if err != nil {
+		return err
+	}
+	// delete the cache only if the DeAllocation is successfull
+	r.cache.Delete(getKey(req))
+	return nil
 }
 
 func BuildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk schema.GroupVersionKind) *allocpb.AllocRequest {

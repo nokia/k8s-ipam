@@ -1,4 +1,20 @@
-package proxycache
+/*
+Copyright 2023 The Nephio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package clientproxy
 
 import (
 	"context"
@@ -14,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *proxycache) startWatches(ctx context.Context) {
+func (r *clientproxy[T1, T2]) startWatches(ctx context.Context) {
 	r.l = log.FromContext(ctx)
 	// subscribe to the server for events
 	go func() {
@@ -30,11 +46,11 @@ func (r *proxycache) startWatches(ctx context.Context) {
 	}()
 }
 
-func (r *proxycache) stopWatches() {
+func (r *clientproxy[T1, T2]) stopWatches() {
 	r.watchCancel()
 }
 
-func (r *proxycache) startWatch(ctx context.Context, gvk schema.GroupVersionKind) {
+func (r *clientproxy[T1, T2]) startWatch(ctx context.Context, gvk schema.GroupVersionKind) {
 	// client side of the RPC stream
 	var stream allocpb.Allocation_WatchAllocClient
 
