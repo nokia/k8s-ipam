@@ -21,17 +21,13 @@ import (
 
 	"github.com/hansthienpondt/nipam/pkg/table"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/meta"
-	"github.com/nokia/k8s-ipam/internal/utils/util"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -197,94 +193,6 @@ func (r *IPAllocation) AddOwnerLabelsToCR() {
 	for k, v := range allocv1alpha1.GetOwnerLabelsFromCR(r) {
 		r.Spec.UserDefinedLabels.Labels[k] = v
 	}
-}
-
-// BuildIPAllocationFromIPPrefix returns an IP allocation from an IP Prefix
-// by augmenting the owner GVK/NSN in the user defined labels and populating
-// the information from the IP prefix in the IP Allocation spec attributes.
-func BuildIPAllocationFromIPPrefix(cr *IPPrefix) *IPAllocation {
-	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
-
-	pi, err := iputil.New(cr.Spec.Prefix)
-	if err != nil {
-		return nil
-	}
-	spec := IPAllocationSpec{
-		Kind:            cr.Spec.Kind,
-		NetworkInstance: cr.Spec.NetworkInstance,
-		Prefix:          &cr.Spec.Prefix,
-		PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
-		CreatePrefix:    pointer.Bool(true),
-		AllocationLabels: allocv1alpha1.AllocationLabels{
-			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
-				Labels: AddSpecLabelsWithTypeMeta(
-					ownerGvk,
-					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-					cr.Spec.Labels), // added the owner label in it
-			},
-		},
-	}
-	meta := metav1.ObjectMeta{
-		Name:      cr.GetName(),
-		Namespace: cr.GetNamespace(),
-		Labels:    cr.GetLabels(),
-	}
-	return BuildIPAllocation(meta, spec, IPAllocationStatus{})
-}
-
-// BuildIPAllocationFromNetworkInstancePrefix returns an IP allocation from an NetworkInstance prefix
-// by augmenting the owner GVK/NSN in the user defined labels and populating
-// the information from the IP prefix in the IP Allocation spec attributes.
-func BuildIPAllocationFromNetworkInstancePrefix(cr *NetworkInstance, prefix Prefix) *IPAllocation {
-	ownerGvk := meta.GetGVKFromAPIVersionKind(cr.APIVersion, cr.Kind)
-
-	pi, err := iputil.New(prefix.Prefix)
-	if err != nil {
-		return nil
-	}
-	spec := IPAllocationSpec{
-		Kind: PrefixKindAggregate,
-		NetworkInstance: corev1.ObjectReference{
-			Name:      cr.GetName(),
-			Namespace: cr.GetNamespace(),
-		},
-		Prefix:       &prefix.Prefix,
-		PrefixLength: util.PointerUint8(pi.GetPrefixLength().Int()),
-		CreatePrefix: pointer.Bool(true),
-		AllocationLabels: allocv1alpha1.AllocationLabels{
-			UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
-				Labels: AddSpecLabelsWithTypeMeta(
-					ownerGvk,
-					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()},
-					types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)},
-					prefix.GetUserDefinedLabels()), // added the owner label in it
-			},
-		},
-	}
-	// name is based on aggregate and prefix
-	meta := metav1.ObjectMeta{
-		Name:      cr.GetNameFromNetworkInstancePrefix(prefix.Prefix),
-		Namespace: cr.GetNamespace(),
-		Labels:    cr.GetLabels(),
-	}
-	return BuildIPAllocation(meta, spec, IPAllocationStatus{})
-}
-
-// AddSpecLabelsWithTypeMeta returns a map based on the owner GVK/NSN
-func AddSpecLabelsWithTypeMeta(ownerGvk schema.GroupVersionKind, ownerNsn, nsn types.NamespacedName, specLabels map[string]string) map[string]string {
-	labels := map[string]string{
-		allocv1alpha1.NephioOwnerGvkKey:          meta.GVKToString(ownerGvk),
-		allocv1alpha1.NephioOwnerNsnNameKey:      ownerNsn.Name,
-		allocv1alpha1.NephioOwnerNsnNamespaceKey: ownerNsn.Namespace,
-		allocv1alpha1.NephioGvkKey:               IPAllocationKindGVKString,
-		allocv1alpha1.NephioNsnNameKey:           nsn.Name,
-		allocv1alpha1.NephioNsnNamespaceKey:      nsn.Namespace,
-	}
-	for k, v := range specLabels {
-		labels[k] = v
-	}
-	return labels
 }
 
 // BuildIPAllocation returns an IP Allocation from a client Object a crName and
