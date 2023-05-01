@@ -26,7 +26,6 @@ import (
 	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/internal/db/vlandb"
 	"github.com/nokia/k8s-ipam/pkg/backend"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -52,7 +51,7 @@ func New(c client.Client) (backend.Backend, error) {
 type be struct {
 	watcher Watcher
 	cache   backend.Cache[db.DB[uint16]]
-	store   Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+	store   Storage
 	l       logr.Logger
 }
 

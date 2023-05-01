@@ -25,7 +25,6 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -39,13 +38,17 @@ func New(c client.Client) (backend.Backend, error) {
 		watcher: watcher,
 	})
 
-	s, err := newCMStorage(&storageConfig{
-		client:   c,
-		cache:    cache,
-		runtimes: runtimes,
-	})
-	if err != nil {
-		return nil, err
+	s := newNopCMStorage()
+	if c != nil {
+		var err error
+		s, err = newCMStorage(&storageConfig{
+			client:   c,
+			cache:    cache,
+			runtimes: runtimes,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &be{
@@ -60,7 +63,7 @@ type be struct {
 	watcher  Watcher
 	cache    backend.Cache[*table.RIB]
 	runtimes Runtimes
-	store    Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set]
+	store    Storage
 
 	l logr.Logger
 }

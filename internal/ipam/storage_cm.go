@@ -37,8 +37,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type Storage[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set] interface {
-	Get() backend.Storage[alloc, entry]
+type Storage interface {
+	Get() backend.Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set]
 }
 
 type storageConfig struct {
@@ -47,14 +47,14 @@ type storageConfig struct {
 	runtimes Runtimes
 }
 
-func newCMStorage[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set](cfg *storageConfig) (Storage[alloc, entry], error) {
-	r := &cm[alloc, entry]{
+func newCMStorage(cfg *storageConfig) (Storage, error) {
+	r := &cm{
 		c:        cfg.client,
 		cache:    cfg.cache,
 		runtimes: cfg.runtimes,
 	}
 
-	be, err := backend.NewCMBackend[alloc, entry](&backend.CMConfig{
+	be, err := backend.NewCMBackend[*ipamv1alpha1.IPAllocation, map[string]labels.Set](&backend.CMConfig{
 		Client:      cfg.client,
 		GetData:     r.GetData,
 		RestoreData: r.RestoreData,
@@ -69,19 +69,19 @@ func newCMStorage[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set]
 	return r, nil
 }
 
-type cm[alloc *ipamv1alpha1.IPAllocation, entry map[string]labels.Set] struct {
+type cm struct {
 	c        client.Client
-	be       backend.Storage[alloc, entry]
+	be       backend.Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set]
 	cache    backend.Cache[*table.RIB]
 	runtimes Runtimes
 	l        logr.Logger
 }
 
-func (r *cm[alloc, entry]) Get() backend.Storage[alloc, entry] {
+func (r *cm) Get() backend.Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set] {
 	return r.be
 }
 
-func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
+func (r *cm) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
 	r.l = log.FromContext(ctx)
 	rib, err := r.cache.Get(ref, false)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReferen
 	return b, nil
 }
 
-func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
+func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
 	r.l = log.FromContext(ctx)
 	allocations := map[string]labels.Set{}
 	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &allocations); err != nil {
@@ -143,7 +143,7 @@ func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectRef
 	return nil
 }
 
-func (r *cm[alloc, entry]) restorePrefixes(ctx context.Context, rib *table.RIB, allocations map[string]labels.Set, input any) {
+func (r *cm) restorePrefixes(ctx context.Context, rib *table.RIB, allocations map[string]labels.Set, input any) {
 	var ownerGVK string
 	var restoreFunc func(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, specData any)
 	switch input.(type) {
@@ -170,7 +170,7 @@ func (r *cm[alloc, entry]) restorePrefixes(ctx context.Context, rib *table.RIB, 
 	}
 }
 
-func (r *cm[alloc, entry]) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm) restoreNetworkInstancePrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "niPrefixes", "prefix", prefix)
 	cr, ok := input.(*ipamv1alpha1.NetworkInstance)
 	if !ok {
@@ -196,7 +196,7 @@ func (r *cm[alloc, entry]) restoreNetworkInstancePrefixes(ctx context.Context, r
 	}
 }
 
-func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm) restoreIPPrefixes(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipprefixes", "prefix", prefix)
 	ipPrefixList, ok := input.(*ipamv1alpha1.IPPrefixList)
 	if !ok {
@@ -239,7 +239,7 @@ func (r *cm[alloc, entry]) restoreIPPrefixes(ctx context.Context, rib *table.RIB
 	}
 }
 
-func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
+func (r *cm) restorIPAllocations(ctx context.Context, rib *table.RIB, prefix string, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "ipAllocations", "prefix", prefix)
 	ipAllocationList, ok := input.(*ipamv1alpha1.IPAllocationList)
 	if !ok {
@@ -289,4 +289,18 @@ func (r *cm[alloc, entry]) restorIPAllocations(ctx context.Context, rib *table.R
 			rib.Add(table.NewRoute(netip.MustParsePrefix(prefix), labels, map[string]any{}))
 		}
 	}
+}
+
+func newNopCMStorage() Storage {
+	return &nopcm{
+		be: backend.NewNopStorage[*ipamv1alpha1.IPAllocation, map[string]labels.Set](),
+	}
+}
+
+type nopcm struct {
+	be backend.Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set]
+}
+
+func (r *nopcm) Get() backend.Storage[*ipamv1alpha1.IPAllocation, map[string]labels.Set] {
+	return r.be
 }

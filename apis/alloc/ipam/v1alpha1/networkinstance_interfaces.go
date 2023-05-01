@@ -22,6 +22,7 @@ import (
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -68,4 +69,17 @@ func (r *NetworkInstance) GetGenericNamespacedName() string {
 // GetCacheID returns a CacheID as an objectReference
 func (r *NetworkInstance) GetCacheID() corev1.ObjectReference {
 	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
+}
+
+// BuildNetworkInstance returns a networkInstance based on meta, spec and statis
+func BuildNetworkInstance(meta metav1.ObjectMeta, spec NetworkInstanceSpec, status NetworkInstanceStatus) *NetworkInstance {
+	return &NetworkInstance{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			Kind:       NetworkInstanceKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
+	}
 }

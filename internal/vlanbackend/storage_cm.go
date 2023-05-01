@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type Storage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Set] interface {
-	Get() backend.Storage[alloc, entry]
+type Storage interface {
+	Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
 }
 
 type storageConfig struct {
@@ -43,13 +43,13 @@ type storageConfig struct {
 	cache  backend.Cache[db.DB[uint16]]
 }
 
-func newCMStorage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Set](cfg *storageConfig) (Storage[alloc, entry], error) {
-	r := &cm[alloc, entry]{
+func newCMStorage(cfg *storageConfig) (Storage, error) {
+	r := &cm{
 		c:     cfg.client,
 		cache: cfg.cache,
 	}
 
-	be, err := backend.NewCMBackend[alloc, entry](&backend.CMConfig{
+	be, err := backend.NewCMBackend[*vlanv1alpha1.VLANAllocation, map[string]labels.Set](&backend.CMConfig{
 		Client:      cfg.client,
 		GetData:     r.GetData,
 		RestoreData: r.RestoreData,
@@ -64,18 +64,18 @@ func newCMStorage[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Se
 	return r, nil
 }
 
-type cm[alloc *vlanv1alpha1.VLANAllocation, entry map[string]labels.Set] struct {
+type cm struct {
 	c     client.Client
-	be    backend.Storage[alloc, entry]
+	be    backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
 	cache backend.Cache[db.DB[uint16]]
 	l     logr.Logger
 }
 
-func (r *cm[alloc, entry]) Get() backend.Storage[alloc, entry] {
+func (r *cm) Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set] {
 	return r.be
 }
 
-func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
+func (r *cm) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, error) {
 	r.l = log.FromContext(ctx)
 	ca, err := r.cache.Get(ref, false)
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *cm[alloc, entry]) GetData(ctx context.Context, ref corev1.ObjectReferen
 	return b, nil
 }
 
-func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
+func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
 	r.l = log.FromContext(ctx)
 	allocations := map[uint16]labels.Set{}
 	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &allocations); err != nil {
@@ -124,7 +124,7 @@ func (r *cm[alloc, entry]) RestoreData(ctx context.Context, ref corev1.ObjectRef
 	return nil
 }
 
-func (r *cm[alloc, entry]) restoreVLANs(ctx context.Context, ca db.DB[uint16], allocations map[uint16]labels.Set, input any) {
+func (r *cm) restoreVLANs(ctx context.Context, ca db.DB[uint16], allocations map[uint16]labels.Set, input any) {
 	var ownerGVK string
 	var restoreFunc func(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, specData any)
 	switch input.(type) {
@@ -146,7 +146,7 @@ func (r *cm[alloc, entry]) restoreVLANs(ctx context.Context, ca db.DB[uint16], a
 	}
 }
 
-func (r *cm[alloc, entry]) restoreStaticVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
+func (r *cm) restoreStaticVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "staticVLANs", "vlanID", vlanID)
 	vlanList, ok := input.(*vlanv1alpha1.VLANList)
 	if !ok {
@@ -171,7 +171,7 @@ func (r *cm[alloc, entry]) restoreStaticVLANs(ctx context.Context, ca db.DB[uint
 	}
 }
 
-func (r *cm[alloc, entry]) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
+func (r *cm) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
 	r.l = log.FromContext(ctx).WithValues("type", "VLANAllocations", "vlanID", vlanID)
 	vlanAllocationList, ok := input.(*vlanv1alpha1.VLANAllocationList)
 	if !ok {
