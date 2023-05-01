@@ -61,10 +61,6 @@ type Config struct {
 func New[T1, T2 client.Object](ctx context.Context, cfg Config) Proxy[T1, T2] {
 	l := ctrl.Log.WithName(cfg.Name)
 
-	//pc := proxycache.New(proxycache.Config{
-	//	Address: cfg.Address,
-	//Registrator: cfg.Registrator,
-	//})
 	cp := &clientproxy[T1, T2]{
 		address:     cfg.Address,
 		normalizeFn: cfg.Normalizefn,
@@ -92,7 +88,6 @@ type clientproxy[T1, T2 client.Object] struct {
 	normalizeFn Normalizefn
 	// this is the cache with GVK namespace, name
 	cache Cache
-	//pc          proxycache.ProxyCache
 	// informer provides information through the generic event to the owner GVK
 	informer Informer
 	// validator

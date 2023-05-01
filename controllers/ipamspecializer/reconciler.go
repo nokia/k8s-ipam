@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
 	kptfile "github.com/GoogleContainerTools/kpt/pkg/api/kptfile/v1"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
+	kptfilelibv1 "github.com/nephio-project/nephio/krm-functions/lib/kptfile/v1"
 	"github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/resource"
@@ -37,7 +37,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,13 +50,7 @@ import (
 )
 
 const (
-	finalizer         = "ipam.nephio.org/finalizer"
 	ipamConditionType = "ipam.nephio.org.IPAMAllocation"
-	// errors
-	//errGetCr        = "cannot get resource"
-	//errUpdateStatus = "cannot update status"
-
-	//reconcileFailed = "reconcile failed"
 )
 
 //+kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions,verbs=get;list;watch;create;update;patch;delete
@@ -69,13 +62,8 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 	r := &reconciler{
 		kind:            "ipam",
 		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
 		porchClient:     options.PorchClient,
 		IpamClientProxy: options.IpamClientProxy,
-
-		//injectors:    options.Injectors,
-		pollInterval: options.Poll,
-		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 	}
 
 	// TBD how does the proxy cache work with the injector for updates
@@ -91,9 +79,6 @@ type reconciler struct {
 	client.Client
 	porchClient     client.Client
 	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
-	Scheme          *runtime.Scheme
-	pollInterval    time.Duration
-	finalizer       *resource.APIFinalizer
 
 	l logr.Logger
 }
@@ -115,21 +100,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// we just check for ipam conditions and we dont care if it is satisfied already
 	// this allows us to refresh the ipam allocation status
-	ipamConditions := hasIPAMConditions(cr.Status.Conditions, ipamConditionType)
+	ct := kptfilelibv1.GetConditionType(&corev1.ObjectReference{
+		APIVersion: ipamv1alpha1.SchemeBuilder.GroupVersion.Identifier(),
+		Kind:       ipamv1alpha1.IPAllocationKind,
+	})
+	ipamConditions := hasIPAMConditions(cr.Status.Conditions, ct)
 
 	if len(ipamConditions) > 0 {
-		crName := types.NamespacedName{
-			Namespace: cr.Namespace,
-			Name:      cr.Name,
-		}
-
 		r.l.Info("run injector", "pr", cr.GetName())
-		if err := r.injectIPs(ctx, crName); err != nil {
+		if err := r.allocateIPs(ctx, req.NamespacedName); err != nil {
 			r.l.Error(err, "injection error")
 			return ctrl.Result{}, err
 		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
@@ -146,9 +129,9 @@ func hasIPAMConditions(conditions []porchv1alpha1.Condition, conditionType strin
 	return uc
 }
 
-func (r *reconciler) injectIPs(ctx context.Context, namespacedName types.NamespacedName) error {
+func (r *reconciler) allocateIPs(ctx context.Context, namespacedName types.NamespacedName) error {
 	r.l = log.FromContext(ctx)
-	r.l.Info("injector function", "name", namespacedName.String())
+	r.l.Info("specializer", "name", namespacedName.String())
 
 	origPr := &porchv1alpha1.PackageRevision{}
 	if err := r.porchClient.Get(ctx, namespacedName, origPr); err != nil {
