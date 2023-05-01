@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -58,4 +59,18 @@ func (r *VLANDatabase) GetUserDefinedLabels() map[string]string {
 // GetCacheID returns a CacheID as an objectReference
 func (r *VLANDatabase) GetCacheID() corev1.ObjectReference {
 	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
+}
+
+// BuildVLANAllocation returns a VLANAllocation from a client Object a crName and
+// an VLANAllocation Spec/Status
+func BuildVLANDatabase(meta metav1.ObjectMeta, spec VLANDatabaseSpec, status VLANDatabaseStatus) *VLANDatabase {
+	return &VLANDatabase{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			Kind:       VLANDatabaseKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
+	}
 }

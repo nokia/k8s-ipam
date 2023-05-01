@@ -34,13 +34,18 @@ func New(c client.Client) (backend.Backend, error) {
 
 	ca := backend.NewCache[db.DB[uint16]]()
 
-	s, err := newCMStorage(&storageConfig{
-		client: c,
-		cache:  ca,
-	})
-	if err != nil {
-		return nil, err
+	s := newNopCMStorage()
+	if c != nil {
+		var err error
+		s, err = newCMStorage(&storageConfig{
+			client: c,
+			cache:  ca,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 
 	return &be{
 		cache: ca,

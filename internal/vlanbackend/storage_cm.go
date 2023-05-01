@@ -201,3 +201,18 @@ func (r *cm) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID u
 		}
 	}
 }
+
+
+func newNopCMStorage() Storage {
+	return &nopcm{
+		be: backend.NewNopStorage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set](),
+	}
+}
+
+type nopcm struct {
+	be backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+}
+
+func (r *nopcm) Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set] {
+	return r.be
+}
