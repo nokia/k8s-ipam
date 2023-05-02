@@ -45,7 +45,6 @@ func New(c client.Client) (backend.Backend, error) {
 			return nil, err
 		}
 	}
-	
 
 	return &be{
 		cache: ca,

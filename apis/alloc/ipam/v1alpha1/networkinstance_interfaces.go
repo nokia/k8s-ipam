@@ -68,7 +68,7 @@ func (r *NetworkInstance) GetGenericNamespacedName() string {
 
 // GetCacheID returns a CacheID as an objectReference
 func (r *NetworkInstance) GetCacheID() corev1.ObjectReference {
-	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
+	return allocv1alpha1.GetCacheID(corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()})
 }
 
 // BuildNetworkInstance returns a networkInstance based on meta, spec and statis

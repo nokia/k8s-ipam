@@ -44,11 +44,7 @@ func (r *VLAN) GetGenericNamespacedName() string {
 
 // GetCacheID return the cache id validating the namespace
 func (r *VLAN) GetCacheID() corev1.ObjectReference {
-	namespace := r.Spec.VLANDatabase.Namespace
-	if namespace == "" {
-		namespace = r.GetNamespace()
-	}
-	return corev1.ObjectReference{Name: r.Spec.VLANDatabase.Name, Namespace: namespace}
+	return allocv1alpha1.GetCacheID(r.Spec.VLANDatabase)
 }
 
 // GetUserDefinedLabels returns the user defined labels in the spec

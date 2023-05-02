@@ -58,7 +58,7 @@ func (r *VLANDatabase) GetUserDefinedLabels() map[string]string {
 
 // GetCacheID returns a CacheID as an objectReference
 func (r *VLANDatabase) GetCacheID() corev1.ObjectReference {
-	return corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()}
+	return allocv1alpha1.GetCacheID(corev1.ObjectReference{Name: r.GetName(), Namespace: r.GetNamespace()})
 }
 
 // BuildVLANAllocation returns a VLANAllocation from a client Object a crName and

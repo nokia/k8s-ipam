@@ -33,7 +33,7 @@ func NewMock() clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IP
 	return &mock{}
 }
 
-type mock struct {}
+type mock struct{}
 
 func (r *mock) AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent)         {}
 func (r *mock) CreateIndex(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error { return nil }

@@ -44,11 +44,7 @@ func (r *IPPrefix) GetGenericNamespacedName() string {
 
 // GetCacheID return the cache id validating the namespace
 func (r *IPPrefix) GetCacheID() corev1.ObjectReference {
-	namespace := r.Spec.NetworkInstance.Namespace
-	if namespace == "" {
-		namespace = r.GetNamespace()
-	}
-	return corev1.ObjectReference{Name: r.Spec.NetworkInstance.Name, Namespace: namespace}
+	return allocv1alpha1.GetCacheID(r.Spec.NetworkInstance)
 }
 
 // GetUserDefinedLabels returns the user defined labels in the spec

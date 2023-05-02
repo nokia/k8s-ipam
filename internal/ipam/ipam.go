@@ -171,7 +171,7 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 	}
 
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("allocate entry", "prefix", cr.Spec.Prefix)
+	r.l.Info("allocate entry", "prefix", cr.Spec.Prefix, "networkInstance", cr.Spec.NetworkInstance)
 
 	// get the runtime based the following parameters
 	// prefixkind

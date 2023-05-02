@@ -25,6 +25,7 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/ipamallocation"
 	"github.com/nokia/k8s-ipam/controllers/ipamnetworkinstance"
 	"github.com/nokia/k8s-ipam/controllers/ipamprefix"
+	"github.com/nokia/k8s-ipam/controllers/ipamspecializer"
 	"github.com/nokia/k8s-ipam/controllers/vlanallocation"
 	"github.com/nokia/k8s-ipam/controllers/vlandatabase"
 	"github.com/nokia/k8s-ipam/controllers/vlanvlan"
@@ -39,11 +40,9 @@ import (
 func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 	ipamproxyClient := ipam.New(ctx, clientproxy.Config{
 		Address: opts.Address,
-		//Registrator: opts.Registrator,
 	})
 	opts.IpamClientProxy = ipamproxyClient
 	opts.VlanClientProxy = vlan.New(ctx, clientproxy.Config{
-		//Registrator: opts.Registrator,
 		Address: opts.Address,
 	})
 
@@ -62,15 +61,14 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 		}
 		eventChs[gvk] = geCh
 	}
-	/*
-		for _, setup := range []func(ctrl.Manager, *shared.Options) error{
-			injector.Setup,
-		} {
-			if err := setup(mgr, opts); err != nil {
-				return err
-			}
+
+	for _, setup := range []func(ctrl.Manager, *shared.Options) error{
+		ipamspecializer.Setup,
+	} {
+		if err := setup(mgr, opts); err != nil {
+			return err
 		}
-	*/
+	}
 
 	ipamproxyClient.AddEventChs(eventChs)
 

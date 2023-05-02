@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
+	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
@@ -146,20 +147,18 @@ func main() {
 		}()
 	*/
 
-	/*
-		porchClient, err := porch.CreateClient()
-		if err != nil {
-			setupLog.Error(err, "unable to create porch client")
-			os.Exit(1)
-		}
-	*/
+	porchClient, err := porch.CreateClient()
+	if err != nil {
+		setupLog.Error(err, "unable to create porch client")
+		os.Exit(1)
+	}
 
 	// initialize controllers
 	if err := controllers.Setup(ctx, mgr, &shared.Options{
 		Address: "127.0.0.1:9999",
 		//Registrator: reg,
-		//PorchClient: porchClient,
-		Poll: 5 * time.Second,
+		PorchClient: porchClient,
+		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},

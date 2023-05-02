@@ -28,8 +28,8 @@ import (
 )
 
 type Options struct {
-	PorchClient client.Client
-	Address     string
+	PorchClient     client.Client
+	Address         string
 	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	Poll            time.Duration

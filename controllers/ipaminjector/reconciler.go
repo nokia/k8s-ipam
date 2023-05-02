@@ -60,7 +60,6 @@ const (
 func Setup(mgr ctrl.Manager, options *shared.Options) error {
 	ge := make(chan event.GenericEvent)
 	r := &reconciler{
-		kind:            "ipam",
 		Client:          mgr.GetClient(),
 		porchClient:     options.PorchClient,
 		IpamClientProxy: options.IpamClientProxy,
@@ -75,7 +74,6 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 
 // reconciler reconciles a NetworkInstance object
 type reconciler struct {
-	kind string
 	client.Client
 	porchClient     client.Client
 	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
