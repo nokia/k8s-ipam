@@ -50,11 +50,7 @@ func (r *VLANAllocation) GetGenericNamespacedName() string {
 
 // GetCacheID return the cache id validating the namespace
 func (r *VLANAllocation) GetCacheID() corev1.ObjectReference {
-	namespace := r.Spec.VLANDatabase.Namespace
-	if namespace == "" {
-		namespace = r.GetNamespace()
-	}
-	return corev1.ObjectReference{Name: r.Spec.VLANDatabase.Name, Namespace: namespace}
+	return allocv1alpha1.GetCacheID(r.Spec.VLANDatabase)
 }
 
 // GetUserDefinedLabels returns a map with a copy of the user defined labels

@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
-	"github.com/nokia/k8s-ipam/pkg/ipam-fn/function"
+	"github.com/nokia/k8s-ipam/pkg/fn/ipam/function"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
 )
 

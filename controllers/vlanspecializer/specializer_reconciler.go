@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package ipamspecializer
+package vlanspecializer
 
 import (
 	"context"
@@ -26,10 +26,10 @@ import (
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	kptfilelibv1 "github.com/nephio-project/nephio/krm-functions/lib/kptfile/v1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/fn/ipam/function"
+	"github.com/nokia/k8s-ipam/pkg/fn/vlan/function"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +48,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 	r := &reconciler{
 		Client:          mgr.GetClient(),
 		porchClient:     options.PorchClient,
-		IpamClientProxy: options.IpamClientProxy,
+		VlanClientProxy: options.VlanClientProxy,
 	}
 
 	// TBD how does the proxy cache work with the injector for updates
@@ -62,7 +62,7 @@ func Setup(mgr ctrl.Manager, options *shared.Options) error {
 type reconciler struct {
 	client.Client
 	porchClient     client.Client
-	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
+	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 
 	l logr.Logger
 }
@@ -84,8 +84,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// we just check for ipam conditions and we dont care if it is satisfied already
 	// this allows us to refresh the ipam allocation status
 	ct := kptfilelibv1.GetConditionType(&corev1.ObjectReference{
-		APIVersion: ipamv1alpha1.SchemeBuilder.GroupVersion.Identifier(),
-		Kind:       ipamv1alpha1.IPAllocationKind,
+		APIVersion: vlanv1alpha1.SchemeBuilder.GroupVersion.Identifier(),
+		Kind:       vlanv1alpha1.VLANAllocationKind,
 	})
 	if hasSpecificTypeConditions(pr.Status.Conditions, ct) {
 		// get package revision resourceList
@@ -101,7 +101,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(err, "cannot get resourceList")
 		}
 
-		fnr := function.FnR{IpamClientProxy: r.IpamClientProxy}
+		fnr := function.FnR{VlanClientProxy: r.VlanClientProxy}
 		_, err = fnr.Run(rl)
 		if err != nil {
 			r.l.Error(err, "function run failed")
@@ -206,7 +206,8 @@ func (r *reconciler) getResourceList(resources map[string]string) (*fn.ResourceL
 			return nil, err
 		}
 		if err := rl.UpsertObjectToItems(o, nil, true); err != nil {
-			panic(err)
+			r.l.Error(err, "cannot insert object in rl", "apiversion", n.GetApiVersion(), "kind", n.GetKind())
+			return nil, err
 		}
 	}
 	return rl, nil

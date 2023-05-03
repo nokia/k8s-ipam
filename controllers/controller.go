@@ -28,6 +28,7 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/ipamspecializer"
 	"github.com/nokia/k8s-ipam/controllers/vlanallocation"
 	"github.com/nokia/k8s-ipam/controllers/vlandatabase"
+	"github.com/nokia/k8s-ipam/controllers/vlanspecializer"
 	"github.com/nokia/k8s-ipam/controllers/vlanvlan"
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
@@ -64,6 +65,7 @@ func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
 
 	for _, setup := range []func(ctrl.Manager, *shared.Options) error{
 		ipamspecializer.Setup,
+		vlanspecializer.Setup,
 	} {
 		if err := setup(mgr, opts); err != nil {
 			return err
