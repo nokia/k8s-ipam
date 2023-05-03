@@ -53,11 +53,11 @@ func (r *mock) getAllcoation(cr client.Object) (*ipamv1alpha1.IPAllocation, erro
 	}
 	switch alloc.Spec.Kind {
 	case ipamv1alpha1.PrefixKindNetwork:
-		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("10.0.0.10"), Gateway: pointer.String("10.0.0.1")}
+		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("10.0.0.10/24"), Gateway: pointer.String("10.0.0.1")}
 	case ipamv1alpha1.PrefixKindLoopback:
-		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("172.0.0.10")}
+		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("172.0.0.10/32")}
 	case ipamv1alpha1.PrefixKindPool:
-		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("172.0.0.10")}
+		alloc.Status = ipamv1alpha1.IPAllocationStatus{Prefix: pointer.String("172.0.0.0/8")}
 	default:
 		return nil, fmt.Errorf("unexpected prefix kind: got: %s", alloc.Spec.Kind)
 	}
