@@ -1,20 +1,20 @@
 /*
-Copyright 2023 The Nephio Authors.
+ Copyright 2023 The Nephio Authors.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
-package vlanspecializer
+package reconciler
 
 import (
 	"context"
@@ -23,15 +23,10 @@ import (
 	"strings"
 
 	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
-	kptv1 "github.com/GoogleContainerTools/kpt/pkg/api/kptfile/v1"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/go-logr/logr"
 	kptfilelibv1 "github.com/nephio-project/nephio/krm-functions/lib/kptfile/v1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/resource"
-	"github.com/nokia/k8s-ipam/internal/shared"
-	"github.com/nokia/k8s-ipam/pkg/fn/vlan/function"
-	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,29 +36,36 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
+type Config struct {
+	For         corev1.ObjectReference
+	PorchClient client.Client
+	KRMfunction fn.ResourceListProcessor
+}
+
 // +kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions/status,verbs=get;update;patch
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) error {
+func Setup(mgr ctrl.Manager, cfg Config) error {
 	//ge := make(chan event.GenericEvent)
 	r := &reconciler{
-		Client:          mgr.GetClient(),
-		porchClient:     options.PorchClient,
-		VlanClientProxy: options.VlanClientProxy,
+		Client:      mgr.GetClient(),
+		For:         cfg.For,
+		porchClient: cfg.PorchClient,
+		krmfn:       cfg.KRMfunction,
 	}
 
 	// TBD how does the proxy cache work with the injector for updates
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&porchv1alpha1.PackageRevision{}).
-		//Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
 // reconciler reconciles a NetworkInstance object
 type reconciler struct {
 	client.Client
-	porchClient     client.Client
-	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
+	For         corev1.ObjectReference
+	porchClient client.Client
+	krmfn       fn.ResourceListProcessor
 
 	l logr.Logger
 }
@@ -82,12 +84,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, nil
 	}
-	// we just check for ipam conditions and we dont care if it is satisfied already
-	// this allows us to refresh the ipam allocation status
-	ct := kptfilelibv1.GetConditionType(&corev1.ObjectReference{
-		APIVersion: vlanv1alpha1.SchemeBuilder.GroupVersion.Identifier(),
-		Kind:       vlanv1alpha1.VLANAllocationKind,
-	})
+	// we just check for forResource conditions and we dont care if it is satisfied already
+	// this allows us to refresh the allocation.
+	ct := kptfilelibv1.GetConditionType(&r.For)
 	if hasSpecificTypeConditions(pr.Status.Conditions, ct) {
 		// get package revision resourceList
 		prr := &porchv1alpha1.PackageRevisionResources{}
@@ -95,15 +94,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.l.Error(err, "cannot get package revision resources")
 			return ctrl.Result{}, errors.Wrap(err, "cannot get package revision resources")
 		}
-		// create resourceList
-		rl, err := r.getResourceList(prr.Spec.Resources)
+		// get resourceList from resources
+		rl, err := GetResourceList(prr.Spec.Resources)
 		if err != nil {
 			r.l.Error(err, "cannot get resourceList")
 			return ctrl.Result{}, errors.Wrap(err, "cannot get resourceList")
 		}
 
-		fnr := function.FnR{VlanClientProxy: r.VlanClientProxy}
-		_, err = fnr.Run(rl)
+		// run the function SDK
+		_, err = r.krmfn.Process(rl)
 		if err != nil {
 			r.l.Error(err, "function run failed")
 			// TBD if we need to return here + check if kptfile is set
@@ -135,32 +134,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, nil
 }
 
-func getPorchCondiitons(cs []kptv1.Condition) []porchv1alpha1.Condition {
-	var prConditions []porchv1alpha1.Condition
-	for _, c := range cs {
-		prConditions = append(prConditions, porchv1alpha1.Condition{
-			Type:    c.Type,
-			Reason:  c.Reason,
-			Status:  porchv1alpha1.ConditionStatus(c.Status),
-			Message: c.Message,
-		})
-	}
-	return prConditions
-}
-
-// hasSpecificTypeConditions checks if the kptfile has ipam conditions
-// we dont care if the conditions are true or false as we refresh the ipam allocations
-// in this way
-func hasSpecificTypeConditions(conditions []porchv1alpha1.Condition, conditionType string) bool {
-	for _, c := range conditions {
-		if strings.HasPrefix(c.Type, conditionType+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *reconciler) includeFile(path string, match []string) bool {
+func includeFile(path string, match []string) bool {
 	for _, m := range match {
 		file := filepath.Base(path)
 		if matched, err := filepath.Match(m, file); err == nil && matched {
@@ -170,10 +144,10 @@ func (r *reconciler) includeFile(path string, match []string) bool {
 	return false
 }
 
-func (r *reconciler) getResourceList(resources map[string]string) (*fn.ResourceList, error) {
+func GetResourceList(resources map[string]string) (*fn.ResourceList, error) {
 	inputs := []kio.Reader{}
 	for path, data := range resources {
-		if r.includeFile(path, []string{"*.yaml", "*.yml", "Kptfile"}) {
+		if includeFile(path, []string{"*.yaml", "*.yml", "Kptfile"}) {
 			inputs = append(inputs, &kio.ByteReader{
 				Reader: strings.NewReader(data),
 				SetAnnotations: map[string]string{
@@ -203,12 +177,10 @@ func (r *reconciler) getResourceList(resources map[string]string) (*fn.ResourceL
 		}
 		o, err := fn.ParseKubeObject([]byte(s))
 		if err != nil {
-			r.l.Error(err, "cannot parse object", "apiversion", n.GetApiVersion(), "kind", n.GetKind())
 			return nil, err
 		}
 		if err := rl.UpsertObjectToItems(o, nil, true); err != nil {
-			r.l.Error(err, "cannot insert object in rl", "apiversion", n.GetApiVersion(), "kind", n.GetKind())
-			return nil, err
+			panic(err)
 		}
 	}
 	return rl, nil
