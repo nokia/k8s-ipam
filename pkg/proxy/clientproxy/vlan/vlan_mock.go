@@ -22,7 +22,7 @@ import (
 	"reflect"
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"github.com/nokia/k8s-ipam/pkg/utils/util"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"

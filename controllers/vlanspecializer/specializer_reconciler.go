@@ -28,7 +28,7 @@ import (
 	"github.com/go-logr/logr"
 	kptfilelibv1 "github.com/nephio-project/nephio/krm-functions/lib/kptfile/v1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/resource"
+	"github.com/nokia/k8s-ipam/pkg/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/fn/vlan/function"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"

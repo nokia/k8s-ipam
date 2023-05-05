@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/nokia/k8s-ipam/internal/meta"
+	"github.com/nokia/k8s-ipam/pkg/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"

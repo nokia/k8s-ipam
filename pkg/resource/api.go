@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nokia/k8s-ipam/internal/meta"
-	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/utils/util"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

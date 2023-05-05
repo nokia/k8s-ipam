@@ -5,7 +5,7 @@ import (
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
-	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"github.com/nokia/k8s-ipam/pkg/utils/util"
 )
 
 func getHandlerSingleVlan(entries db.Entries[uint16], alloc *vlanv1alpha1.VLANAllocation) error {

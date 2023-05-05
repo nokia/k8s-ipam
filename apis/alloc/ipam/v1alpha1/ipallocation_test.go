@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/nokia/k8s-ipam/internal/utils/util"
+	"github.com/nokia/k8s-ipam/pkg/utils/util"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/pointer"
 )

@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/meta"
+	"github.com/nokia/k8s-ipam/pkg/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
