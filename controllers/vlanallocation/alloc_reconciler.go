@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,10 +34,10 @@ import (
 	"github.com/go-logr/logr"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/meta"
-	"github.com/nokia/k8s-ipam/pkg/resource"
 	"github.com/nokia/k8s-ipam/internal/shared"
+	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/resource"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -63,7 +62,6 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 
 	r := &reconciler{
 		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
 		ClientProxy:  options.VlanClientProxy,
 		pollInterval: options.Poll,
 		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
@@ -78,7 +76,6 @@ func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, 
 // reconciler reconciles a IPPrefix object
 type reconciler struct {
 	client.Client
-	Scheme       *runtime.Scheme
 	ClientProxy  clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
