@@ -18,33 +18,43 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+
+	_ "github.com/nokia/k8s-ipam/controllers/ipamallocation"
+	_ "github.com/nokia/k8s-ipam/controllers/ipamnetworkinstance"
+	_ "github.com/nokia/k8s-ipam/controllers/ipamprefix"
+	_ "github.com/nokia/k8s-ipam/controllers/ipamspecializer"
+	_ "github.com/nokia/k8s-ipam/controllers/vlanallocation"
+	_ "github.com/nokia/k8s-ipam/controllers/vlandatabase"
+	_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
+	_ "github.com/nokia/k8s-ipam/controllers/vlanvlan"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
+	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/internal/vlanbackend"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/serverproxy"
@@ -52,17 +62,8 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(vlanv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(porchv1alpha1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
-}
 
 func main() {
 	var metricsAddr string
@@ -82,24 +83,20 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	scheme := runtime.NewScheme()
+	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+		setupLog.Error(err, "cannot initializer schema")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "3118b7ab.nephio.org",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		Scheme:                     scheme,
+		MetricsBindAddress:         metricsAddr,
+		Port:                       9443,
+		HealthProbeBindAddress:     probeAddr,
+		LeaderElection:             enableLeaderElection,
+		LeaderElectionID:           "3118b7ab.nephio.org",
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -109,62 +106,26 @@ func main() {
 	setupLog.Info("setup controller")
 	ctx := ctrl.SetupSignalHandler()
 
-	/*
-		reg, err := registrator.New(ctx, ctrl.GetConfigOrDie(), &registrator.Options{
-			ServiceDiscovery:          discovery.ServiceDiscoveryTypeK8s,
-			ServiceDiscoveryNamespace: os.Getenv("POD_NAMESPACE"),
-		})
-		if err != nil {
-			setupLog.Error(err, "Cannot create registrator")
-			os.Exit(1)
-		}
-	*/
-
-	//podName := os.Getenv("POD_NAME")
-	//if podName == "" {
-	//podName := "local-resource-backend"
-	//}
-	//address := os.Getenv("POD_IP")
-	//if address == "" {
-	//address := "127.0.0.1"
-	//}
-	//namespace := os.Getenv("POD_NAMESPACE")
-	//if namespace == "" {
-	//	namespace = "resource-backend"
-	//}
-
-	// register the service
-	/*
-		go func() {
-			reg.Register(ctx, &registrator.Service{
-				Name:         "resource-backend",
-				ID:           podName,
-				Port:         9999,
-				Address:      address,
-				Tags:         []string{discovery.GetPodServiceTag(namespace, podName)},
-				HealthChecks: []registrator.HealthKind{registrator.HealthKindGRPC, registrator.HealthKindTTL},
-			})
-		}()
-	*/
-
 	porchClient, err := porch.CreateClient()
 	if err != nil {
 		setupLog.Error(err, "unable to create porch client")
 		os.Exit(1)
 	}
 
-	// initialize controllers
-	if err := controllers.Setup(ctx, mgr, &shared.Options{
-		Address: "127.0.0.1:9999",
-		//Registrator: reg,
+	ctrlCfg := &ctrlrconfig.ControllerConfig{
+		Address:     os.Getenv("RESOURCE_BACKEND"),
 		PorchClient: porchClient,
 		Poll:        5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
-	}); err != nil {
-		setupLog.Error(err, "Cannot add controllers to manager")
-		os.Exit(1)
+	}
+
+	for name, reconciler := range controllers.Reconcilers {
+		setupLog.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
+		if IsReconcilerEnabled(name) {
+			reconciler.Setup(ctx, mgr, ctrlCfg)
+		}
 	}
 
 	ipambe, err := ipam.New(mgr.GetClient())
@@ -223,4 +184,11 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func IsReconcilerEnabled(reconcilerName string) bool {
+	if _, found := os.LookupEnv(fmt.Sprintf("ENABLE_%s", strings.ToUpper(reconcilerName))); found {
+		return true
+	}
+	return false
 }

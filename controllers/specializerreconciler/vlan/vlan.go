@@ -16,6 +16,7 @@
 
 package vlan
 
+/*
 import (
 	"context"
 
@@ -45,3 +46,4 @@ func Setup(ctx context.Context, mgr ctrl.Manager, cfg config.SpecializerControll
 			r.Run),
 	})
 }
+*/

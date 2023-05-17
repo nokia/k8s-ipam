@@ -33,12 +33,17 @@ import (
 	"github.com/go-logr/logr"
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	"github.com/nokia/k8s-ipam/controllers"
+	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
-	"github.com/nokia/k8s-ipam/pkg/resource"
-	"github.com/nokia/k8s-ipam/internal/shared"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
+	"github.com/nokia/k8s-ipam/pkg/resource"
 	"github.com/pkg/errors"
 )
+
+func init() {
+	controllers.Register("vlandatabase", &reconciler{})
+}
 
 const (
 	finalizer = "vlan.nephio.org/finalizer"
@@ -49,23 +54,26 @@ const (
 	//reconcileFailed = "reconcile failed"
 )
 
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=networkinstances,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=networkinstances/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=networkinstances/finalizers,verbs=update
-//+kubebuilder:rbac:groups=*,resources=networkinstances,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlandatabases,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlandatabases/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlandatabases/finalizers,verbs=update
 
 // SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, options *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error) {
-	ge := make(chan event.GenericEvent)
-	r := &reconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		ClientProxy:  options.VlanClientProxy,
-		pollInterval: options.Poll,
-		finalizer:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
+	// register scheme
+	if err := vlanv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		return nil, err
 	}
 
-	return vlanv1alpha1.VLANDatabaseGroupVersionKind, ge,
+	// initialize reconciler
+	r.Client = mgr.GetClient()
+	r.ClientProxy = cfg.VlanClientProxy
+	r.pollInterval = cfg.Poll
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
+
+	ge := make(chan event.GenericEvent)
+
+	return map[schema.GroupVersionKind]chan event.GenericEvent{vlanv1alpha1.VLANDatabaseGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
 			For(&vlanv1alpha1.VLANDatabase{}).
 			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).

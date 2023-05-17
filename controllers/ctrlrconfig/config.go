@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Nokia.
+Copyright 2023 The Nephio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shared
+package ctrlrconfig
 
-/*
 import (
 	"time"
 
@@ -28,9 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
-type Options struct {
+type ControllerConfig struct {
 	PorchClient     client.Client
-	Address         string
+	Address         string // backend server address
 	IpamClientProxy clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation]
 	VlanClientProxy clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
 	Poll            time.Duration
@@ -38,4 +37,3 @@ type Options struct {
 	Ipam            backend.Backend
 	Vlan            backend.Backend
 }
-*/

@@ -1,0 +1,19 @@
+apiVersion: fn.kptgen.dev/v1alpha1
+kind: Config
+metadata:
+  name: grpc
+  annotations:
+    config.kubernetes.io/local-config: "true"
+  namespace: resource-backend
+spec:
+  selector:
+    kind: Deployment
+    name: controller
+    containerName: controller
+  services:
+  - spec:
+      ports:
+      - name: grpc
+        port: 9999
+        targetPort: 9999
+        protocol: TCP

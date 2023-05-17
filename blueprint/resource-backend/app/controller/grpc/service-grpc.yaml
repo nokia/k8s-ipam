@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/component: tbd
+    app.kubernetes.io/instance: tbd
+    app.kubernetes.io/managed-by: kpt
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
+    app.kubernetes.io/version: tbd
+    fn.kptgen.dev/grpc: resource-backend-controller
+  name: resource-backend-controller-grpc-svc
+  namespace: resource-backend
+spec:
+  ports:
+  - name: grpc
+    port: 9999
+    protocol: TCP
+    targetPort: 9999
+  selector:
+    fn.kptgen.dev/grpc: resource-backend-controller
+status:
+  loadBalancer: {}

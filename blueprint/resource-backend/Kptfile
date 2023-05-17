@@ -6,4 +6,4 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
-  description: resource-backend controller
+  description: resource-backend controller which hold ipam/vlan

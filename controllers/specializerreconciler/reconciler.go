@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package reconciler
+package specializerreconciler
 
 import (
 	"context"
@@ -36,41 +36,17 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
-type Config struct {
-	For         corev1.ObjectReference
-	PorchClient client.Client
-	KRMfunction fn.ResourceListProcessor
-}
-
-// +kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porch.kpt.dev,resources=packagerevisions/status,verbs=get;update;patch
-// SetupWithManager sets up the controller with the Manager.
-func Setup(mgr ctrl.Manager, cfg Config) error {
-	//ge := make(chan event.GenericEvent)
-	r := &reconciler{
-		Client:      mgr.GetClient(),
-		For:         cfg.For,
-		porchClient: cfg.PorchClient,
-		krmfn:       cfg.KRMfunction,
-	}
-
-	// TBD how does the proxy cache work with the injector for updates
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&porchv1alpha1.PackageRevision{}).
-		Complete(r)
-}
-
 // reconciler reconciles a NetworkInstance object
-type reconciler struct {
+type Reconciler struct {
 	client.Client
 	For         corev1.ObjectReference
-	porchClient client.Client
-	krmfn       fn.ResourceListProcessor
+	PorchClient client.Client
+	Krmfn       fn.ResourceListProcessor
 
 	l logr.Logger
 }
 
-func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.l = log.FromContext(ctx).WithValues("req", req)
 	r.l.Info("reconcile specializer")
 
@@ -90,7 +66,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if hasSpecificTypeConditions(pr.Status.Conditions, ct) {
 		// get package revision resourceList
 		prr := &porchv1alpha1.PackageRevisionResources{}
-		if err := r.porchClient.Get(ctx, req.NamespacedName, prr); err != nil {
+		if err := r.PorchClient.Get(ctx, req.NamespacedName, prr); err != nil {
 			r.l.Error(err, "cannot get package revision resources")
 			return ctrl.Result{}, errors.Wrap(err, "cannot get package revision resources")
 		}
@@ -102,7 +78,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// run the function SDK
-		_, err = r.krmfn.Process(rl)
+		_, err = r.Krmfn.Process(rl)
 		if err != nil {
 			r.l.Error(err, "function run failed")
 			// TBD if we need to return here + check if kptfile is set
@@ -126,7 +102,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		pr.Status.Conditions = getPorchCondiitons(kptf.GetConditions())
-		if err = r.porchClient.Update(ctx, prr); err != nil {
+		if err = r.PorchClient.Update(ctx, prr); err != nil {
 			return ctrl.Result{}, err
 		}
 

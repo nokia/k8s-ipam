@@ -92,9 +92,9 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porch.kpt.dev
+  - ipam.nephio.org
   resources:
-  - packagerevisions
+  - vlanallocations
   verbs:
   - create
   - delete
@@ -104,9 +104,67 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porch.kpt.dev
+  - ipam.nephio.org
   resources:
-  - packagerevisions/status
+  - vlanallocations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlanallocations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlandatabases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlandatabases/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlandatabases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlans/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.nephio.org
+  resources:
+  - vlans/status
   verbs:
   - get
   - patch

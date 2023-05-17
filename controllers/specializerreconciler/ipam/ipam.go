@@ -16,6 +16,7 @@
 
 package ipam
 
+/*
 import (
 	"context"
 
@@ -29,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
+
 
 func Setup(ctx context.Context, mgr ctrl.Manager, cfg config.SpecializerControllerConfig) error {
 	r := &function.FnR{ClientProxy: ipam.New(
@@ -45,3 +47,4 @@ func Setup(ctx context.Context, mgr ctrl.Manager, cfg config.SpecializerControll
 			r.Run),
 	})
 }
+*/

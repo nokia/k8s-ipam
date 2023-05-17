@@ -111,3 +111,23 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
+        - name: RESOURCE_BACKEND
+          value: "127.0.0.1:9999"
+        - name: ENABLE_IPALLOCATION
+          value: "true"
+        - name: ENABLE_NETWORKINSTANCE
+          value: "true"
+        - name: ENABLE_IPPREFIX
+          value: "true"
+        - name: ENABLE_IPSPECIALIZER
+          value: "true"
+        - name: ENABLE_VLANALLOCATION
+          value: "true"
+        - name: ENABLE_VLANDATABASE
+          value: "true"
+        - name: ENABLE_vlan
+          value: "true"
+        - name: ENABLE_VLANSPECIALIZER
+          value: "true"
+  services:
+    
