@@ -12,6 +12,9 @@ spec:
     controller:
       scope: cluster
       permissions:
+      - apiGroups: ["*"]
+        resources: [events, configmaps]
+        verbs: [get, list, watch, update, patch, create, delete]
     porch:
       scope: cluster
       permissions:
@@ -23,13 +26,13 @@ spec:
         verbs: [get, update, patch]
     leader-election:
       permissions:
-      - apiGroups: [""]
+      - apiGroups: ["*"]
         resources: [configmaps]
         verbs: [get, list, watch, update, patch, create, delete]
       - apiGroups: [coordination.k8s.io]
         resources: [leases]
         verbs: [get, list, watch, update, patch, create, delete]
-      - apiGroups: [""]
+      - apiGroups: ["*"]
         resources: [events]
         verbs: [create, patch]
   template:

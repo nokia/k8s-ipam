@@ -14,7 +14,7 @@ metadata:
   namespace: backend-system
 rules:
 - apiGroups:
-  - ""
+  - '*'
   resources:
   - configmaps
   verbs:
@@ -38,7 +38,7 @@ rules:
   - create
   - delete
 - apiGroups:
-  - ""
+  - '*'
   resources:
   - events
   verbs:

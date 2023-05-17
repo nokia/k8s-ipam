@@ -13,6 +13,19 @@ metadata:
   name: resource-backend-controller-controller-role
 rules:
 - apiGroups:
+  - '*'
+  resources:
+  - events
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
   - ipam.alloc.nephio.org
   resources:
   - ipallocations
