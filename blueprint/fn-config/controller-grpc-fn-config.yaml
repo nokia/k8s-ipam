@@ -4,7 +4,7 @@ metadata:
   name: grpc
   annotations:
     config.kubernetes.io/local-config: "true"
-  namespace: resource-backend
+  namespace: backend-system
 spec:
   selector:
     kind: Deployment

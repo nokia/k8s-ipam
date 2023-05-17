@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: resource-backend
     app.kubernetes.io/version: tbd
   name: resource-backend-controller-leader-election-role
-  namespace: resource-backend
+  namespace: backend-system
 rules:
 - apiGroups:
   - ""

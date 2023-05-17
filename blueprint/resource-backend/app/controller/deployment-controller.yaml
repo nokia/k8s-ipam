@@ -4,7 +4,7 @@ metadata:
   annotations: {}
   creationTimestamp: null
   name: resource-backend-controller
-  namespace: resource-backend
+  namespace: backend-system
 spec:
   replicas: 1
   selector:
@@ -25,7 +25,7 @@ spec:
         fn.kptgen.dev/controller: resource-backend-controller
         fn.kptgen.dev/grpc: resource-backend-controller
       name: resource-backend-controller
-      namespace: resource-backend
+      namespace: backend-system
     spec:
       containers:
       - args:

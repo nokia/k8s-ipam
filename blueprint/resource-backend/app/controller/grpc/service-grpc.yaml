@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/version: tbd
     fn.kptgen.dev/grpc: resource-backend-controller
   name: resource-backend-controller-grpc-svc
-  namespace: resource-backend
+  namespace: backend-system
 spec:
   ports:
   - name: grpc

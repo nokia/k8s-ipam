@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: resource-backend
     app.kubernetes.io/version: tbd
   name: resource-backend-controller-leader-election-role-binding
-  namespace: resource-backend
+  namespace: backend-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -19,4 +19,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: resource-backend-controller
-  namespace: resource-backend
+  namespace: backend-system

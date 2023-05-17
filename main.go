@@ -44,6 +44,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -57,6 +58,9 @@ import (
 	"github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/internal/vlanbackend"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
+	ipamcp "github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
+	vlancp "github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/vlan"
 	"github.com/nokia/k8s-ipam/pkg/proxy/serverproxy"
 	//+kubebuilder:scaffold:imports
 )
@@ -113,7 +117,13 @@ func main() {
 	}
 
 	ctrlCfg := &ctrlrconfig.ControllerConfig{
-		Address:     os.Getenv("RESOURCE_BACKEND"),
+		Address: os.Getenv("RESOURCE_BACKEND"),
+		IpamClientProxy: ipamcp.New(ctx, clientproxy.Config{
+			Address: os.Getenv("RESOURCE_BACKEND"),
+		}),
+		VlanClientProxy: vlancp.New(ctx, clientproxy.Config{
+			Address: os.Getenv("RESOURCE_BACKEND"),
+		}),
 		PorchClient: porchClient,
 		Poll:        5 * time.Second,
 		Copts: controller.Options{
@@ -121,21 +131,30 @@ func main() {
 		},
 	}
 
+	gevents := map[schema.GroupVersionKind]chan event.GenericEvent{}
 	for name, reconciler := range controllers.Reconcilers {
 		setupLog.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
 		if IsReconcilerEnabled(name) {
-			reconciler.Setup(ctx, mgr, ctrlCfg)
+			e, err := reconciler.Setup(ctx, mgr, ctrlCfg)
+			if err != nil {
+				setupLog.Error(err, "cannot add controllers to manager")
+				os.Exit(1)
+			}
+			for gvk, ech := range e {
+				gevents[gvk] = ech
+			}
 		}
 	}
+	ctrlCfg.IpamClientProxy.AddEventChs(gevents)
 
 	ipambe, err := ipam.New(mgr.GetClient())
 	if err != nil {
-		setupLog.Error(err, "Cannot add controllers to manager")
+		setupLog.Error(err, "cannot instantiate ipam backend")
 		os.Exit(1)
 	}
 	vlanbe, err := vlanbackend.New(mgr.GetClient())
 	if err != nil {
-		setupLog.Error(err, "Cannot add controllers to manager")
+		setupLog.Error(err, "cannot instantiate vlan backend")
 		os.Exit(1)
 	}
 

@@ -18,4 +18,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: resource-backend-controller
-  namespace: resource-backend
+  namespace: backend-system

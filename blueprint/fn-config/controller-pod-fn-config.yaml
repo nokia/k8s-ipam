@@ -4,7 +4,7 @@ metadata:
   name: controller
   annotations:
     config.kubernetes.io/local-config: "true"
-  namespace: resource-backend
+  namespace: backend-system
 spec:
   type: deployment
   replicas: 1
@@ -12,12 +12,6 @@ spec:
     controller:
       scope: cluster
       permissions:
-      - apiGroups: ["*"]
-        resources: [events, configmaps]
-        verbs: [get, list, watch, update, patch, create, delete]
-      - apiGroups: ["coordination.k8s.io"]
-        resources: [leases]
-        verbs: [get, list, watch, update, patch, create, delete]
     porch:
       scope: cluster
       permissions:
