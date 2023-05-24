@@ -31,9 +31,14 @@ type LinkSpec struct {
 	// Endpoints define the node + interface endpoints associated with this link
 	// +kubebuilder:validation:MaxItems:=2
 	// +kubebuilder:validation:MinItems:=2
-	Endpoints []string `json:"endpoints"`
+	Endpoints []LinkEndpoint `json:"endpoints"`
 
 	LinkProperties `json:",inline" yaml:",inline"`
+}
+
+type LinkEndpoint struct {
+	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
+	NodeName      string `json:"nodeName" yaml:"nodeName"`
 }
 
 type LinkProperties struct {

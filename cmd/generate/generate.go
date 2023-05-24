@@ -154,7 +154,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 		))
 	}
 	for _, l := range topo.Spec.Links {
-		epNames := make([]string, 0, 2)
+		eps := make([]invv1alpha1.LinkEndpoint, 0, 2)
 
 		// define labels - use all the node labels
 		labels := map[string]string{}
@@ -169,8 +169,10 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 		}
 
 		for _, e := range l.Endpoints {
-			epName := fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName)
-			epNames = append(epNames, epName)
+			eps = append(eps, invv1alpha1.LinkEndpoint{
+				NodeName:      e.NodeName,
+				InterfaceName: e.InterfaceName,
+			})
 
 			// the endpoint provide is the node provider
 			e.Provider = topo.Spec.Nodes[e.NodeName].Provider
@@ -183,7 +185,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 
 			endpoints = append(endpoints, invv1alpha1.BuildEndpoint(
 				v1.ObjectMeta{
-					Name:      epName,
+					Name:      fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName),
 					Namespace: topo.Namespace,
 					Labels:    epLabels,
 				},
@@ -191,7 +193,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 				invv1alpha1.EndpointStatus{},
 			))
 		}
-		linkName := fmt.Sprintf("%s-%s", epNames[0], epNames[1])
+		linkName := fmt.Sprintf("%s-%s-%s-%s", eps[0].NodeName, eps[0].InterfaceName, eps[1].NodeName, eps[1].InterfaceName)
 
 		links = append(links, invv1alpha1.BuildLink(
 			v1.ObjectMeta{
@@ -200,7 +202,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 				Labels:    labels,
 			},
 			invv1alpha1.LinkSpec{
-				Endpoints: epNames,
+				Endpoints: eps,
 				LinkProperties: invv1alpha1.LinkProperties{
 					LagMember:         l.LagMember,
 					Lacp:              l.Lacp,
