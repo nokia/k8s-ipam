@@ -179,7 +179,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 			for k, v := range labels {
 				epLabels[k] = v
 			}
-			epLabels[invv1alpha1.NephioProvider] = topo.Spec.Nodes[e.NodeName].Provider
+			epLabels[invv1alpha1.NephioProviderKey] = topo.Spec.Nodes[e.NodeName].Provider
 
 			endpoints = append(endpoints, invv1alpha1.BuildEndpoint(
 				v1.ObjectMeta{
