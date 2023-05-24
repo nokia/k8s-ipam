@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -50,4 +51,18 @@ func (r *IPPrefix) GetCacheID() corev1.ObjectReference {
 // GetUserDefinedLabels returns the user defined labels in the spec
 func (r *IPPrefix) GetUserDefinedLabels() map[string]string {
 	return r.Spec.GetUserDefinedLabels()
+}
+
+// BuildIPPrefix returns an IP Prefix from a client Object a crName and
+// an IpPrefix Spec/Status
+func BuildIPPrefix(meta metav1.ObjectMeta, spec IPPrefixSpec, status IPPrefixStatus) *IPPrefix {
+	return &IPPrefix{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			Kind:       IPPrefixKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
+	}
 }
