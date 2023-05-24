@@ -126,5 +126,7 @@ spec:
           value: "true"
         - name: ENABLE_VLANSPECIALIZER
           value: "true"
+        - name: ENABLE_RAWTOPOLOGIES
+          value: "true"
   services:
     

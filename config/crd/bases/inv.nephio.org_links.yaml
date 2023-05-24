@@ -46,7 +46,15 @@ spec:
                 description: Endpoints define the node + interface endpoints associated
                   with this link
                 items:
-                  type: string
+                  properties:
+                    interfaceName:
+                      type: string
+                    nodeName:
+                      type: string
+                  required:
+                  - interfaceName
+                  - nodeName
+                  type: object
                 maxItems: 2
                 minItems: 2
                 type: array

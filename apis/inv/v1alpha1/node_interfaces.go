@@ -16,7 +16,18 @@ limitations under the License.
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+func (r *NodeList) GetItems() []client.Object {
+	objs := []client.Object{}
+	for _, r := range r.Items {
+		objs = append(objs, &r)
+	}
+	return objs
+}
 
 // BuildNode returns a Node from a client Object a crName and
 // an Node Spec/Status

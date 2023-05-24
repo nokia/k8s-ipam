@@ -25,7 +25,7 @@ import (
 	topov1alpha1 "github.com/nokia/k8s-ipam/apis/topo/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -139,7 +139,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 		}
 		labels[invv1alpha1.NephioTopologyKey] = topo.Name
 		nodes = append(nodes, invv1alpha1.BuildNode(
-			v1.ObjectMeta{
+			metav1.ObjectMeta{
 				Name:      nodeName,
 				Namespace: topo.Namespace,
 				Labels:    labels,
@@ -184,7 +184,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 			epLabels[invv1alpha1.NephioProviderKey] = topo.Spec.Nodes[e.NodeName].Provider
 
 			endpoints = append(endpoints, invv1alpha1.BuildEndpoint(
-				v1.ObjectMeta{
+				metav1.ObjectMeta{
 					Name:      fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName),
 					Namespace: topo.Namespace,
 					Labels:    epLabels,
@@ -196,7 +196,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 		linkName := fmt.Sprintf("%s-%s-%s-%s", eps[0].NodeName, eps[0].InterfaceName, eps[1].NodeName, eps[1].InterfaceName)
 
 		links = append(links, invv1alpha1.BuildLink(
-			v1.ObjectMeta{
+			metav1.ObjectMeta{
 				Name:      linkName,
 				Namespace: topo.Namespace,
 				Labels:    labels,

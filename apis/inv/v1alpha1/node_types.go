@@ -34,7 +34,7 @@ type NodeSpec struct {
 
 	// Location provider the location information where this resource is located
 	Location *Location `json:"location,omitempty" yaml:"location,omitempty"`
-	
+
 	// ParametersRef points to the vendor or implementation specific params for the
 	// network.
 	// +optional

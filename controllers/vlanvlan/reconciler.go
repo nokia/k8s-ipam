@@ -57,9 +57,9 @@ const (
 	//reconcileFailed = "reconcile failed"
 )
 
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlans,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlans/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=vlans/finalizers,verbs=update
+//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans/finalizers,verbs=update
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {

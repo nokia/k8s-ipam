@@ -17,28 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 )
 
-func (r *LinkList) GetItems() []client.Object {
-	objs := []client.Object{}
-	for _, r := range r.Items {
-		objs = append(objs, &r)
-	}
-	return objs
+// GetCondition returns the condition based on the condition kind
+func (r *RawTopology) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
+	return r.Status.GetCondition(t)
 }
 
-// BuildLink returns a Link from a client Object a crName and
-// a Link Spec/Status
-func BuildLink(meta metav1.ObjectMeta, spec LinkSpec, status LinkStatus) *Link {
-	return &Link{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
-			Kind:       LinkKind,
-		},
-		ObjectMeta: meta,
-		Spec:       spec,
-		Status:     status,
-	}
+// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
+// to be set at once
+func (r *RawTopology) SetConditions(c ...allocv1alpha1.Condition) {
+	r.Status.SetConditions(c...)
 }
