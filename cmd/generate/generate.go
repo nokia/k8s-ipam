@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
 	topov1alpha1 "github.com/nokia/k8s-ipam/apis/topo/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -129,72 +129,79 @@ func validateLinks(topo topov1alpha1.RawTopology) error {
 }
 
 func generateTopoDetails(topo topov1alpha1.RawTopology) error {
-	nodes := []*v1alpha1.Node{}
-	links := []*v1alpha1.Link{}
-	endpoints := []*v1alpha1.Endpoint{}
+	nodes := []*invv1alpha1.Node{}
+	links := []*invv1alpha1.Link{}
+	endpoints := []*invv1alpha1.Endpoint{}
 	for nodeName, n := range topo.Spec.Nodes {
 		labels := map[string]string{}
-		for k, v := range n.UserDefinedLabels.Labels {
+		for k, v := range n.Labels {
 			labels[k] = v
 		}
-		labels[v1alpha1.NephioTopologyKey] = topo.Name
-		nodes = append(nodes, v1alpha1.BuildNode(
+		labels[invv1alpha1.NephioTopologyKey] = topo.Name
+		nodes = append(nodes, invv1alpha1.BuildNode(
 			v1.ObjectMeta{
 				Name:      nodeName,
 				Namespace: topo.Namespace,
 				Labels:    labels,
 			},
-			v1alpha1.NodeSpec{
+			invv1alpha1.NodeSpec{
 				UserDefinedLabels: n.UserDefinedLabels,
 				Location:          n.Location,
 				ParametersRef:     n.ParametersRef,
 				Provider:          n.Provider,
 			},
-			v1alpha1.NodeStatus{},
+			invv1alpha1.NodeStatus{},
 		))
 	}
 	for _, l := range topo.Spec.Links {
 		epNames := make([]string, 0, 2)
+
+		// define labels - use all the node labels
+		labels := map[string]string{}
+		labels[invv1alpha1.NephioTopologyKey] = topo.Name
+		for k, v := range l.UserDefinedLabels.Labels {
+			labels[k] = v
+		}
+		for _, e := range l.Endpoints {
+			for k, v := range topo.Spec.Nodes[e.NodeName].Labels {
+				labels[k] = v
+			}
+		}
+
 		for _, e := range l.Endpoints {
 			epName := fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName)
 			epNames = append(epNames, epName)
 
-			labels := map[string]string{}
-			for k, v := range l.UserDefinedLabels.Labels {
-				labels[k] = v
-			}
-			labels[v1alpha1.NephioTopologyKey] = topo.Name
-
 			// the endpoint provide is the node provider
 			e.Provider = topo.Spec.Nodes[e.NodeName].Provider
 
-			endpoints = append(endpoints, v1alpha1.BuildEndpoint(
+			epLabels := map[string]string{}
+			for k, v := range labels {
+				epLabels[k] = v
+			}
+			epLabels[invv1alpha1.NephioProvider] = topo.Spec.Nodes[e.NodeName].Provider
+
+			endpoints = append(endpoints, invv1alpha1.BuildEndpoint(
 				v1.ObjectMeta{
 					Name:      epName,
 					Namespace: topo.Namespace,
-					Labels:    labels,
+					Labels:    epLabels,
 				},
 				e,
-				v1alpha1.EndpointStatus{},
+				invv1alpha1.EndpointStatus{},
 			))
-
 		}
 		linkName := fmt.Sprintf("%s-%s", epNames[0], epNames[1])
 
-		labels := map[string]string{}
-		for k, v := range l.UserDefinedLabels.Labels {
-			labels[k] = v
-		}
-		labels[v1alpha1.NephioTopologyKey] = topo.Name
-		links = append(links, v1alpha1.BuildLink(
+		links = append(links, invv1alpha1.BuildLink(
 			v1.ObjectMeta{
 				Name:      linkName,
 				Namespace: topo.Namespace,
 				Labels:    labels,
 			},
-			v1alpha1.LinkSpec{
+			invv1alpha1.LinkSpec{
 				Endpoints: epNames,
-				LinkProperties: v1alpha1.LinkProperties{
+				LinkProperties: invv1alpha1.LinkProperties{
 					LagMember:         l.LagMember,
 					Lacp:              l.Lacp,
 					Lag:               l.Lag,
@@ -202,7 +209,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 					ParametersRef:     l.ParametersRef,
 				},
 			},
-			v1alpha1.LinkStatus{},
+			invv1alpha1.LinkStatus{},
 		))
 	}
 

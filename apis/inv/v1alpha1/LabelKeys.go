@@ -34,4 +34,5 @@ const (
 	NephioAvailabilityZoneKey = "nephio.org/availability-zone"
 	NephioPurposeKey          = "nephio.org/purpose"
 	NephioIndexKey            = "nephio.org/index"
+	NephioProvider            = "nephio.org/provider"
 )
