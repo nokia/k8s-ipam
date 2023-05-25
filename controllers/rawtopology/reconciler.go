@@ -216,6 +216,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			labels[k] = v
 		}
 		labels[invv1alpha1.NephioTopologyKey] = cr.Name
+		labels[invv1alpha1.NephioNodeNameKey] = nodeName
 		o := invv1alpha1.BuildNode(
 			metav1.ObjectMeta{
 				Name:            nodeName,
@@ -267,6 +268,8 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 				epLabels[k] = v
 			}
 			epLabels[invv1alpha1.NephioProviderKey] = cr.Spec.Nodes[e.NodeName].Provider
+			epLabels[invv1alpha1.NephioNodeNameKey] = e.NodeName
+			epLabels[invv1alpha1.NephioInterfaceNameKey] = e.InterfaceName
 
 			o := invv1alpha1.BuildEndpoint(
 				metav1.ObjectMeta{

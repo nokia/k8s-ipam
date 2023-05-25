@@ -26,6 +26,9 @@ const (
 	NephioGatewayKey       = "nephio.org/gateway"
 	NephioLinkTypeKey      = "nephio.org/link-type" // infra, loop
 	NephioEndpointGroupKey = "nephio.org/endpoint-group"
+	NephioNodeNameKey      = "nephio.org/node-name"
+	NephioLinkNameKey      = "nephio.org/link-name"
+	NephioInterfaceNameKey = "nephio.org/interface-name"
 	// user defined common
 	NephioTopologyKey         = "nephio.org/topology"
 	NephioClusterNameKey      = "nephio.org/cluster-name"
