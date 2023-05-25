@@ -46,7 +46,7 @@ type NodeProperties struct {
 }
 
 type LinkProperties struct {
-	Endpoints                  []invv1alpha1.EndpointSpec `json:"endpoints" yaml:"endpoints"`
+	Endpoints                  []invv1alpha1.EndpointProperties `json:"endpoints" yaml:"endpoints"`
 	invv1alpha1.LinkProperties `json:",inline" yaml:",inline"`
 }
 

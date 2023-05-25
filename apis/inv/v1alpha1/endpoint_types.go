@@ -21,13 +21,17 @@ import (
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
+	EndpointProperties `json:",inline" yaml:",inline"`
+	Provider           `json:",inline" yaml:",inline"`
+}
+
+type EndpointProperties struct {
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
 	NodeName      string `json:"nodeName" yaml:"nodeName"`
 	// LacpFallback defines if the link is part of a lag
@@ -46,14 +50,6 @@ type EndpointSpec struct {
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	allocv1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
-
-	// ParametersRef points to the vendor or implementation specific params for the
-	// network.
-	// +optional
-	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
-
-	// Provider specifies the provider implementing this network.
-	Provider string `json:"provider" yaml:"provider"`
 }
 
 // EndpointStatus defines the observed state of Endpoint

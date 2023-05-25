@@ -79,7 +79,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
-			Named("TokenController").
+			Named("RawTopologyController").
 			For(&topov1alpha1.RawTopology{}).
 			Complete(r)
 }
@@ -254,8 +254,13 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 				InterfaceName: e.InterfaceName,
 			})
 
-			// the endpoint provide is the node provider
-			e.Provider = cr.Spec.Nodes[e.NodeName].Provider
+			// the endpoint provider is the node provider
+			epSpec := invv1alpha1.EndpointSpec{
+				EndpointProperties: e,
+				Provider: invv1alpha1.Provider{
+					Provider: cr.Spec.Nodes[e.NodeName].Provider,
+				},
+			}
 
 			epLabels := map[string]string{}
 			for k, v := range labels {
@@ -270,7 +275,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 					Labels:          epLabels,
 					OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 				},
-				e,
+				epSpec,
 				invv1alpha1.EndpointStatus{},
 			)
 			resources[corev1.ObjectReference{APIVersion: o.APIVersion, Kind: o.Kind, Name: o.Name, Namespace: o.Namespace}] = o

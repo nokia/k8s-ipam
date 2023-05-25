@@ -174,8 +174,13 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 				InterfaceName: e.InterfaceName,
 			})
 
-			// the endpoint provide is the node provider
-			e.Provider = topo.Spec.Nodes[e.NodeName].Provider
+			// the endpoint provider is the node provider
+			epSpec := invv1alpha1.EndpointSpec{
+				EndpointProperties: e,
+				Provider: invv1alpha1.Provider{
+					Provider: topo.Spec.Nodes[e.NodeName].Provider,
+				},
+			}
 
 			epLabels := map[string]string{}
 			for k, v := range labels {
@@ -189,7 +194,7 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 					Namespace: topo.Namespace,
 					Labels:    epLabels,
 				},
-				e,
+				epSpec,
 				invv1alpha1.EndpointStatus{},
 			))
 		}

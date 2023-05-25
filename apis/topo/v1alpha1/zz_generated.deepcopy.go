@@ -31,7 +31,7 @@ func (in *LinkProperties) DeepCopyInto(out *LinkProperties) {
 	*out = *in
 	if in.Endpoints != nil {
 		in, out := &in.Endpoints, &out.Endpoints
-		*out = make([]invv1alpha1.EndpointSpec, len(*in))
+		*out = make([]invv1alpha1.EndpointProperties, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
