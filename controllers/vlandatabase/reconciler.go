@@ -76,7 +76,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 	return map[schema.GroupVersionKind]chan event.GenericEvent{vlanv1alpha1.VLANDatabaseGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
 			For(&vlanv1alpha1.VLANDatabase{}).
-			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			Complete(r)
 }
 
