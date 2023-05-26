@@ -49,17 +49,29 @@ func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*ipamv1a
 // ValidateResponse handes validates changes in the allocation response
 // when doing refreshes
 func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool {
-	origAlloc := &ipamv1alpha1.IPAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), origAlloc); err != nil {
+	origAlloc := ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), &origAlloc); err != nil {
 		return false
 	}
-	newAlloc := &ipamv1alpha1.IPAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), newAlloc); err != nil {
+	newAlloc := ipamv1alpha1.IPAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), &newAlloc); err != nil {
 		return false
 	}
-	if origAlloc.Status.Prefix != newAlloc.Status.Prefix ||
-		origAlloc.Status.Gateway != newAlloc.Status.Gateway {
-		return false
+	if origAlloc.Status.Prefix != nil {
+		if newAlloc.Status.Prefix == nil {
+			return false
+		}
+		if *origAlloc.Status.Prefix != *newAlloc.Status.Prefix {
+			return false
+		}
+	}
+	if origAlloc.Status.Gateway != nil {
+		if newAlloc.Status.Gateway == nil {
+			return false
+		}
+		if *origAlloc.Status.Gateway != *newAlloc.Status.Gateway {
+			return false
+		}
 	}
 	return true
 }
