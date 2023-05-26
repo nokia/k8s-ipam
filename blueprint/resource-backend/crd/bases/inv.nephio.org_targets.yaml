@@ -4,17 +4,17 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: nodes.inv.nephio.org
+  name: targets.inv.nephio.org
 spec:
   group: inv.nephio.org
   names:
     categories:
     - nephio
     - inv
-    kind: Node
-    listKind: NodeList
-    plural: nodes
-    singular: node
+    kind: Target
+    listKind: TargetList
+    plural: targets
+    singular: target
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -24,7 +24,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Node is the Schema for the vlan API
+        description: Target is the Schema for the vlan API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -35,25 +35,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: NodeSpec defines the desired state of Node
+            description: TargetSpec defines the desired state of Target
             properties:
               address:
                 type: string
-              labels:
-                additionalProperties:
-                  type: string
-                description: Labels as user defined labels
-                type: object
-              location:
-                description: Location provider the location information where this resource is located
-                properties:
-                  latitude:
-                    type: string
-                  longitude:
-                    type: string
-                type: object
+              encoding:
+                enum:
+                - unknown
+                - JSON
+                - JSON_IETF
+                - bytes
+                - protobuf
+                - ASCII
+                type: string
+              insecure:
+                type: boolean
               parametersRef:
-                description: ParametersRef points to the vendor or implementation specific params for the network.
+                description: ParametersRef points to the vendor or implementation specific params for the target.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -78,14 +76,26 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              protocol:
+                enum:
+                - unknown
+                - gnmi
+                - netconf
+                type: string
               provider:
-                description: Provider specifies the provider implementing this network.
+                description: Provider specifies the provider using this target.
+                type: string
+              secretName:
+                type: string
+              skipVerify:
+                type: boolean
+              tlsSecretName:
                 type: string
             required:
             - provider
             type: object
           status:
-            description: NodeStatus defines the observed state of Node
+            description: TargetStatus defines the observed state of Target
             properties:
               conditions:
                 description: Conditions of the resource.

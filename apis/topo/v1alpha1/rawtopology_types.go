@@ -28,8 +28,8 @@ import (
 
 // RawTopologySpec defines the desired state of RawTopology
 type RawTopologySpec struct {
-	// Defaults *NodeDefinition `json:"defaults,omitempty" yaml:"defaults,omitempty"`
-	// Kinds map[string]NodeDefinition `json:"kinds,omitempty" yaml:"kinds,omitempty"`
+	//Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"`
+	// Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
 	Nodes map[string]NodeProperties `json:"nodes" yaml:"nodes"`
 	Links []LinkProperties          `json:"links" yaml:"links"`
 

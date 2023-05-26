@@ -210,14 +210,17 @@ func validateLinks(topo *topov1alpha1.RawTopology) error {
 func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]client.Object {
 	resources := map[corev1.ObjectReference]client.Object{}
 
-	for nodeName, n := range cr.Spec.Nodes {
+	for nodeName, node := range cr.Spec.Nodes {
+		n := node
 		labels := map[string]string{}
 		for k, v := range n.Labels {
 			labels[k] = v
 		}
 		labels[invv1alpha1.NephioTopologyKey] = cr.Name
 		labels[invv1alpha1.NephioNodeNameKey] = nodeName
-		o := invv1alpha1.BuildNode(
+		labels[invv1alpha1.NephioProviderKey] = n.Provider
+		var o client.Object
+		o = invv1alpha1.BuildNode(
 			metav1.ObjectMeta{
 				Name:            nodeName,
 				Namespace:       cr.Namespace,
@@ -232,7 +235,24 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			},
 			invv1alpha1.NodeStatus{},
 		)
-		resources[corev1.ObjectReference{APIVersion: o.APIVersion, Kind: o.Kind, Name: o.Name, Namespace: o.Namespace}] = o
+		resources[corev1.ObjectReference{APIVersion: o.GetResourceVersion(), Kind: o.GetObjectKind().GroupVersionKind().Kind, Name: o.GetName(), Namespace: o.GetNamespace()}] = o
+
+		o = invv1alpha1.BuildTarget(
+			metav1.ObjectMeta{
+				Name:            nodeName,
+				Namespace:       cr.Namespace,
+				Labels:          labels,
+				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			},
+			invv1alpha1.TargetSpec{
+				ParametersRef: n.ParametersRef,
+				Provider:      n.Provider,
+				SecretName:    pointer.String(n.Provider),
+			},
+			invv1alpha1.TargetStatus{},
+		)
+		resources[corev1.ObjectReference{APIVersion: o.GetResourceVersion(), Kind: o.GetObjectKind().GroupVersionKind().Kind, Name: o.GetName(), Namespace: o.GetNamespace()}] = o
+
 	}
 	for _, l := range cr.Spec.Links {
 		eps := make([]invv1alpha1.LinkEndpoint, 0, 2)

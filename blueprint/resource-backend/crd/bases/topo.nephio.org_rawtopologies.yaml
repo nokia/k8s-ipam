@@ -126,6 +126,8 @@ spec:
               nodes:
                 additionalProperties:
                   properties:
+                    address:
+                      type: string
                     labels:
                       additionalProperties:
                         type: string
@@ -171,7 +173,7 @@ spec:
                   required:
                   - provider
                   type: object
-                description: Defaults *NodeDefinition `json:"defaults,omitempty" yaml:"defaults,omitempty"` Kinds map[string]NodeDefinition `json:"kinds,omitempty" yaml:"kinds,omitempty"`
+                description: Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"` Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
                 type: object
             required:
             - links

@@ -44,6 +44,8 @@ rules:
   - links/status
   - nodes
   - nodes/status
+  - targets
+  - targets/status
   verbs:
   - get
   - list

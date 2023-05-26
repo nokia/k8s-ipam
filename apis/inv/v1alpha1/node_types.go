@@ -28,6 +28,7 @@ import (
 
 // NodeSpec defines the desired state of Node
 type NodeSpec struct {
+	Address *string `json:"address,omitempty" yaml:"address,omitempty"`
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	allocv1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
