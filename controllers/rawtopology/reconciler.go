@@ -158,7 +158,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 	cr.SetConditions(allocv1alpha1.Ready())
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
 func validate(topo *topov1alpha1.RawTopology) error {
@@ -247,13 +247,15 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			for k, v := range cr.Spec.Nodes[e.NodeName].Labels {
 				labels[k] = v
 			}
-		}
-
-		for _, e := range l.Endpoints {
 			eps = append(eps, invv1alpha1.LinkEndpoint{
 				NodeName:      e.NodeName,
 				InterfaceName: e.InterfaceName,
 			})
+		}
+
+		linkName := fmt.Sprintf("%s-%s-%s-%s", eps[0].NodeName, eps[0].InterfaceName, eps[1].NodeName, eps[1].InterfaceName)
+
+		for _, e := range l.Endpoints {
 
 			// the endpoint provider is the node provider
 			epSpec := invv1alpha1.EndpointSpec{
@@ -270,6 +272,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			epLabels[invv1alpha1.NephioProviderKey] = cr.Spec.Nodes[e.NodeName].Provider
 			epLabels[invv1alpha1.NephioNodeNameKey] = e.NodeName
 			epLabels[invv1alpha1.NephioInterfaceNameKey] = e.InterfaceName
+			epLabels[invv1alpha1.NephioLinkNameKey] = linkName
 
 			o := invv1alpha1.BuildEndpoint(
 				metav1.ObjectMeta{
@@ -283,7 +286,6 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			)
 			resources[corev1.ObjectReference{APIVersion: o.APIVersion, Kind: o.Kind, Name: o.Name, Namespace: o.Namespace}] = o
 		}
-		linkName := fmt.Sprintf("%s-%s-%s-%s", eps[0].NodeName, eps[0].InterfaceName, eps[1].NodeName, eps[1].InterfaceName)
 
 		o := invv1alpha1.BuildLink(
 			metav1.ObjectMeta{
@@ -306,7 +308,6 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 		)
 		resources[corev1.ObjectReference{APIVersion: o.APIVersion, Kind: o.Kind, Name: o.Name, Namespace: o.Namespace}] = o
 	}
-
 	return resources
 }
 
