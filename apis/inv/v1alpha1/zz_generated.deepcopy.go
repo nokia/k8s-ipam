@@ -519,11 +519,6 @@ func (in *TargetSpec) DeepCopyInto(out *TargetSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.SecretName != nil {
-		in, out := &in.SecretName, &out.SecretName
-		*out = new(string)
-		**out = **in
-	}
 	if in.Encoding != nil {
 		in, out := &in.Encoding, &out.Encoding
 		*out = new(Encoding)

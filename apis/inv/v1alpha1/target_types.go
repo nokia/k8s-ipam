@@ -55,7 +55,7 @@ type TargetSpec struct {
 	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
 
 	Address    *string `json:"address,omitempty" yaml:"address,omitempty"`
-	SecretName *string `json:"secretName,omitempty" yaml:"secretName,omitempty"`
+	SecretName string  `json:"secretName" yaml:"secretName"`
 	//+kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;
 	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	Insecure *bool     `json:"insecure,omitempty" yaml:"insecure,omitempty"`

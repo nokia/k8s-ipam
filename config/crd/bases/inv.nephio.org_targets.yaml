@@ -110,6 +110,7 @@ spec:
                 type: string
             required:
             - provider
+            - secretName
             type: object
           status:
             description: TargetStatus defines the observed state of Target
