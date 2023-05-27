@@ -53,7 +53,7 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 	if alloc.Spec.Kind == ipamv1alpha1.PrefixKindAggregate ||
 		alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 		if pi.IsAddressPrefix() {
-			return fmt.Sprintf("a prefix allocation for kind %s is not allowed with /32 or /128 notation", alloc.Spec.Kind)
+			return fmt.Sprintf("a prefix allocation for kind %s is not allowed with /32 for ipv4 or /128 for ipv6 notation", alloc.Spec.Kind)
 		}
 	}
 
@@ -67,7 +67,7 @@ func validateInput(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string {
 	if alloc.Spec.CreatePrefix != nil {
 		if pi.IsAddressPrefix() {
 			// a create prefix should have an address different from /32 or /128
-			return fmt.Sprintf("create prefix is not allowed with /32 or /128, got: %s", pi.GetIPPrefix().String())
+			return fmt.Sprintf("create prefix is not allowed with /32 for ipv4 or /128 for ipv6, got: %s", pi.GetIPPrefix().String())
 		}
 		return ""
 	}
