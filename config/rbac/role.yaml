@@ -14,6 +14,92 @@ rules:
   - list
   - watch
 - apiGroups:
+  - inv.nephio.org
+  resources:
+  - endpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - inv.nephio.org
+  resources:
+  - endpoints/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - inv.nephio.org
+  resources:
+  - links
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - inv.nephio.org
+  resources:
+  - links/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - inv.nephio.org
+  resources:
+  - nodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - inv.nephio.org
+  resources:
+  - nodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ipam.alloc.nephio.org
+  resources:
+  - ipprefixes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.alloc.nephio.org
+  resources:
+  - ipprefixes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ipam.alloc.nephio.org
+  resources:
+  - ipprefixes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - ipam.nephio.org
   resources:
   - ipallocations
@@ -35,32 +121,6 @@ rules:
   - ipam.nephio.org
   resources:
   - ipallocations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipprefixes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipprefixes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipprefixes/status
   verbs:
   - get
   - patch
@@ -144,7 +204,33 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - topo.nephio.org
+  resources:
+  - rawtopologies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - topo.nephio.org
+  resources:
+  - rawtopologies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - topo.nephio.org
+  resources:
+  - rawtopologies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - vlan.alloc.nephio.org
   resources:
   - vlans
   verbs:
@@ -156,13 +242,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ipam.nephio.org
+  - vlan.alloc.nephio.org
   resources:
   - vlans/finalizers
   verbs:
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - vlan.alloc.nephio.org
   resources:
   - vlans/status
   verbs:

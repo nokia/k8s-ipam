@@ -54,7 +54,8 @@ func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string
 }
 
 func GetNameFromNetworkInstancePrefix(name, prefix string) string {
-	return fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
+	s := fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
+	return strings.ReplaceAll(s, ":", "-")
 }
 
 // GetGenericNamespacedName return a namespace and name

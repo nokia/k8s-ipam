@@ -44,17 +44,29 @@ func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*vlanv1a
 // ValidateResponse handes validates changes in the allocation response
 // when doing refreshes
 func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool {
-	origAlloc := &vlanv1alpha1.VLANAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), origAlloc); err != nil {
+	origAlloc := vlanv1alpha1.VLANAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), &origAlloc); err != nil {
 		return false
 	}
-	newAlloc := &vlanv1alpha1.VLANAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), newAlloc); err != nil {
+	newAlloc := vlanv1alpha1.VLANAllocation{}
+	if err := json.Unmarshal([]byte(origResp.Status), &newAlloc); err != nil {
 		return false
 	}
-	if origAlloc.Status.VLANID != newAlloc.Status.VLANID ||
-		origAlloc.Status.VLANRange != newAlloc.Status.VLANRange {
-		return false
+	if origAlloc.Status.VLANID != nil {
+		if newAlloc.Status.VLANID == nil {
+			return false
+		}
+		if *origAlloc.Status.VLANID != *newAlloc.Status.VLANID {
+			return false
+		}
+	}
+	if origAlloc.Status.VLANRange != nil {
+		if newAlloc.Status.VLANRange == nil {
+			return false
+		}
+		if *origAlloc.Status.VLANRange != *newAlloc.Status.VLANRange {
+			return false
+		}
 	}
 	return true
 
