@@ -247,7 +247,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			invv1alpha1.TargetSpec{
 				ParametersRef: n.ParametersRef,
 				Provider:      n.Provider,
-				SecretName:    pointer.String(n.Provider),
+				SecretName:    n.Provider,
 			},
 			invv1alpha1.TargetStatus{},
 		)
