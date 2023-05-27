@@ -55,9 +55,9 @@ const (
 	errUpdateStatus = "cannot update status"
 )
 
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ipam.nephio.org,resources=ipprefixes/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ipam.alloc.nephio.org,resources=ipprefixes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=ipam.alloc.nephio.org,resources=ipprefixes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ipam.alloc.nephio.org,resources=ipprefixes/finalizers,verbs=update
 
 // Setup sets up the controller with the Manager.
 func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {

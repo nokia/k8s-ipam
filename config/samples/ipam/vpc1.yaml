@@ -4,6 +4,7 @@ metadata:
   name: vpc1
 spec:
   prefixes:
+  - prefix: 1000::/32
   - prefix: 10.0.0.0/8
   - prefix: 192.168.0.0/16
   - prefix: 172.0.0.0/8

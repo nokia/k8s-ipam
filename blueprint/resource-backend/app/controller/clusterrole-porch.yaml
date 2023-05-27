@@ -36,6 +36,25 @@ rules:
   - update
   - patch
 - apiGroups:
+  - inv.nephio.org
+  resources:
+  - endpoints
+  - endpoints/status
+  - links
+  - links/status
+  - nodes
+  - nodes/status
+  - targets
+  - targets/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
   - ipam.alloc.nephio.org
   resources:
   - ipallocations
@@ -44,6 +63,19 @@ rules:
   - ipprefixes/status
   - networkinstances
   - networkinstances/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
+  - topo.nephio.org
+  resources:
+  - rawtopologies
+  - rawtopologies/status
   verbs:
   - get
   - list

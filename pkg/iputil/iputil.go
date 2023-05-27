@@ -114,8 +114,13 @@ func (r *Prefix) GetAddressFamily() AddressFamily {
 }
 
 func (r *Prefix) IsAddressPrefix() bool {
-	return r.GetPrefixLength().String() == "32" ||
-		r.GetPrefixLength().String() == "128"
+	if r.IsIpv4() && r.GetPrefixLength().String() == "32" {
+		return true
+	}
+	if r.IsIpv6() && r.GetPrefixLength().String() == "128" {
+		return true
+	}
+	return false
 }
 
 func (r *Prefix) GetIPPrefixWithPrefixLength(pl int) netip.Prefix {

@@ -34,6 +34,7 @@ import (
 	_ "github.com/nokia/k8s-ipam/controllers/ipamnetworkinstance"
 	_ "github.com/nokia/k8s-ipam/controllers/ipamprefix"
 	_ "github.com/nokia/k8s-ipam/controllers/ipamspecializer"
+	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanallocation"
 	_ "github.com/nokia/k8s-ipam/controllers/vlandatabase"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
