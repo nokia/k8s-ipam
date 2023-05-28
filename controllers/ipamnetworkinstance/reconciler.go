@@ -74,7 +74,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 	return map[schema.GroupVersionKind]chan event.GenericEvent{ipamv1alpha1.NetworkInstanceGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
 			For(&ipamv1alpha1.NetworkInstance{}).
-			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			//WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			Complete(r)
 }
 
