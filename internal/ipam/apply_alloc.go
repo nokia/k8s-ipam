@@ -62,6 +62,16 @@ func (r *applicator) ApplyAlloc(ctx context.Context) error {
 	r.l.Info("dynamic allocation: route does not exist, a new allocation is required")
 	// A NEW Allocation is required
 	// First allocate the routes based on the label selector
+	rs := r.rib.GetTable()
+	for _, route := range rs {
+		r.l.Info("route in table", "route", route)
+	}
+	if r.alloc.Spec.Selector != nil {
+		r.l.Info("selector", "selector", r.alloc.Spec.Selector.MatchLabels)
+	} else {
+		r.l.Info("no selector")
+	}
+
 	routes = r.getRoutesByLabel()
 	if len(routes) == 0 {
 		return fmt.Errorf("dynamic allocation: no available routes based on the selector labels %v", r.alloc.GetSelectorLabels())

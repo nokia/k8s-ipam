@@ -2,11 +2,11 @@ module github.com/nokia/k8s-ipam
 
 go 1.20
 
-replace k8s.io/api => k8s.io/api v0.26.1
+//replace k8s.io/api => k8s.io/api v0.26.1
 
-replace k8s.io/client-go => k8s.io/client-go v0.26.1
+//replace k8s.io/client-go => k8s.io/client-go v0.26.1
 
-replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
+//replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
 
 require (
 	github.com/GoogleContainerTools/kpt v1.0.0-beta.29.0.20230327202912-01513604feaa

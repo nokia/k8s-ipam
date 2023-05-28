@@ -23,14 +23,13 @@ import (
 )
 
 func GetGVKfromGVR(c *rest.Config, gvr schema.GroupVersionResource) (schema.GroupVersionKind, error) {
-	/*
-		httpClient, err := rest.HTTPClientFor(c)
-		if err != nil {
-			return schema.GroupVersionKind{}, err
-		}
-		mapper, err := apiutil.NewDynamicRESTMapper(c, httpClient)
-	*/
-	mapper, err := apiutil.NewDynamicRESTMapper(c)
+
+	httpClient, err := rest.HTTPClientFor(c)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	mapper, err := apiutil.NewDynamicRESTMapper(c, httpClient)
+	//mapper, err := apiutil.NewDynamicRESTMapper(c)
 	if err != nil {
 		return schema.GroupVersionKind{}, err
 	}
