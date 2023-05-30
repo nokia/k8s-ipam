@@ -117,7 +117,8 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 			r.alloc.Status.Prefix = r.alloc.Spec.Prefix
 		} else {
 			// we return the parent prefix that was stored in the applicator context during the mutate label process
-			r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
+			//r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
+			r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 		}
 	}
 
