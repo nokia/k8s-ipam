@@ -141,7 +141,7 @@ func (r *applicator) getMutatedRoutesWithLabels() []table.Route {
 			case r.pi.GetAddressFamily() == iputil.AddressFamilyIpv4 && r.pi.GetPrefixLength().Int() == 31,
 				r.pi.GetAddressFamily() == iputil.AddressFamilyIpv6 && r.pi.GetPrefixLength().Int() == 127:
 				routes = append(routes, r.mutateNetworkNetRoute(labels))
-				routes = append(routes, r.mutateNetworIPAddressRoute(labels))
+				//routes = append(routes, r.mutateNetworIPAddressRoute(labels))
 			case r.pi.IsNorLastNorFirst():
 				routes = append(routes, r.mutateNetworkNetRoute(labels))
 				routes = append(routes, r.mutateNetworIPAddressRoute(labels))

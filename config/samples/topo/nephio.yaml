@@ -6,6 +6,10 @@ spec:
   nodes:
     srl: 
       provider: srl.nokia.com
+    leaf1: 
+      provider: srl.nokia.com
+    leaf2: 
+      provider: srl.nokia.com
     mgmt: 
       provider: docker.io
     cluster01: 
@@ -30,3 +34,8 @@ spec:
   - endpoints: 
     - { nodeName: srl, interfaceName: e1-4}
     - { nodeName: cluster03, interfaceName: eth1}
+  - endpoints: 
+    - { nodeName: leaf1, interfaceName: e1-30}
+    - { nodeName: leaf2, interfaceName: e1-30}
+    labels:
+      nephio.org/purpose: infra
