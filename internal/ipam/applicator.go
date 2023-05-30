@@ -124,7 +124,6 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 			r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 		}
 	}
-
 	return nil
 }
 
