@@ -38,4 +38,5 @@ const (
 	NephioPurposeKey          = "nephio.org/purpose"
 	NephioIndexKey            = "nephio.org/index"
 	NephioProviderKey         = "nephio.org/provider"
+	NephioWiringKey           = "nephio.org/wiring"
 )
