@@ -50,12 +50,16 @@ func (r *NetworkInstance) GetNamespacedName() types.NamespacedName {
 // with a predefined name (aggregate) and a prefix, compliant to the naming
 // convention of k8s
 func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string {
-	return GetNameFromNetworkInstancePrefix(r.GetName(), prefix)
+	return GetNameFromPrefix(r.GetName(), prefix, "aggregate")
 }
 
-func GetNameFromNetworkInstancePrefix(name, prefix string) string {
-	s := fmt.Sprintf("%s-%s-%s", name, "aggregate", strings.ReplaceAll(prefix, "/", "-"))
-	return strings.ReplaceAll(s, ":", "-")
+func GetNameFromPrefix(prefix, name, suffix string) string {
+	s := fmt.Sprintf("%s-%s", strings.ReplaceAll(prefix, "/", "-"), name)
+	s = strings.ReplaceAll(s, ":", "-")
+	if suffix != "" {
+		s = fmt.Sprintf("%s-%s", s, suffix)
+	}
+	return s
 }
 
 // GetGenericNamespacedName return a namespace and name
@@ -83,4 +87,12 @@ func BuildNetworkInstance(meta metav1.ObjectMeta, spec NetworkInstanceSpec, stat
 		Spec:       spec,
 		Status:     status,
 	}
+}
+
+func (r *Prefix) GetPrefixKind() PrefixKind {
+	prefixKind := PrefixKindNetwork
+	if value, ok := r.Labels[allocv1alpha1.NephioPrefixKindKey]; ok {
+		prefixKind = GetPrefixKindFromString(value)
+	}
+	return prefixKind
 }
