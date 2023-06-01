@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -47,6 +45,6 @@ func BuildEndpoint(meta metav1.ObjectMeta, spec EndpointSpec, status EndpointSta
 
 // GetLinkName returns a string representing the link the endpoint belongs to
 // combined with the index of the link
-func (r *Endpoint) GetLinkName(index int) string {
-	return fmt.Sprintf("%s-%d", r.Labels[NephioLinkNameKey], index)
+func (r *Endpoint) GetLinkName() string {
+	return r.Labels[NephioLinkNameKey]
 }
