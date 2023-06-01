@@ -170,3 +170,14 @@ func (s AddressFamily) String() string {
 	}
 	return string(AddressFamilyUnknown)
 }
+
+type IsIPv6 bool
+
+type PrefixClaims map[IsIPv6][]*string
+
+func (r PrefixClaims) AddPrefix(isIPv6 IsIPv6, prefix *string) {
+	if _, ok := r[isIPv6]; !ok {
+		r[isIPv6] = []*string{}
+	}
+	r[isIPv6] = append(r[isIPv6], prefix)
+}
