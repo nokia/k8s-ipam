@@ -100,3 +100,67 @@ func (r *Prefix) GetPrefixKind() PrefixKind {
 	}
 	return prefixKind
 }
+
+type PrefixClaimContext struct {
+	PrefixClaimName         string
+	PrefixSelectorLabels    map[string]string
+	PrefixUserDefinedLabels map[string]string
+
+	AddressClaimName         string
+	AddressSelectorLabels    map[string]string
+	AddressUserDefinedLabels map[string]string
+}
+
+type Labels map[string]string
+
+func (r Labels) GetPurposeLabels(purpose string) map[string]string {
+	newLabels := map[string]string{}
+	for k, v := range r {
+		newLabels[k] = v
+	}
+	newLabels[allocv1alpha1.NephioPurposeKey] = purpose
+	return newLabels
+}
+
+func (r *Prefix) GetPrefixClaimContext(rtName, linkName, nodeName, namespace string, labels Labels) *PrefixClaimContext {
+	prefixClaimName := GetNameFromPrefix(r.Prefix, rtName, NetworkInstancePrefixAggregate)
+	linkPrefixClaimName := GetNameFromPrefix(r.Prefix, rtName, linkName)
+	linkAddressPrefixClaimName := fmt.Sprintf("%s-%s", linkPrefixClaimName, nodeName)
+
+	return &PrefixClaimContext{
+		PrefixClaimName: linkPrefixClaimName,
+		PrefixSelectorLabels: map[string]string{
+			allocv1alpha1.NephioNsnNameKey:      prefixClaimName,
+			allocv1alpha1.NephioNsnNamespaceKey: namespace,
+		},
+		PrefixUserDefinedLabels: labels.GetPurposeLabels("link prefix"),
+
+		AddressClaimName: linkAddressPrefixClaimName,
+		AddressSelectorLabels: map[string]string{
+			allocv1alpha1.NephioNsnNameKey:      linkPrefixClaimName,
+			allocv1alpha1.NephioNsnNamespaceKey: namespace,
+		},
+		AddressUserDefinedLabels: map[string]string{
+			allocv1alpha1.NephioPurposeKey: "link address",
+		},
+	}
+}
+
+func (r *Prefix) GetPrefixSelectorLabels(name, namespace string) map[string]string {
+	return map[string]string{
+		allocv1alpha1.NephioNsnNameKey:      GetNameFromPrefix(r.Prefix, name, NetworkInstancePrefixAggregate),
+		allocv1alpha1.NephioNsnNamespaceKey: namespace,
+	}
+}
+
+func (r *Prefix) GetAddressSelectorLabels(name, namespace string) map[string]string {
+	return map[string]string{
+		allocv1alpha1.NephioNsnNameKey:      name,
+		allocv1alpha1.NephioNsnNamespaceKey: namespace,
+	}
+}
+
+func (r *Prefix) GetPrefixUserDefinedLabels(labels map[string]string, value string) map[string]string {
+	labels[allocv1alpha1.NephioPurposeKey] = value
+	return labels
+}
