@@ -62,7 +62,7 @@ var _ = Describe("IPAM Testing", func() {
 			// build allocation for network instance prefix
 			req := ipamv1alpha1.BuildIPAllocation(
 				metav1.ObjectMeta{
-					Name:      ipamv1alpha1.GetNameFromNetworkInstancePrefix(ni.Name, prefix.Prefix),
+					Name:      ipamv1alpha1.GetNameFromPrefix(ni.Name, prefix.Prefix, ipamv1alpha1.NetworkInstancePrefixAggregate),
 					Namespace: ni.Namespace,
 					Labels: map[string]string{
 						allocv1alpha1.NephioOwnerGvkKey: meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind),

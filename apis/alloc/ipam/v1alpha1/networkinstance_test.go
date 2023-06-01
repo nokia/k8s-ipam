@@ -37,7 +37,7 @@ func TestNiGetNameFromNetworkInstancePrefix(t *testing.T) {
 				},
 			},
 			inputPrefix: "10.0.0.1/24",
-			want:        "a-aggregate-10.0.0.1-24",
+			want:        "10.0.0.1-24-a-aggregate",
 		},
 	}
 
