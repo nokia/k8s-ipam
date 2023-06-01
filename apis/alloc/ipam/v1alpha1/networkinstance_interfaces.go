@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -106,6 +107,10 @@ type PrefixClaimContext struct {
 	PrefixSelectorLabels    map[string]string
 	PrefixUserDefinedLabels map[string]string
 
+	AddressClaimCOntext
+}
+
+type AddressClaimCOntext struct {
 	AddressClaimName         string
 	AddressSelectorLabels    map[string]string
 	AddressUserDefinedLabels map[string]string
@@ -135,13 +140,15 @@ func (r *Prefix) GetPrefixClaimContext(rtName, linkName, nodeName, namespace str
 		},
 		PrefixUserDefinedLabels: labels.GetPurposeLabels("link prefix"),
 
-		AddressClaimName: linkAddressPrefixClaimName,
-		AddressSelectorLabels: map[string]string{
-			allocv1alpha1.NephioNsnNameKey:      linkPrefixClaimName,
-			allocv1alpha1.NephioNsnNamespaceKey: namespace,
-		},
-		AddressUserDefinedLabels: map[string]string{
-			allocv1alpha1.NephioPurposeKey: "link address",
+		AddressClaimCOntext: AddressClaimCOntext{
+			AddressClaimName: linkAddressPrefixClaimName,
+			AddressSelectorLabels: map[string]string{
+				allocv1alpha1.NephioNsnNameKey:      linkPrefixClaimName,
+				allocv1alpha1.NephioNsnNamespaceKey: namespace,
+			},
+			AddressUserDefinedLabels: map[string]string{
+				allocv1alpha1.NephioPurposeKey: "link address",
+			},
 		},
 	}
 }
@@ -163,4 +170,20 @@ func (r *Prefix) GetAddressSelectorLabels(name, namespace string) map[string]str
 func (r *Prefix) GetPrefixUserDefinedLabels(labels map[string]string, value string) map[string]string {
 	labels[allocv1alpha1.NephioPurposeKey] = value
 	return labels
+}
+
+func (r *Prefix) GetAddressClaimContext(rtName, nodeName, namespace string, labels Labels) *AddressClaimCOntext {
+	prefixClaimName := GetNameFromPrefix(r.Prefix, rtName, NetworkInstancePrefixAggregate)
+	addressClaimName := GetNameFromPrefix(r.Prefix, nodeName, "system")
+	return &AddressClaimCOntext{
+		AddressClaimName: addressClaimName,
+		AddressSelectorLabels: map[string]string{
+			allocv1alpha1.NephioNsnNameKey:      prefixClaimName,
+			allocv1alpha1.NephioNsnNamespaceKey: namespace,
+		},
+		AddressUserDefinedLabels: map[string]string{
+			invv1alpha1.NephioNodeNameKey:  nodeName,
+			allocv1alpha1.NephioPurposeKey: "node loopback address",
+		},
+	}
 }
