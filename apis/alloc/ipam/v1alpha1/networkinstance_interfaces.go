@@ -26,6 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	NetworkInstancePrefixAggregate = "aggregate"
+)
+
 // GetCondition returns the condition based on the condition kind
 func (r *NetworkInstance) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
 	return r.Status.GetCondition(t)
@@ -50,7 +54,7 @@ func (r *NetworkInstance) GetNamespacedName() types.NamespacedName {
 // with a predefined name (aggregate) and a prefix, compliant to the naming
 // convention of k8s
 func (r *NetworkInstance) GetNameFromNetworkInstancePrefix(prefix string) string {
-	return GetNameFromPrefix(r.GetName(), prefix, "aggregate")
+	return GetNameFromPrefix(r.GetName(), prefix, NetworkInstancePrefixAggregate)
 }
 
 func GetNameFromPrefix(prefix, name, suffix string) string {
