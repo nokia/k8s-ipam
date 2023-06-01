@@ -81,6 +81,32 @@ func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocRes
 // Once normalized we can do generic processing -> add system desfined labels in the user defined labels
 // in the spec and transform to an allocPB proto message
 func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error) {
+	b, expiryTime, nsnName, err := NormalizeKRM(o, d)
+	if err != nil {
+		return nil, err
+	}
+	return clientproxy.BuildAllocPb(
+			o,
+			nsnName,
+			string(b),
+			expiryTime,
+			ipamv1alpha1.IPAllocationGroupVersionKind),
+		nil
+}
+
+func NormalizeKRMToBytes(o client.Object, d any) ([]byte, error) {
+	b, _, _, err := NormalizeKRM(o, d)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// NormalizeKRMToAllocPb normalizes the input to a generalized GRPC allocation request
+// First we normalize the object to an allocation -> this is specific to the source/own client.Object
+// Once normalized we can do generic processing -> add system desfined labels in the user defined labels
+// in the spec and transform to an allocPB proto message
+func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 	var alloc *ipamv1alpha1.IPAllocation
 	expiryTime := "never"
 	nsnName := o.GetName()
@@ -88,12 +114,12 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 	case ipamv1alpha1.IPPrefixKind:
 		cr, ok := o.(*ipamv1alpha1.IPPrefix)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
+			return nil, "", "", fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
 		}
 		// create a new allocation CR from the owner CR
 		pi, err := iputil.New(cr.Spec.Prefix)
 		if err != nil {
-			return nil, err
+			return nil, "", "", err
 		}
 		objectMeta := cr.ObjectMeta
 		if len(objectMeta.GetLabels()) == 0 {
@@ -116,7 +142,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 	case ipamv1alpha1.IPAllocationKind:
 		cr, ok := o.(*ipamv1alpha1.IPAllocation)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
+			return nil, "", "", fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
 		}
 		// given the cr exists we just do a deepcopy
 		alloc = cr.DeepCopy()
@@ -124,17 +150,17 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		t := time.Now().Add(time.Minute * 60)
 		b, err := t.MarshalText()
 		if err != nil {
-			return nil, err
+			return nil, "", "", err
 		}
 		expiryTime = string(b)
 	case ipamv1alpha1.NetworkInstanceKind:
 		cr, ok := o.(*ipamv1alpha1.NetworkInstance)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
+			return nil, "", "", fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
 		}
 		prefix, ok := d.(ipamv1alpha1.Prefix)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error casting object to Ip Prefix failed")
+			return nil, "", "", fmt.Errorf("unexpected error casting object to Ip Prefix failed")
 		}
 		// create a new allocation CR from the owner CR
 		objectMeta := cr.ObjectMeta
@@ -148,7 +174,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 
 		pi, err := iputil.New(prefix.Prefix)
 		if err != nil {
-			return nil, err
+			return nil, "", "", err
 		}
 		alloc = ipamv1alpha1.BuildIPAllocation(
 			objectMeta,
@@ -167,7 +193,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 			},
 			ipamv1alpha1.IPAllocationStatus{})
 	default:
-		return nil, fmt.Errorf("cannot allocate prefix for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
+		return nil, "", "", fmt.Errorf("cannot allocate prefix for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
 	}
 
 	// do generic processing
@@ -176,13 +202,7 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 	// marshal the alloc
 	b, err := json.Marshal(alloc)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
-	return clientproxy.BuildAllocPb(
-			o,
-			nsnName,
-			string(b),
-			expiryTime,
-			ipamv1alpha1.IPAllocationGroupVersionKind),
-		nil
+	return b, expiryTime, nsnName, nil
 }

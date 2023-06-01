@@ -59,7 +59,7 @@ func (r *bemock) DeleteIndex(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 }
 
 func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
-	b, err := json.Marshal(cr)
+	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*i
 }
 
 func (r *bemock) Allocate(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
-	b, err := json.Marshal(cr)
+	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *bemock) Allocate(ctx context.Context, cr client.Object, d any) (*ipamv1
 }
 
 func (r *bemock) DeAllocate(ctx context.Context, cr client.Object, d any) error {
-	b, err := json.Marshal(cr)
+	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return err
 	}
