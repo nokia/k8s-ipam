@@ -39,14 +39,14 @@ func (r *mock) AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent) 
 func (r *mock) CreateIndex(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error { return nil }
 func (r *mock) DeleteIndex(ctx context.Context, cr *ipamv1alpha1.NetworkInstance) error { return nil }
 func (r *mock) GetAllocation(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
-	return r.getAllcoation(cr)
+	return r.getAllocation(cr)
 }
 func (r *mock) Allocate(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
-	return r.getAllcoation(cr)
+	return r.getAllocation(cr)
 }
 func (r *mock) DeAllocate(ctx context.Context, cr client.Object, d any) error { return nil }
 
-func (r *mock) getAllcoation(cr client.Object) (*ipamv1alpha1.IPAllocation, error) {
+func (r *mock) getAllocation(cr client.Object) (*ipamv1alpha1.IPAllocation, error) {
 	alloc, ok := cr.(*ipamv1alpha1.IPAllocation)
 	if !ok {
 		return nil, fmt.Errorf("expecting IPAllocation, got: %v", reflect.TypeOf(cr))
