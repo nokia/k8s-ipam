@@ -186,7 +186,7 @@ func (r *IPAllocation) AddOwnerLabelsToCR() {
 	if r.Spec.UserDefinedLabels.Labels == nil {
 		r.Spec.UserDefinedLabels.Labels = map[string]string{}
 	}
-	for k, v := range allocv1alpha1.GetOwnerLabelsFromCR(r) {
+	for k, v := range allocv1alpha1.GetHierOwnerLabelsFromCR(r) {
 		r.Spec.UserDefinedLabels.Labels[k] = v
 	}
 }

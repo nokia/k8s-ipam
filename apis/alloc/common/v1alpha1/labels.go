@@ -119,7 +119,7 @@ func (r *AllocationLabels) GetOwnerSelector() (labels.Selector, error) {
 	return fullselector, nil
 }
 
-func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
+func GetHierOwnerLabelsFromCR(cr client.Object) map[string]string {
 	// if the ownerGvk is in the labels we use this as ownerGVK
 	crGVK := cr.GetObjectKind().GroupVersionKind()
 	ownerGVKValue, ok := cr.GetLabels()[NephioOwnerGvkKey]
@@ -145,5 +145,13 @@ func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
 		NephioGvkKey:               meta.GVKToString(crGVK),
 		NephioNsnNameKey:           cr.GetName(),
 		NephioNsnNamespaceKey:      cr.GetNamespace(),
+	}
+}
+
+func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
+	return map[string]string{
+		NephioOwnerGvkKey:          meta.GVKToString(cr.GetObjectKind().GroupVersionKind()),
+		NephioOwnerNsnNameKey:      cr.GetName(),
+		NephioOwnerNsnNamespaceKey: cr.GetNamespace(),
 	}
 }
