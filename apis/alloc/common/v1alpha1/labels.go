@@ -148,7 +148,7 @@ func GetHierOwnerLabelsFromCR(cr client.Object) map[string]string {
 	}
 }
 
-func GetOwnerLabelsFromCR(cr client.Object) map[string]string {
+func GetOwnerLabelsFromCR(cr client.Object) client.MatchingLabels {
 	return map[string]string{
 		NephioOwnerGvkKey:          meta.GVKToString(cr.GetObjectKind().GroupVersionKind()),
 		NephioOwnerNsnNameKey:      cr.GetName(),
