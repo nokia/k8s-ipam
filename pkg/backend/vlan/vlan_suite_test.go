@@ -1,4 +1,4 @@
-package vlanbackend_test
+package vlan_test
 
 import (
 	"testing"

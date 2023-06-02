@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vlanbackend
+package vlan
 
 /*
 func buildVlanDatabase(name string) *vlanv1alpha1.VLANDatabase {

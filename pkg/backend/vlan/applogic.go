@@ -1,4 +1,4 @@
-package vlanbackend
+package vlan
 
 import (
 	"context"

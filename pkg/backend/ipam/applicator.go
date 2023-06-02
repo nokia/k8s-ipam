@@ -120,7 +120,7 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 			if r.pi != nil {
 				r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
 				return nil
-			}	
+			}
 			r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 		}
 	}

@@ -56,8 +56,8 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
-	"github.com/nokia/k8s-ipam/internal/ipam"
-	"github.com/nokia/k8s-ipam/internal/vlanbackend"
+	"github.com/nokia/k8s-ipam/pkg/backend/ipam"
+	"github.com/nokia/k8s-ipam/pkg/backend/vlan"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	ipamcp "github.com/nokia/k8s-ipam/pkg/proxy/clientproxy/ipam"
@@ -153,7 +153,7 @@ func main() {
 		setupLog.Error(err, "cannot instantiate ipam backend")
 		os.Exit(1)
 	}
-	vlanbe, err := vlanbackend.New(mgr.GetClient())
+	vlanbe, err := vlan.New(mgr.GetClient())
 	if err != nil {
 		setupLog.Error(err, "cannot instantiate vlan backend")
 		os.Exit(1)
