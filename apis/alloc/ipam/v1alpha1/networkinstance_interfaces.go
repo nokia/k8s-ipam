@@ -127,9 +127,13 @@ func (r Labels) GetPurposeLabels(purpose string) map[string]string {
 	return newLabels
 }
 
-func (r *Prefix) GetPrefixClaimContext(rtName, linkName, nodeName, namespace string, labels Labels) *PrefixClaimContext {
+// GetPrefixClaimContext return selectors and user defined labels
+// the allocation is based on prefix namings used internally and is hierarchical
+// for irb there is a special case since the top prefix is allocated in the routing contxt
+// the 2nd prefix get a name of the bridge context. As such we have rtNmame and bdName
+func (r *Prefix) GetPrefixClaimContext(rtName, bdName, linkName, nodeName, namespace string, labels Labels) *PrefixClaimContext {
 	prefixClaimName := GetNameFromPrefix(r.Prefix, rtName, NetworkInstancePrefixAggregate)
-	linkPrefixClaimName := GetNameFromPrefix(r.Prefix, rtName, linkName)
+	linkPrefixClaimName := GetNameFromPrefix(r.Prefix, bdName, linkName)
 	linkAddressPrefixClaimName := fmt.Sprintf("%s-%s", linkPrefixClaimName, nodeName)
 
 	return &PrefixClaimContext{
