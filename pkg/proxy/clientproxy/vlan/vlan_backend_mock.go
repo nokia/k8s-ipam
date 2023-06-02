@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/vlanbackend"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,8 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func NewBackendMock() clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation] {
-	be, _ := vlanbackend.New(nil)
+func NewBackendMock(be backend.Backend) clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation] {
 	return &bemock{
 		be: be,
 	}

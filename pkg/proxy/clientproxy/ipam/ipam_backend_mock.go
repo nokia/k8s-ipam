@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	beipam "github.com/nokia/k8s-ipam/internal/ipam"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,8 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func NewBackendMock() clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation] {
-	be, _ := beipam.New(nil)
+func NewBackendMock(be backend.Backend) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation] {
 	return &bemock{
 		be: be,
 	}
