@@ -1,0 +1,32 @@
+apiVersion: topo.nephio.org/v1alpha1
+kind: RawTopology
+metadata:
+  name: nephio
+spec:
+  nodes:
+    srl: 
+      provider: srl.nokia.com
+    mgmt: 
+      provider: docker.io
+    cluster01: 
+      provider: docker.io
+      labels:
+        nephio.org/cluster-name: cluster01
+    cluster02: 
+      provider: docker.io
+      labels:
+        nephio.org/cluster-name: cluster02
+    cluster03: 
+      provider: docker.io
+      labels:
+        nephio.org/cluster-name: cluster03
+  links:
+  - endpoints: 
+    - { nodeName: srl, interfaceName: e1-2}
+    - { nodeName: cluster01, interfaceName: eth1}
+  - endpoints: 
+    - { nodeName: srl, interfaceName: e1-3}
+    - { nodeName: cluster02, interfaceName: eth1}
+  - endpoints: 
+    - { nodeName: srl, interfaceName: e1-4}
+    - { nodeName: cluster03, interfaceName: eth1}

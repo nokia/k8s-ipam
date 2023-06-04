@@ -31,7 +31,8 @@ const (
 	NephioPoolKey          = "nephio.org/pool"
 	NephioGatewayKey       = "nephio.org/gateway"
 	// user defined common
-	NephioSiteKey              = "nephio.org/site"
+	NephioClusterNameKey       = "nephio.org/cluster-name"
+	NephioSiteNameKey          = "nephio.org/site-name"
 	NephioRegionKey            = "nephio.org/region"
 	NephioAvailabilityZoneKey  = "nephio.org/availability-zone"
 	NephioInterfaceKey         = "nephio.org/interface"

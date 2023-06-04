@@ -4,8 +4,6 @@ metadata:
   name: nephio
 spec:
   nodes:
-    srl: 
-      provider: srl.nokia.com
     leaf1: 
       provider: srl.nokia.com
     leaf2: 
@@ -26,14 +24,23 @@ spec:
         nephio.org/cluster-name: cluster03
   links:
   - endpoints: 
-    - { nodeName: srl, interfaceName: e1-2}
+    - { nodeName: leaf1, interfaceName: e1-1}
     - { nodeName: cluster01, interfaceName: eth1}
   - endpoints: 
-    - { nodeName: srl, interfaceName: e1-3}
+    - { nodeName: leaf1, interfaceName: e1-1}
+    - { nodeName: cluster01, interfaceName: eth2}
+  - endpoints: 
+    - { nodeName: leaf1, interfaceName: e1-2}
     - { nodeName: cluster02, interfaceName: eth1}
   - endpoints: 
-    - { nodeName: srl, interfaceName: e1-4}
+    - { nodeName: leaf2, interfaceName: e1-2}
+    - { nodeName: cluster02, interfaceName: eth2}
+  - endpoints: 
+    - { nodeName: leaf1, interfaceName: e1-3}
     - { nodeName: cluster03, interfaceName: eth1}
+  - endpoints: 
+    - { nodeName: leaf1, interfaceName: e1-3}
+    - { nodeName: cluster03, interfaceName: eth2}
   - endpoints: 
     - { nodeName: leaf1, interfaceName: e1-30}
     - { nodeName: leaf2, interfaceName: e1-30}
