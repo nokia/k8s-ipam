@@ -103,7 +103,7 @@ func TestPrefixInfo(t *testing.T) {
 			name:   "ipv6 address in prefix",
 			prefix: "2000::1/64",
 			want: []string{
-				"2000::-64",
+				"2000---64",
 				"2000::1/64",
 				"2000::1",
 				"2000::1/128",
