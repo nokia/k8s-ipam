@@ -141,10 +141,10 @@ func GetHierOwnerLabelsFromCR(cr client.Object) map[string]string {
 	return map[string]string{
 		NephioOwnerGvkKey:          ownerGVKValue,
 		NephioOwnerNsnNameKey:      ownerNSN.Name,
-		NephioOwnerNsnNamespaceKey: ownerNSN.Namespace,
+		NephioOwnerNsnNamespaceKey: getNamespace(ownerNSN.Namespace),
 		NephioGvkKey:               meta.GVKToString(crGVK),
 		NephioNsnNameKey:           cr.GetName(),
-		NephioNsnNamespaceKey:      cr.GetNamespace(),
+		NephioNsnNamespaceKey:      getNamespace(cr.GetNamespace()),
 	}
 }
 
@@ -152,6 +152,13 @@ func GetOwnerLabelsFromCR(cr client.Object) client.MatchingLabels {
 	return map[string]string{
 		NephioOwnerGvkKey:          meta.GVKToString(cr.GetObjectKind().GroupVersionKind()),
 		NephioOwnerNsnNameKey:      cr.GetName(),
-		NephioOwnerNsnNamespaceKey: cr.GetNamespace(),
+		NephioOwnerNsnNamespaceKey: getNamespace(cr.GetNamespace()),
 	}
+}
+
+func getNamespace(ns string) string {
+	if ns == "" {
+		return "default"
+	}
+	return ns
 }

@@ -100,7 +100,11 @@ func (r *cm[alloc, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReferen
 
 	cm.Data = map[string]string{}
 	cm.Data[ConfigMapKey] = string(b)
-	return r.c.Update(ctx, cm)
+
+	if err := r.c.Update(ctx, cm); err != nil {
+		r.l.Error(err, "cannot update configmap")
+	}
+	return nil
 }
 
 func (r *cm[alloc, entry]) Destroy(ctx context.Context, ref corev1.ObjectReference) error {

@@ -61,7 +61,7 @@ func (r *applicator) addRib(ctx context.Context) error {
 	// update status
 	r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
 	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork && r.alloc.Spec.CreatePrefix == nil {
-		r.alloc.Status.Gateway = pointer.String(r.getGateway())
+		r.alloc.Status.Gateway = pointer.String(r.getGateway(*r.alloc.Status.Prefix))
 	}
 	return nil
 }
@@ -109,19 +109,21 @@ func (r *applicator) updateRib(ctx context.Context, routes table.Routes) error {
 	// update the status
 	r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
-		if r.alloc.Spec.CreatePrefix == nil {
-			r.alloc.Status.Gateway = pointer.String(r.getGateway())
-		}
+		// static prefixes
 		if r.alloc.Spec.Prefix != nil {
 			// we return the prefix we get in the request
 			r.alloc.Status.Prefix = r.alloc.Spec.Prefix
 		} else {
+			// dynamic prefix allocation
 			// we return the parent prefix that was stored in the applicator context during the mutate label process
 			if r.pi != nil {
 				r.alloc.Status.Prefix = pointer.String(r.pi.GetIPPrefix().String())
-				return nil
+			} else {
+				r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 			}
-			r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
+		}
+		if r.alloc.Spec.CreatePrefix == nil {
+			r.alloc.Status.Gateway = pointer.String(r.getGateway(*r.alloc.Status.Prefix))
 		}
 	}
 	return nil
@@ -246,8 +248,14 @@ func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 	return labels
 }
 
-func (r *applicator) getGateway() string {
-	gatewaySelector, err := r.alloc.GetGatewayLabelSelector()
+func (r *applicator) getGateway(prefix string) string {
+	pi, err := iputil.New(prefix)
+	if err != nil {
+		r.l.Error(err, "cannot get gateway parent rpefix")
+		return ""
+	}
+
+	gatewaySelector, err := r.alloc.GetGatewayLabelSelector(string(pi.GetSubnetName()))
 	if err != nil {
 		r.l.Error(err, "cannot get gateway label selector")
 		return ""

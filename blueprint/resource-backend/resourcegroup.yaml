@@ -5,3 +5,4 @@ metadata:
   namespace: backend-system
   labels:
     cli-utils.sigs.k8s.io/inventory-id: cb034ff6e9d7d78e82eda57610f511bcffd244c8-1686030648861276000
+  annotations: {}

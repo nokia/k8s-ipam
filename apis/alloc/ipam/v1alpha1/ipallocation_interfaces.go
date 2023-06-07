@@ -116,20 +116,14 @@ func (r *IPAllocation) GetOwnerSelector() (labels.Selector, error) {
 }
 
 // GetGatewayLabelSelector returns a label selector to select the gateway of the allocation in the backend
-func (r *IPAllocation) GetGatewayLabelSelector() (labels.Selector, error) {
+func (r *IPAllocation) GetGatewayLabelSelector(subnetString string) (labels.Selector, error) {
 	l := map[string]string{
 		allocv1alpha1.NephioGatewayKey: "true",
+		allocv1alpha1.NephioSubnetKey:  subnetString,
 	}
 	fullselector := labels.NewSelector()
 	for k, v := range l {
 		req, err := labels.NewRequirement(k, selection.Equals, []string{v})
-		if err != nil {
-			return nil, err
-		}
-		fullselector = fullselector.Add(*req)
-	}
-	for k, v := range r.GetSelectorLabels() {
-		req, err := labels.NewRequirement(k, selection.In, []string{v})
 		if err != nil {
 			return nil, err
 		}

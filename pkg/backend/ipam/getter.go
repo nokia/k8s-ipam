@@ -22,6 +22,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -62,15 +63,20 @@ func (r *getter) GetIPAllocation(ctx context.Context) error {
 		r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
 		if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 			if r.alloc.Spec.CreatePrefix == nil {
-				r.alloc.Status.Gateway = pointer.String(r.getGateway())
+				r.alloc.Status.Gateway = pointer.String(r.getGateway(*r.alloc.Status.Prefix))
 			}
 		}
 	}
 	return nil
 }
 
-func (r *getter) getGateway() string {
-	gatewaySelector, err := r.alloc.GetGatewayLabelSelector()
+func (r *getter) getGateway(prefix string) string {
+	pi, err := iputil.New(prefix)
+	if err != nil {
+		r.l.Error(err, "cannot get gateway parent rpefix")
+		return ""
+	}
+	gatewaySelector, err := r.alloc.GetGatewayLabelSelector(string(pi.GetSubnetName()))
 	if err != nil {
 		r.l.Error(err, "cannot get gateway label selector")
 		return ""

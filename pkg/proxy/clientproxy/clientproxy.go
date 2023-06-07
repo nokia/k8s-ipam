@@ -120,7 +120,7 @@ func (r *clientproxy[T1, T2]) start(ctx context.Context) {
 				// we cleanup the client
 				r.deleteClient(watchCtx)
 				return
-			case <-time.After(time.Second * 60):
+			case <-time.After(time.Second * 900):
 				// cache refresh handler
 				// walks the cache and check the expiry time
 				keysToRefresh := r.cache.ValidateExpiryTime(ctx)
