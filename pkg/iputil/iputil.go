@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
+	"strings"
 
 	"go4.org/netipx"
 )
@@ -57,7 +58,8 @@ func (r *Prefix) GetIPSubnet() netip.Prefix {
 }
 
 func (r *Prefix) GetSubnetName() string {
-	return fmt.Sprintf("%s-%s", r.GetFirstIPAddress().String(), r.GetPrefixLength().String())
+	s := fmt.Sprintf("%s-%s", r.GetFirstIPAddress().String(), r.GetPrefixLength().String())
+	return strings.ReplaceAll(s, ":", "-")
 
 }
 
