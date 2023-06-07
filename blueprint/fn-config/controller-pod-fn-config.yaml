@@ -15,15 +15,15 @@ spec:
       - apiGroups: ["*"]
         resources: [events, configmaps]
         verbs: [get, list, watch, update, patch, create, delete]
-    porch:
-      scope: cluster
-      permissions:
-      - apiGroups: [porch.kpt.dev]
-        resources: [packagerevisionresources, packagerevisions]
-        verbs: [get, list, watch, update, patch, create, delete]
-      - apiGroups: [porch.kpt.dev]
-        resources: [packagerevisionresources/status, packagerevisions/status, packagerevisions/approval]
-        verbs: [get, update, patch]
+    # porch:
+    #   scope: cluster
+    #   permissions:
+    #   - apiGroups: [porch.kpt.dev]
+    #     resources: [packagerevisionresources, packagerevisions]
+    #     verbs: [get, list, watch, update, patch, create, delete]
+    #   - apiGroups: [porch.kpt.dev]
+    #     resources: [packagerevisionresources/status, packagerevisions/status, packagerevisions/approval]
+    #     verbs: [get, update, patch]
     leader-election:
       permissions:
       - apiGroups: ["*"]
@@ -116,16 +116,16 @@ spec:
           value: "true"
         - name: ENABLE_IPPREFIX
           value: "true"
-        - name: ENABLE_IPSPECIALIZER
-          value: "true"
+        #- name: ENABLE_IPSPECIALIZER
+        #  value: "true"
         - name: ENABLE_VLANALLOCATION
           value: "true"
         - name: ENABLE_VLANDATABASE
           value: "true"
         - name: ENABLE_vlan
           value: "true"
-        - name: ENABLE_VLANSPECIALIZER
-          value: "true"
+        #- name: ENABLE_VLANSPECIALIZER
+        #  value: "true"
         - name: ENABLE_RAWTOPOLOGIES
           value: "true"
   services:

@@ -151,6 +151,7 @@ func (r *Prefix) GetPrefixClaimContext(rtName, bdName, linkName, nodeName, names
 				allocv1alpha1.NephioNsnNamespaceKey: namespace,
 			},
 			AddressUserDefinedLabels: map[string]string{
+				allocv1alpha1.NephioGatewayKey: "true",
 				allocv1alpha1.NephioPurposeKey: "link address",
 			},
 		},
