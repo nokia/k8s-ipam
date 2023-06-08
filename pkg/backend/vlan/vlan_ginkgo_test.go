@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/utils/util"
@@ -17,13 +17,13 @@ import (
 
 var _ = Describe("VLAN Backend Testing", func() {
 	var (
-		db = vlanv1alpha1.BuildVLANDatabase(
+		db = vlanv1alpha1.BuildVLANIndex(
 			metav1.ObjectMeta{
 				Name:      "a",
 				Namespace: "dummy",
 			},
-			vlanv1alpha1.VLANDatabaseSpec{},
-			vlanv1alpha1.VLANDatabaseStatus{},
+			vlanv1alpha1.VLANIndexSpec{},
+			vlanv1alpha1.VLANIndexStatus{},
 		)
 		dbBytes []byte
 		be      backend.Backend
@@ -51,32 +51,32 @@ var _ = Describe("VLAN Backend Testing", func() {
 
 			// test element
 			vlanID := 100
-			// build allocation for network instance prefix
-			req := vlanv1alpha1.BuildVLANAllocation(
+			// build claim for network instance prefix
+			req := vlanv1alpha1.BuildVLANClaim(
 				metav1.ObjectMeta{
 					Name:      "static-vlan1",
 					Namespace: db.Namespace,
 					Labels: map[string]string{
-						allocv1alpha1.NephioOwnerGvkKey: meta.GVKToString(vlanv1alpha1.VLANGroupVersionKind),
+						resourcev1alpha1.NephioOwnerGvkKey: meta.GVKToString(vlanv1alpha1.VLANGroupVersionKind),
 					},
 				},
-				vlanv1alpha1.VLANAllocationSpec{
-					VLANDatabase: corev1.ObjectReference{Name: db.Name, Namespace: db.Namespace},
-					VLANID:       util.PointerUint16(uint16(vlanID)),
+				vlanv1alpha1.VLANClaimSpec{
+					VLANIndex: corev1.ObjectReference{Name: db.Name, Namespace: db.Namespace},
+					VLANID:    util.PointerUint16(uint16(vlanID)),
 				},
-				vlanv1alpha1.VLANAllocationStatus{},
+				vlanv1alpha1.VLANClaimStatus{},
 			)
 			req.AddOwnerLabelsToCR()
 			Ω(req).ShouldNot(BeNil())
 			b, err := json.Marshal(req)
-			Ω(err).Should(Succeed(), "Failed to marshal allocation req")
-			rsp, err := be.Allocate(context.Background(), b)
+			Ω(err).Should(Succeed(), "Failed to marshal claim req")
+			rsp, err := be.Claim(context.Background(), b)
 			Ω(err).Should(Succeed())
-			resp := vlanv1alpha1.VLANAllocation{}
+			resp := vlanv1alpha1.VLANClaim{}
 			err = json.Unmarshal(rsp, &resp)
-			Ω(err).Should(Succeed(), "Failed to unmarshal allocation resp")
+			Ω(err).Should(Succeed(), "Failed to unmarshal claim resp")
 
-			checkAllocResp(*req, resp)
+			checkClaimResp(*req, resp)
 
 			// check rib entries
 			Expect(be.List(context.Background(), dbBytes)).To(HaveLen(4))
@@ -86,28 +86,28 @@ var _ = Describe("VLAN Backend Testing", func() {
 		It("should contain a multiple rib entry", func() {
 			var err error
 
-			// // build allocation for network kind prefix
-			req := vlanv1alpha1.BuildVLANAllocation(
+			// // build claim for network kind prefix
+			req := vlanv1alpha1.BuildVLANClaim(
 				metav1.ObjectMeta{
 					Name:      "dynamic-vlan1",
 					Namespace: db.Namespace,
 				},
-				vlanv1alpha1.VLANAllocationSpec{
-					VLANDatabase: corev1.ObjectReference{Name: db.Name, Namespace: db.Namespace},
+				vlanv1alpha1.VLANClaimSpec{
+					VLANIndex: corev1.ObjectReference{Name: db.Name, Namespace: db.Namespace},
 				},
-				vlanv1alpha1.VLANAllocationStatus{},
+				vlanv1alpha1.VLANClaimStatus{},
 			)
 			req.AddOwnerLabelsToCR()
 			Ω(req).ShouldNot(BeNil())
 			b, err := json.Marshal(req)
-			Ω(err).Should(Succeed(), "Failed to marshal allocation req")
-			rsp, err := be.Allocate(context.Background(), b)
+			Ω(err).Should(Succeed(), "Failed to marshal claim req")
+			rsp, err := be.Claim(context.Background(), b)
 			Ω(err).Should(Succeed())
-			resp := vlanv1alpha1.VLANAllocation{}
+			resp := vlanv1alpha1.VLANClaim{}
 			err = json.Unmarshal(rsp, &resp)
-			Ω(err).Should(Succeed(), "Failed to unmarshal allocation resp")
+			Ω(err).Should(Succeed(), "Failed to unmarshal claim resp")
 
-			checkAllocResp(*req, resp)
+			checkClaimResp(*req, resp)
 
 			// check rib entries
 			Expect(be.List(context.Background(), dbBytes)).To(HaveLen(5))
@@ -115,7 +115,7 @@ var _ = Describe("VLAN Backend Testing", func() {
 	})
 })
 
-func checkAllocResp(req vlanv1alpha1.VLANAllocation, resp vlanv1alpha1.VLANAllocation) {
+func checkClaimResp(req vlanv1alpha1.VLANClaim, resp vlanv1alpha1.VLANClaim) {
 	if req.Spec.VLANID != nil {
 		Expect(*resp.Status.VLANID).To(BeIdenticalTo(*req.Spec.VLANID))
 	}

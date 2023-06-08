@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
@@ -32,20 +32,20 @@ import (
 
 type GrpcServer struct {
 	config Config
-	allocpb.UnimplementedAllocationServer
+	resourcepb.UnimplementedResourceServer
 
 	sem *semaphore.Weighted
 
 	// logger
 	l logr.Logger
 
-	//Alloc Handlers
+	//Resource Handlers
 	createIndexHandler CreateIndexHandler
 	deleteIndexHandler DeleteIndexHandler
-	getAllocHandler    GetAllocHandler
-	allocHandler       AllocHandler
-	deallocHandler     DeAllocHandler
-	watchAllocHandler  WatchAllocHandler
+	getClaimHandler    GetClaimHandler
+	claimHandler       ClaimHandler
+	deleteClaimHandler DeleteClaimHandler
+	watchClaimHandler  WatchClaimHandler
 
 	//health handlers
 	checkHandler CheckHandler
@@ -60,18 +60,18 @@ type CheckHandler func(context.Context, *healthpb.HealthCheckRequest) (*healthpb
 
 type WatchHandler func(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer) error
 
-// Alloc Handlers
-type CreateIndexHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
+// Resource Handlers
+type CreateIndexHandler func(context.Context, *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
 
-type DeleteIndexHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
+type DeleteIndexHandler func(context.Context, *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
 
-type GetAllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
+type GetClaimHandler func(context.Context, *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error)
 
-type AllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
+type ClaimHandler func(context.Context, *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error)
 
-type DeAllocHandler func(context.Context, *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
+type DeleteClaimHandler func(context.Context, *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
 
-type WatchAllocHandler func(*allocpb.WatchRequest, allocpb.Allocation_WatchAllocServer) error
+type WatchClaimHandler func(*resourcepb.WatchRequest, resourcepb.Resource_WatchClaimServer) error
 
 type Option func(*GrpcServer)
 
@@ -111,8 +111,8 @@ func (s *GrpcServer) Start(ctx context.Context) error {
 	// create a gRPC server object
 	grpcServer := grpc.NewServer(opts...)
 
-	allocpb.RegisterAllocationServer(grpcServer, s)
-	s.l.Info("grpc server with allocation...")
+	resourcepb.RegisterResourceServer(grpcServer, s)
+	s.l.Info("grpc server with resource...")
 
 	healthpb.RegisterHealthServer(grpcServer, s)
 	s.l.Info("grpc server with health...")
@@ -150,27 +150,27 @@ func WithDeleteIndexHandler(h DeleteIndexHandler) func(*GrpcServer) {
 	}
 }
 
-func WithGetAllocHandler(h GetAllocHandler) func(*GrpcServer) {
+func WithGetClaimHandler(h GetClaimHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
-		s.getAllocHandler = h
+		s.getClaimHandler = h
 	}
 }
 
-func WithAllocHandler(h AllocHandler) func(*GrpcServer) {
+func WithClaimHandler(h ClaimHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
-		s.allocHandler = h
+		s.claimHandler = h
 	}
 }
 
-func WithDeAllocHandler(h DeAllocHandler) func(*GrpcServer) {
+func WithDeleteClaimHandler(h DeleteClaimHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
-		s.deallocHandler = h
+		s.deleteClaimHandler = h
 	}
 }
 
-func WithWatchAllocHandler(h WatchAllocHandler) func(*GrpcServer) {
+func WithWatchClaimHandler(h WatchClaimHandler) func(*GrpcServer) {
 	return func(s *GrpcServer) {
-		s.watchAllocHandler = h
+		s.watchClaimHandler = h
 	}
 }
 

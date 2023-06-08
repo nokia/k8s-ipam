@@ -6,10 +6,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"google.golang.org/grpc/peer"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +28,7 @@ type ProxyStateConfig struct {
 }
 
 type clientContext struct {
-	stream allocpb.Allocation_WatchAllocServer
+	stream resourcepb.Resource_WatchClaimServer
 	cancel context.CancelFunc
 }
 
@@ -42,10 +42,10 @@ func NewProxyState(cfg *ProxyStateConfig) *ProxyState {
 	}
 }
 
-func (r *ProxyState) AddCallBackFn(header *allocpb.Header, stream allocpb.Allocation_WatchAllocServer) {
+func (r *ProxyState) AddCallBackFn(header *resourcepb.Header, stream resourcepb.Resource_WatchClaimServer) {
 	p, _ := peer.FromContext(stream.Context())
 
-	ownerGVK := meta.AllocPbGVKTostring(*header.OwnerGvk)
+	ownerGVK := meta.ResourcePbGVKTostring(*header.OwnerGvk)
 
 	r.m.Lock()
 	// cancelFn if a client adss another entry the client is misbehaving
@@ -61,9 +61,9 @@ func (r *ProxyState) AddCallBackFn(header *allocpb.Header, stream allocpb.Alloca
 	r.m.Unlock()
 
 	// we already validated the existance of the backend before calling this function
-	gv := meta.GetSchemaGVKFromAllocPbGVK(header.Gvk).GroupVersion()
+	gv := meta.GetSchemaGVKFromResourcePbGVK(header.Gvk).GroupVersion()
 	be := r.backends[gv]
-	be.AddWatch(allocv1alpha1.NephioOwnerGvkKey, ownerGVK, r.CreateCallBackFn(stream))
+	be.AddWatch(resourcev1alpha1.NephioOwnerGvkKey, ownerGVK, r.CreateCallBackFn(stream))
 
 	for range ctx.Done() {
 		r.DeleteCallBackFn(p.Addr.String(), ownerGVK, gv)
@@ -76,24 +76,24 @@ func (r *ProxyState) AddCallBackFn(header *allocpb.Header, stream allocpb.Alloca
 func (r *ProxyState) DeleteCallBackFn(clientName, ownerGvk string, gv schema.GroupVersion) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.backends[gv].DeleteWatch(allocv1alpha1.NephioOwnerGvkKey, ownerGvk)
+	r.backends[gv].DeleteWatch(resourcev1alpha1.NephioOwnerGvkKey, ownerGvk)
 	delete(r.clients, clientName+":::"+ownerGvk)
 }
 
-func (r *ProxyState) CreateCallBackFn(stream allocpb.Allocation_WatchAllocServer) backend.CallbackFn {
-	return func(routes table.Routes, statusCode allocpb.StatusCode) {
+func (r *ProxyState) CreateCallBackFn(stream resourcepb.Resource_WatchClaimServer) backend.CallbackFn {
+	return func(routes table.Routes, statusCode resourcepb.StatusCode) {
 		for _, route := range routes {
-			if err := stream.Send(&allocpb.WatchResponse{
-				Header: &allocpb.Header{
-					Gvk: meta.PointerAllocPBGVK(meta.StringToAllocPbGVK(route.Labels()[allocv1alpha1.NephioGvkKey])),
-					Nsn: &allocpb.NSN{
-						Namespace: route.Labels()[allocv1alpha1.NephioNsnNamespaceKey],
-						Name:      route.Labels()[allocv1alpha1.NephioNsnNameKey],
+			if err := stream.Send(&resourcepb.WatchResponse{
+				Header: &resourcepb.Header{
+					Gvk: meta.PointerResourcePBGVK(meta.StringToResourcePbGVK(route.Labels()[resourcev1alpha1.NephioGvkKey])),
+					Nsn: &resourcepb.NSN{
+						Namespace: route.Labels()[resourcev1alpha1.NephioNsnNamespaceKey],
+						Name:      route.Labels()[resourcev1alpha1.NephioNsnNameKey],
 					},
-					OwnerGvk: meta.PointerAllocPBGVK(meta.StringToAllocPbGVK(route.Labels()[allocv1alpha1.NephioOwnerGvkKey])),
-					OwnerNsn: &allocpb.NSN{
-						Namespace: route.Labels()[allocv1alpha1.NephioOwnerNsnNamespaceKey],
-						Name:      route.Labels()[allocv1alpha1.NephioOwnerNsnNameKey],
+					OwnerGvk: meta.PointerResourcePBGVK(meta.StringToResourcePbGVK(route.Labels()[resourcev1alpha1.NephioOwnerGvkKey])),
+					OwnerNsn: &resourcepb.NSN{
+						Namespace: route.Labels()[resourcev1alpha1.NephioOwnerNsnNamespaceKey],
+						Name:      route.Labels()[resourcev1alpha1.NephioOwnerNsnNameKey],
 					},
 				},
 				StatusCode: statusCode,
@@ -103,7 +103,7 @@ func (r *ProxyState) CreateCallBackFn(stream allocpb.Allocation_WatchAllocServer
 				if p != nil {
 					addr = p.Addr.String()
 				}
-				r.l.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[allocv1alpha1.NephioOwnerGvkKey])
+				r.l.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[resourcev1alpha1.NephioOwnerGvkKey])
 			}
 		}
 	}

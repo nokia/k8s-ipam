@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/internal/db/vlandb"
 	"github.com/nokia/k8s-ipam/pkg/backend"
@@ -68,7 +68,7 @@ func (r *be) DeleteWatch(ownerGvkKey, ownerGvk string) {
 
 // Create the cache instance and/or restore the cache instance
 func (r *be) CreateIndex(ctx context.Context, b []byte) error {
-	cr := &vlanv1alpha1.VLANDatabase{}
+	cr := &vlanv1alpha1.VLANIndex{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (r *be) CreateIndex(ctx context.Context, b []byte) error {
 
 // Delete the cache instance
 func (r *be) DeleteIndex(ctx context.Context, b []byte) error {
-	cr := &vlanv1alpha1.VLANDatabase{}
+	cr := &vlanv1alpha1.VLANIndex{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (r *be) DeleteIndex(ctx context.Context, b []byte) error {
 
 // List entries in the db instance
 func (r *be) List(ctx context.Context, b []byte) (any, error) {
-	cr := &vlanv1alpha1.VLANDatabase{}
+	cr := &vlanv1alpha1.VLANIndex{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return nil, err
 	}
@@ -130,14 +130,14 @@ func (r *be) List(ctx context.Context, b []byte) (any, error) {
 	return d.GetAll(), err
 }
 
-// Gwt return the allocated entry if found
-func (r *be) GetAllocation(ctx context.Context, b []byte) ([]byte, error) {
-	cr := &vlanv1alpha1.VLANAllocation{}
+// Gwt return the claimed entry if found
+func (r *be) GetClaim(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &vlanv1alpha1.VLANClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return nil, err
 	}
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("get allocated entry", "selectors", cr.GetSelectorLabels())
+	r.l.Info("get claimed entry", "selectors", cr.GetSelectorLabels())
 
 	al, err := r.newApplogic(cr, false)
 	if err != nil {
@@ -148,17 +148,17 @@ func (r *be) GetAllocation(ctx context.Context, b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	r.l.Info("get allocated entry done", "allocatedVLAN", cr.Status)
+	r.l.Info("get claimed entry done", "claimedVLAN", cr.Status)
 	return json.Marshal(cr)
 }
 
-func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
-	cr := &vlanv1alpha1.VLANAllocation{}
+func (r *be) Claim(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &vlanv1alpha1.VLANClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return nil, err
 	}
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("allocate", "cr spec", cr.Spec)
+	r.l.Info("claim", "cr spec", cr.Spec)
 
 	al, err := r.newApplogic(cr, false)
 	if err != nil {
@@ -177,28 +177,28 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	r.l.Info("allocate  done", "updatedAlloc", cr)
+	r.l.Info("claim done", "updated Claim", cr)
 	if err := r.store.Get().SaveAll(ctx, cr.GetCacheID()); err != nil {
 		return nil, err
 	}
 	return json.Marshal(cr)
 }
 
-// DeAllocateVLAN deallocates the allocation based on owner selection. No errors are returned if no allocation was found
-func (r *be) DeAllocate(ctx context.Context, b []byte) error {
-	cr := &vlanv1alpha1.VLANAllocation{}
+// DeleteClaim deletes the clain based on owner selection. No errors are returned if no claim was found
+func (r *be) DeleteClaim(ctx context.Context, b []byte) error {
+	cr := &vlanv1alpha1.VLANClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return err
 	}
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("deallocate")
+	r.l.Info("delete claim")
 
 	al, err := r.newApplogic(cr, false)
 	if err != nil {
 		return err
 	}
 	if err := al.Delete(ctx, cr); err != nil {
-		r.l.Error(err, "cannot deallocate resource")
+		r.l.Error(err, "cannot delete claimed resource")
 		return err
 	}
 

@@ -19,7 +19,7 @@ package meta
 import (
 	"strings"
 
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,7 +45,7 @@ func GVKToString(gvk schema.GroupVersionKind) string {
 
 }
 
-func AllocPbGVKTostring(gvk allocpb.GVK) string {
+func ResourcePbGVKTostring(gvk resourcepb.GVK) string {
 	if gvk.Kind == "" {
 		return emptyKind
 	}
@@ -77,9 +77,9 @@ func StringToGVK(s string) schema.GroupVersionKind {
 	}
 }
 
-func StringToAllocPbGVK(s string) allocpb.GVK {
+func StringToResourcePbGVK(s string) resourcepb.GVK {
 	group, version, kind := StringToGroupVersionKind(s)
-	return allocpb.GVK{
+	return resourcepb.GVK{
 		Group:   group,
 		Version: version,
 		Kind:    kind,
@@ -109,15 +109,15 @@ func GetGVKFromObject(o client.Object) schema.GroupVersionKind {
 	}
 }
 
-func GetAllocPbGVKFromSchemaGVK(gvk schema.GroupVersionKind) allocpb.GVK {
-	return allocpb.GVK{
+func GetResourcePbGVKFromSchemaGVK(gvk schema.GroupVersionKind) resourcepb.GVK {
+	return resourcepb.GVK{
 		Group:   gvk.Group,
 		Version: gvk.Version,
 		Kind:    gvk.Kind,
 	}
 }
 
-func GetSchemaGVKFromAllocPbGVK(gvk *allocpb.GVK) schema.GroupVersionKind {
+func GetSchemaGVKFromResourcePbGVK(gvk *resourcepb.GVK) schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   gvk.Group,
 		Version: gvk.Version,
@@ -129,6 +129,6 @@ func PointerGVK(gvk schema.GroupVersionKind) *schema.GroupVersionKind {
 	return &gvk
 }
 
-func PointerAllocPBGVK(gvk allocpb.GVK) *allocpb.GVK {
+func PointerResourcePBGVK(gvk resourcepb.GVK) *resourcepb.GVK {
 	return &gvk
 }

@@ -21,7 +21,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -29,7 +29,7 @@ import (
 func NewApplicator(c *ApplicatorConfig) Applicator {
 	return &applicator{
 		initializing: c.initializing,
-		alloc:        c.alloc,
+		claim:        c.claim,
 		rib:          c.rib,
 		pi:           c.pi,
 		watcher:      c.watcher,
@@ -38,7 +38,7 @@ func NewApplicator(c *ApplicatorConfig) Applicator {
 
 type applicator struct {
 	initializing bool
-	alloc        *ipamv1alpha1.IPAllocation
+	claim        *ipamv1alpha1.IPClaim
 	rib          *table.RIB
 	pi           *iputil.Prefix
 	watcher      Watcher
@@ -46,14 +46,14 @@ type applicator struct {
 }
 
 func (r *applicator) ApplyPrefix(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.Spec.Kind, "prefix", r.pi.GetIPPrefix().String(), "createPrefix", r.alloc.Spec.CreatePrefix)
-	r.l.Info("prefix allocation")
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetName(), "kind", r.claim.Spec.Kind, "prefix", r.pi.GetIPPrefix().String(), "createPrefix", r.claim.Spec.CreatePrefix)
+	r.l.Info("prefix claim")
 
 	// get route
 	var route table.Route
 	var ok bool
-	if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
-		if r.alloc.Spec.CreatePrefix == nil {
+	if r.claim.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.claim.Spec.CreatePrefix == nil {
 			route, ok = r.rib.Get(r.pi.GetIPAddressPrefix())
 		} else {
 			route, ok = r.rib.Get(r.pi.GetIPSubnet())
@@ -66,10 +66,10 @@ func (r *applicator) ApplyPrefix(ctx context.Context) error {
 	// if route does not exist -> add
 	if ok {
 		// prefix/route exists -> update
-		r.l.Info("prefix allocation: route exists", "route", route)
+		r.l.Info("prefix claim: route exists", "route", route)
 
 		// get all the routes from the routing table using the owner
-		// to provide a common mechanism between dynamic allocation and prefix allocations
+		// to provide a common mechanism between dynamic claim and prefix claim
 		routes, err := r.getRoutesByOwner()
 		if err != nil {
 			return err
@@ -78,7 +78,7 @@ func (r *applicator) ApplyPrefix(ctx context.Context) error {
 			return err
 		}
 	} else {
-		r.l.Info("prefix allocation: route does not exist", "route", route)
+		r.l.Info("prefix claim: route does not exist", "route", route)
 
 		// addRib mutates the routes and potentially expands the routes
 		// add the routes to the RIB

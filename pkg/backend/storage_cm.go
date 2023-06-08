@@ -26,7 +26,7 @@ type CMConfig struct {
 	Prefix      string
 }
 
-func NewCMBackend[alloc, entry any](cfg *CMConfig) (Storage[alloc, entry], error) {
+func NewCMBackend[claim, entry any](cfg *CMConfig) (Storage[claim, entry], error) {
 	if cfg.GetData == nil {
 		return nil, fmt.Errorf("get data callback fn is required")
 	}
@@ -34,21 +34,21 @@ func NewCMBackend[alloc, entry any](cfg *CMConfig) (Storage[alloc, entry], error
 		return nil, fmt.Errorf("restore data callback fn is required")
 	}
 
-	return &cm[alloc, entry]{
+	return &cm[claim, entry]{
 		c:      cfg.Client,
 		cfg:    cfg,
 		prefix: cfg.Prefix,
 	}, nil
 }
 
-type cm[alloc, entry any] struct {
+type cm[claim, entry any] struct {
 	c      client.Client
 	cfg    *CMConfig
 	prefix string
 	l      logr.Logger
 }
 
-func (r *cm[alloc, entry]) Restore(ctx context.Context, ref corev1.ObjectReference) error {
+func (r *cm[claim, entry]) Restore(ctx context.Context, ref corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
 	r.l.Info("restore", "indexRef", ref)
 
@@ -74,7 +74,7 @@ func (r *cm[alloc, entry]) Restore(ctx context.Context, ref corev1.ObjectReferen
 }
 
 // only used in configmap
-func (r *cm[alloc, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReference) error {
+func (r *cm[claim, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
 
 	// if no client provided dont try to save
@@ -107,7 +107,7 @@ func (r *cm[alloc, entry]) SaveAll(ctx context.Context, ref corev1.ObjectReferen
 	return nil
 }
 
-func (r *cm[alloc, entry]) Destroy(ctx context.Context, ref corev1.ObjectReference) error {
+func (r *cm[claim, entry]) Destroy(ctx context.Context, ref corev1.ObjectReference) error {
 	r.l = log.FromContext(ctx)
 	// if no client provided dont try to save
 	if r.c == nil {
@@ -123,15 +123,15 @@ func (r *cm[alloc, entry]) Destroy(ctx context.Context, ref corev1.ObjectReferen
 }
 
 // Get is a getall actually
-func (r *cm[alloc, entry]) Get(ctx context.Context, a alloc) ([]entry, error) {
+func (r *cm[claim, entry]) Get(ctx context.Context, a claim) ([]entry, error) {
 	return nil, nil
 }
 
-func (r *cm[alloc, entry]) Set(ctx context.Context, a alloc) error {
+func (r *cm[claim, entry]) Set(ctx context.Context, a claim) error {
 	return nil
 }
 
-func (r *cm[alloc, entry]) Delete(ctx context.Context, a alloc) error {
+func (r *cm[claim, entry]) Delete(ctx context.Context, a claim) error {
 	return nil
 }
 

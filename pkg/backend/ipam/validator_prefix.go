@@ -22,8 +22,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -32,10 +32,10 @@ type Validator interface {
 	Validate(ctx context.Context) (string, error)
 }
 
-type validateInputFn func(alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string
+type validateInputFn func(claim *ipamv1alpha1.IPClaim, pi *iputil.Prefix) string
 type validateChildrenExistFn func(route table.Route, prefixKind ipamv1alpha1.PrefixKind) string
 type validateNoParentExistFn func(prefixKind ipamv1alpha1.PrefixKind, ownerGvk string) string
-type validateParentExistFn func(route table.Route, alloc *ipamv1alpha1.IPAllocation, pi *iputil.Prefix) string
+type validateParentExistFn func(route table.Route, claim *ipamv1alpha1.IPClaim, pi *iputil.Prefix) string
 
 type PrefixValidatorFunctionConfig struct {
 	validateInputFn         validateInputFn
@@ -45,7 +45,7 @@ type PrefixValidatorFunctionConfig struct {
 }
 
 type PrefixValidatorConfig struct {
-	alloc *ipamv1alpha1.IPAllocation
+	claim *ipamv1alpha1.IPClaim
 	rib   *table.RIB
 	pi    *iputil.Prefix
 	fnc   *PrefixValidatorFunctionConfig
@@ -53,7 +53,7 @@ type PrefixValidatorConfig struct {
 
 func NewPrefixValidator(c *PrefixValidatorConfig) Validator {
 	return &prefixvalidator{
-		alloc: c.alloc,
+		claim: c.claim,
 		rib:   c.rib,
 		pi:    c.pi,
 		fnc:   c.fnc,
@@ -61,7 +61,7 @@ func NewPrefixValidator(c *PrefixValidatorConfig) Validator {
 }
 
 type prefixvalidator struct {
-	alloc *ipamv1alpha1.IPAllocation
+	claim *ipamv1alpha1.IPClaim
 	rib   *table.RIB
 	pi    *iputil.Prefix
 	fnc   *PrefixValidatorFunctionConfig
@@ -69,14 +69,14 @@ type prefixvalidator struct {
 }
 
 func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("prefixkind", r.alloc.Spec.Kind, "name", r.alloc.GetName(), "prefix", r.alloc.Spec.Prefix)
+	r.l = log.FromContext(ctx).WithValues("prefixkind", r.claim.Spec.Kind, "name", r.claim.GetName(), "prefix", r.claim.Spec.Prefix)
 	r.l.Info("validate")
 
 	r.l.Info("fnc", "r.fnc", r.fnc)
 
 	// validate input
 	if r.fnc.validateInputFn != nil {
-		if msg := r.fnc.validateInputFn(r.alloc, r.pi); msg != "" {
+		if msg := r.fnc.validateInputFn(r.claim, r.pi); msg != "" {
 			return msg, nil
 		}
 	}
@@ -90,17 +90,17 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	// (10.0.0.x/24 which is turned into 10.0.0.x/32)
 	route, ok := dryrunRib.Get(r.pi.GetIPSubnet())
 	r.l.Info("validate if route exists",
-		"createprefix", r.alloc.Spec.CreatePrefix,
+		"createprefix", r.claim.Spec.CreatePrefix,
 		"prefix", r.pi.GetIPPrefix(),
 		"ok", ok,
 		"route", route,
-		"labels", r.alloc.GetUserDefinedLabels())
+		"labels", r.claim.GetUserDefinedLabels())
 	// Route exists
 	if ok {
-		if r.alloc.Spec.CreatePrefix != nil {
-			// this is a create/allocate prefix:
-			// ip prefix or a dynamic allocation with a prefix
-			if msg := validatePrefixOwner(route, r.alloc); msg != "" {
+		if r.claim.Spec.CreatePrefix != nil {
+			// this is a create/claim prefix:
+			// ip prefix or a dynamic claim with a prefix
+			if msg := validatePrefixOwner(route, r.claim); msg != "" {
 				return msg, nil
 			}
 			// all good prefix exists and has the proper attributes
@@ -109,10 +109,10 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 		// in case of a network prefix we need to turn this in an address and validate again
 		// since the initial validation is for the network subnet and not for the individual address
 		// in the subnet
-		if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+		if r.claim.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 			// if parent is prefixkind network
-			if route.Labels()[allocv1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
-				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[allocv1alpha1.NephioPrefixKindKey]), nil
+			if route.Labels()[resourcev1alpha1.NephioPrefixKindKey] != string(ipamv1alpha1.PrefixKindNetwork) {
+				return fmt.Sprintf("an address based prefix kind can only have parent prefix kind, got: %s", route.Labels()[resourcev1alpha1.NephioPrefixKindKey]), nil
 			}
 			route, ok = dryrunRib.Get(r.pi.GetIPAddressPrefix())
 			if !ok {
@@ -121,7 +121,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 				return "", nil
 			}
 		}
-		if msg := validatePrefixOwner(route, r.alloc); msg != "" {
+		if msg := validatePrefixOwner(route, r.claim); msg != "" {
 			return msg, nil
 		}
 		// finish all good
@@ -133,7 +133,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 
 	route = table.NewRoute(
 		r.pi.GetIPSubnet(),
-		r.alloc.GetDummyLabelsFromPrefix(*r.pi),
+		r.claim.GetDummyLabelsFromPrefix(*r.pi),
 		map[string]any{},
 	)
 
@@ -151,7 +151,7 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 	routes := route.Children(dryrunRib)
 	if len(routes) > 0 {
 		r.l.Info("got children", "routes", routes)
-		if msg := r.fnc.validateChildrenExistFn(routes[0], r.alloc.Spec.Kind); msg != "" {
+		if msg := r.fnc.validateChildrenExistFn(routes[0], r.claim.Spec.Kind); msg != "" {
 			return msg, nil
 		}
 	}
@@ -159,14 +159,14 @@ func (r *prefixvalidator) Validate(ctx context.Context) (string, error) {
 
 	routes = route.Parents(dryrunRib)
 	if len(routes) == 0 {
-		if msg := r.fnc.validateNoParentExistFn(r.alloc.Spec.Kind, r.alloc.GetUserDefinedLabels()[allocv1alpha1.NephioOwnerGvkKey]); msg != "" {
+		if msg := r.fnc.validateNoParentExistFn(r.claim.Spec.Kind, r.claim.GetUserDefinedLabels()[resourcev1alpha1.NephioOwnerGvkKey]); msg != "" {
 			return msg, nil
 		}
 		return "", nil
 	}
 
 	parentRoute := findParent(routes)
-	if msg := r.fnc.validateParentExistFn(parentRoute, r.alloc, r.pi); msg != "" {
+	if msg := r.fnc.validateParentExistFn(parentRoute, r.claim, r.pi); msg != "" {
 		return msg, nil
 	}
 	return "", nil

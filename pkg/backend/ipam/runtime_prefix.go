@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -32,13 +32,13 @@ func NewPrefixRuntime(cfg any) (Runtime, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config expecting IPAMPrefixOperatorConfig")
 	}
-	pi, err := iputil.New(*c.alloc.Spec.Prefix)
+	pi, err := iputil.New(*c.claim.Spec.Prefix)
 	if err != nil {
 		return nil, err
 	}
 	return &prefixRuntime{
 		initializing: c.initializing,
-		alloc:        c.alloc,
+		claim:        c.claim,
 		rib:          c.rib,
 		fnc:          c.fnc,
 		pi:           pi,
@@ -48,7 +48,7 @@ func NewPrefixRuntime(cfg any) (Runtime, error) {
 
 type prefixRuntime struct {
 	initializing bool
-	alloc        *ipamv1alpha1.IPAllocation
+	claim        *ipamv1alpha1.IPClaim
 	rib          *table.RIB
 	pi           *iputil.Prefix
 	fnc          *PrefixValidatorFunctionConfig
@@ -56,26 +56,26 @@ type prefixRuntime struct {
 	l            logr.Logger
 }
 
-func (r *prefixRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
+func (r *prefixRuntime) Get(ctx context.Context) (*ipamv1alpha1.IPClaim, error) {
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetGenericNamespacedName(), "prefixkind", r.claim.Spec.Kind, "prefix", r.claim.Spec.Prefix)
 	r.l.Info("get")
 	g := NewGetter(&GetterConfig{
-		alloc: r.alloc,
+		claim: r.claim,
 		rib:   r.rib,
 	})
-	if err := g.GetIPAllocation(ctx); err != nil {
+	if err := g.GetIPClaim(ctx); err != nil {
 		return nil, err
 	}
 
-	r.l.Info("get allocation done", "status", r.alloc.Status)
-	return r.alloc, nil
+	r.l.Info("get claim done", "status", r.claim.Status)
+	return r.claim, nil
 }
 
 func (r *prefixRuntime) Validate(ctx context.Context) (string, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetGenericNamespacedName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetGenericNamespacedName(), "prefixkind", r.claim.Spec.Kind, "prefix", r.claim.Spec.Prefix)
 	r.l.Info("validate")
 	v := NewPrefixValidator(&PrefixValidatorConfig{
-		alloc: r.alloc,
+		claim: r.claim,
 		rib:   r.rib,
 		pi:    r.pi,
 		fnc:   r.fnc,
@@ -83,17 +83,17 @@ func (r *prefixRuntime) Validate(ctx context.Context) (string, error) {
 	return v.Validate(ctx)
 }
 
-func (r *prefixRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error) {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
+func (r *prefixRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPClaim, error) {
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetName(), "prefixkind", r.claim.Spec.Kind, "prefix", r.claim.Spec.Prefix)
 	r.l.Info("apply")
 
-	pi, err := iputil.New(*r.alloc.Spec.Prefix)
+	pi, err := iputil.New(*r.claim.Spec.Prefix)
 	if err != nil {
 		return nil, err
 	}
 	a := NewApplicator(&ApplicatorConfig{
 		initializing: r.initializing,
-		alloc:        r.alloc,
+		claim:        r.claim,
 		rib:          r.rib,
 		pi:           pi,
 		watcher:      r.watcher,
@@ -102,18 +102,18 @@ func (r *prefixRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, 
 		return nil, err
 	}
 
-	r.l.Info("allocate prefix done", "status", r.alloc.Status)
-	return r.alloc, nil
+	r.l.Info("claimed prefix done", "status", r.claim.Status)
+	return r.claim, nil
 
 }
 func (r *prefixRuntime) Delete(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "prefixkind", r.alloc.Spec.Kind, "prefix", r.alloc.Spec.Prefix)
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetName(), "prefixkind", r.claim.Spec.Kind, "prefix", r.claim.Spec.Prefix)
 	r.l.Info("delete")
 
-	r.l.Info("deallocate prefix allocation", "alloc", r.alloc)
+	r.l.Info("delete prefix claim", "claim", r.claim)
 	d := NewApplicator(&ApplicatorConfig{
 		initializing: r.initializing,
-		alloc:        r.alloc,
+		claim:        r.claim,
 		rib:          r.rib,
 		watcher:      r.watcher,
 	})

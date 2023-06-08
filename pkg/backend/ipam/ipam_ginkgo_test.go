@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/nokia/k8s-ipam/pkg/meta"
@@ -59,38 +59,38 @@ var _ = Describe("IPAM Testing", func() {
 			}
 			pi, err := iputil.New(prefix.Prefix)
 			Ω(err).Should(Succeed())
-			// build allocation for network instance prefix
-			req := ipamv1alpha1.BuildIPAllocation(
+			// build claim for network instance prefix
+			req := ipamv1alpha1.BuildIPClaim(
 				metav1.ObjectMeta{
 					Name:      ipamv1alpha1.GetNameFromPrefix(ni.Name, prefix.Prefix, ipamv1alpha1.NetworkInstancePrefixAggregate),
 					Namespace: ni.Namespace,
 					Labels: map[string]string{
-						allocv1alpha1.NephioOwnerGvkKey: meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind),
+						resourcev1alpha1.NephioOwnerGvkKey: meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind),
 					},
 				},
-				ipamv1alpha1.IPAllocationSpec{
+				ipamv1alpha1.IPClaimSpec{
 					Kind:            ipamv1alpha1.PrefixKindAggregate,
 					NetworkInstance: corev1.ObjectReference{Name: ni.Name, Namespace: ni.Namespace},
 					Prefix:          pointer.String(prefix.Prefix),
 					PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
 					CreatePrefix:    pointer.Bool(true),
-					AllocationLabels: allocv1alpha1.AllocationLabels{
+					ClaimLabels: resourcev1alpha1.ClaimLabels{
 						UserDefinedLabels: prefix.UserDefinedLabels,
 					},
 				},
-				ipamv1alpha1.IPAllocationStatus{},
+				ipamv1alpha1.IPClaimStatus{},
 			)
 			req.AddOwnerLabelsToCR()
 			Ω(req).ShouldNot(BeNil())
 			b, err := json.Marshal(req)
-			Ω(err).Should(Succeed(), "Failed to marshal allocation req")
-			rsp, err := be.Allocate(context.Background(), b)
+			Ω(err).Should(Succeed(), "Failed to marshal claim req")
+			rsp, err := be.Claim(context.Background(), b)
 			Ω(err).Should(Succeed())
-			resp := ipamv1alpha1.IPAllocation{}
+			resp := ipamv1alpha1.IPClaim{}
 			err = json.Unmarshal(rsp, &resp)
-			Ω(err).Should(Succeed(), "Failed to unmarshal allocation resp")
+			Ω(err).Should(Succeed(), "Failed to unmarshal claim resp")
 
-			checkAllocResp(*req, resp, prefix.Prefix, "")
+			checkClaimResp(*req, resp, prefix.Prefix, "")
 
 			// check rib entries
 			Expect(be.List(context.Background(), niBytes)).To(ContainElements(ContainSubstring(prefix.Prefix)))
@@ -105,7 +105,7 @@ var _ = Describe("IPAM Testing", func() {
 			// test prefix
 			prefix := ipamv1alpha1.Prefix{
 				Prefix: "10.0.0.1/24",
-				UserDefinedLabels: allocv1alpha1.UserDefinedLabels{
+				UserDefinedLabels: resourcev1alpha1.UserDefinedLabels{
 					Labels: map[string]string{
 						"nephio.org/gateway":      "true",
 						"nephio.org/site":         "edge1",
@@ -115,38 +115,38 @@ var _ = Describe("IPAM Testing", func() {
 			}
 			pi, err := iputil.New(prefix.Prefix)
 			Ω(err).Should(Succeed())
-			// // build allocation for network kind prefix
-			req := ipamv1alpha1.BuildIPAllocation(
+			// // build claim for network kind prefix
+			req := ipamv1alpha1.BuildIPClaim(
 				metav1.ObjectMeta{
 					Name:      "net-prefix-1",
 					Namespace: ni.Namespace,
 					Labels: map[string]string{
-						allocv1alpha1.NephioOwnerGvkKey: meta.GVKToString(ipamv1alpha1.IPPrefixGroupVersionKind),
+						resourcev1alpha1.NephioOwnerGvkKey: meta.GVKToString(ipamv1alpha1.IPPrefixGroupVersionKind),
 					},
 				},
-				ipamv1alpha1.IPAllocationSpec{
+				ipamv1alpha1.IPClaimSpec{
 					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					NetworkInstance: corev1.ObjectReference{Name: ni.Name, Namespace: ni.Namespace},
 					Prefix:          pointer.String(prefix.Prefix),
 					PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
 					CreatePrefix:    pointer.Bool(true),
-					AllocationLabels: allocv1alpha1.AllocationLabels{
+					ClaimLabels: resourcev1alpha1.ClaimLabels{
 						UserDefinedLabels: prefix.UserDefinedLabels,
 					},
 				},
-				ipamv1alpha1.IPAllocationStatus{},
+				ipamv1alpha1.IPClaimStatus{},
 			)
 			req.AddOwnerLabelsToCR()
 			Ω(req).ShouldNot(BeNil())
 			b, err := json.Marshal(req)
-			Ω(err).Should(Succeed(), "Failed to marshal allocation req")
-			rsp, err := be.Allocate(context.Background(), b)
+			Ω(err).Should(Succeed(), "Failed to marshal claim req")
+			rsp, err := be.Claim(context.Background(), b)
 			Ω(err).Should(Succeed())
-			resp := ipamv1alpha1.IPAllocation{}
+			resp := ipamv1alpha1.IPClaim{}
 			err = json.Unmarshal(rsp, &resp)
-			Ω(err).Should(Succeed(), "Failed to unmarshal allocation resp")
+			Ω(err).Should(Succeed(), "Failed to unmarshal claim resp")
 
-			checkAllocResp(*req, resp, prefix.Prefix, "")
+			checkClaimResp(*req, resp, prefix.Prefix, "")
 
 			// check rib entries
 			Expect(be.List(context.Background(), niBytes)).To(ContainElements(ContainSubstring(pi.GetFirstIPPrefix().String())))
@@ -156,7 +156,7 @@ var _ = Describe("IPAM Testing", func() {
 			Expect(be.List(context.Background(), niBytes)).To(HaveLen(5))
 		})
 	})
-	Context("After adding the supernet/network prefix add an allocation", func() {
+	Context("After adding the supernet/network prefix add a claim", func() {
 		It("should contain a multiple rib entry", func() {
 			var err error
 			// test selector
@@ -166,32 +166,32 @@ var _ = Describe("IPAM Testing", func() {
 				},
 			}
 
-			// // build allocation for network kind prefix
-			req := ipamv1alpha1.BuildIPAllocation(
+			// // build claim for network kind prefix
+			req := ipamv1alpha1.BuildIPClaim(
 				metav1.ObjectMeta{
-					Name:      "alloc-1",
+					Name:      "claim-1",
 					Namespace: ni.Namespace,
 				},
-				ipamv1alpha1.IPAllocationSpec{
+				ipamv1alpha1.IPClaimSpec{
 					Kind:            ipamv1alpha1.PrefixKindNetwork,
 					NetworkInstance: corev1.ObjectReference{Name: ni.Name, Namespace: ni.Namespace},
-					AllocationLabels: allocv1alpha1.AllocationLabels{
+					ClaimLabels: resourcev1alpha1.ClaimLabels{
 						Selector: selector,
 					},
 				},
-				ipamv1alpha1.IPAllocationStatus{},
+				ipamv1alpha1.IPClaimStatus{},
 			)
 			req.AddOwnerLabelsToCR()
 			Ω(req).ShouldNot(BeNil())
 			b, err := json.Marshal(req)
-			Ω(err).Should(Succeed(), "Failed to marshal allocation req")
-			rsp, err := be.Allocate(context.Background(), b)
+			Ω(err).Should(Succeed(), "Failed to marshal claim req")
+			rsp, err := be.Claim(context.Background(), b)
 			Ω(err).Should(Succeed())
-			resp := ipamv1alpha1.IPAllocation{}
+			resp := ipamv1alpha1.IPClaim{}
 			err = json.Unmarshal(rsp, &resp)
-			Ω(err).Should(Succeed(), "Failed to unmarshal allocation resp")
+			Ω(err).Should(Succeed(), "Failed to unmarshal claim resp")
 
-			checkAllocResp(*req, resp, "10.0.0.0", "10.0.0.1")
+			checkClaimResp(*req, resp, "10.0.0.0", "10.0.0.1")
 
 			// check rib entries
 			Expect(be.List(context.Background(), niBytes)).To(HaveLen(6))
@@ -199,7 +199,7 @@ var _ = Describe("IPAM Testing", func() {
 	})
 })
 
-func checkAllocResp(req ipamv1alpha1.IPAllocation, resp ipamv1alpha1.IPAllocation, prefix, gateway string) {
+func checkClaimResp(req ipamv1alpha1.IPClaim, resp ipamv1alpha1.IPClaim, prefix, gateway string) {
 	if req.Spec.Prefix != nil {
 		Expect(resp.Status.Prefix).To(BeEquivalentTo(req.Spec.Prefix))
 	} else {

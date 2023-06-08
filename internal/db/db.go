@@ -155,7 +155,7 @@ func (r *db[T]) Iterate() *Iterator[T] {
 }
 
 // IterateFree provides a list of keys and entries that
-// are not allocated
+// are not claimed
 func (r *db[T]) IterateFree() *Iterator[T] {
 	r.m.RLock()
 	defer r.m.RUnlock()

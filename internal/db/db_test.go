@@ -665,7 +665,7 @@ func TestFindFreeSize(t *testing.T) {
 			size:        5,
 			errExpected: false,
 		},
-		"FindFreeSizeWitjAllocation": {
+		"FindFreeSizeWithClaim": {
 			maxEntries: 10,
 			initEntries: Entries[uint16]{
 				NewEntry(uint16(4), map[string]string{}),

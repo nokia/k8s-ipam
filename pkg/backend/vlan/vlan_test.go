@@ -33,9 +33,9 @@ func buildVlanDatabase(name string) *vlanv1alpha1.VLANDatabase {
 	}
 }
 
-func buildDynamicVlanAllocation() *vlanv1alpha1.VLANAllocation {
-	return vlanv1alpha1.BuildVLANAllocationFromVLANAllocation(
-		&vlanv1alpha1.VLANAllocation{
+func buildDynamicVlanClaimation() *vlanv1alpha1.VLANClaimation {
+	return vlanv1alpha1.BuildVLANClaimationFromVLANClaimation(
+		&vlanv1alpha1.VLANClaimation{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: vlanv1alpha1.GroupVersion.String(),
 				Kind:       vlanv1alpha1.VLANDatabaseKind,
@@ -44,7 +44,7 @@ func buildDynamicVlanAllocation() *vlanv1alpha1.VLANAllocation {
 				Namespace: "default",
 				Name:      "dyn1",
 			},
-			Spec: vlanv1alpha1.VLANAllocationSpec{
+			Spec: vlanv1alpha1.VLANClaimationSpec{
 				VLANDatabases: []*corev1.ObjectReference{
 					{
 						Kind:      "esg",
@@ -60,9 +60,9 @@ func buildDynamicVlanAllocation() *vlanv1alpha1.VLANAllocation {
 	)
 }
 
-func buildDynamicVlanAllocationSelector() *vlanv1alpha1.VLANAllocation {
-	return vlanv1alpha1.BuildVLANAllocationFromVLANAllocation(
-		&vlanv1alpha1.VLANAllocation{
+func buildDynamicVlanClaimationSelector() *vlanv1alpha1.VLANClaimation {
+	return vlanv1alpha1.BuildVLANClaimationFromVLANClaimation(
+		&vlanv1alpha1.VLANClaimation{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: vlanv1alpha1.GroupVersion.String(),
 				Kind:       vlanv1alpha1.VLANDatabaseKind,
@@ -71,7 +71,7 @@ func buildDynamicVlanAllocationSelector() *vlanv1alpha1.VLANAllocation {
 				Namespace: "default",
 				Name:      "dyn1",
 			},
-			Spec: vlanv1alpha1.VLANAllocationSpec{
+			Spec: vlanv1alpha1.VLANClaimationSpec{
 				VLANDatabases: []*corev1.ObjectReference{
 					{
 						Kind:      "esg",
@@ -100,19 +100,19 @@ func TestDynamicVlan(t *testing.T) {
 		t.Error("cannot create vlan db")
 	}
 
-	alloc := buildDynamicVlanAllocation()
-	alloc, err = be.Allocate(ctx, alloc)
+	claim := buildDynamicVlanClaimation()
+	claim, err = be.Claimate(ctx, claim)
 	if err != nil {
-		t.Error("cannot create alloc")
+		t.Error("cannot create claim")
 	}
-	fmt.Printf("alloc: %v \n", alloc.Status.AllocatedVlanID)
+	fmt.Printf("claim: %v \n", claim.Status.ClaimatedVlanID)
 
-	alloc = buildDynamicVlanAllocationSelector()
-	alloc, err = be.Get(ctx, alloc)
+	claim = buildDynamicVlanClaimationSelector()
+	claim, err = be.Get(ctx, claim)
 	if err != nil {
-		t.Error("cannot get alloc")
+		t.Error("cannot get claim")
 	}
 
-	fmt.Printf("alloc: %v \n", alloc.Status)
+	fmt.Printf("claim: %v \n", claim.Status)
 }
 */

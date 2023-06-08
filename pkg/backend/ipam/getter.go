@@ -21,49 +21,49 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Getter interface {
-	GetIPAllocation(ctx context.Context) error
+	GetIPClaim(ctx context.Context) error
 }
 
 type GetterConfig struct {
-	alloc *ipamv1alpha1.IPAllocation
+	claim *ipamv1alpha1.IPClaim
 	rib   *table.RIB
 }
 
 func NewGetter(c *GetterConfig) Getter {
 	return &getter{
-		alloc: c.alloc,
+		claim: c.claim,
 		rib:   c.rib,
 	}
 }
 
 type getter struct {
-	alloc *ipamv1alpha1.IPAllocation
+	claim *ipamv1alpha1.IPClaim
 	rib   *table.RIB
 	l     logr.Logger
 }
 
-func (r *getter) GetIPAllocation(ctx context.Context) error {
-	r.l = log.FromContext(ctx).WithValues("name", r.alloc.GetName(), "kind", r.alloc.Spec.Kind)
-	r.l.Info("dynamic allocation")
+func (r *getter) GetIPClaim(ctx context.Context) error {
+	r.l = log.FromContext(ctx).WithValues("name", r.claim.GetName(), "kind", r.claim.Spec.Kind)
+	r.l.Info("dynamic claim")
 
-	labelSelector, err := r.alloc.GetLabelSelector()
+	labelSelector, err := r.claim.GetLabelSelector()
 	if err != nil {
 		return err
 	}
 	routes := r.rib.GetByLabel(labelSelector)
 	if len(routes) != 0 {
 		// update the status
-		r.alloc.Status.Prefix = pointer.String(routes[0].Prefix().String())
-		if r.alloc.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
-			if r.alloc.Spec.CreatePrefix == nil {
-				r.alloc.Status.Gateway = pointer.String(r.getGateway(*r.alloc.Status.Prefix))
+		r.claim.Status.Prefix = pointer.String(routes[0].Prefix().String())
+		if r.claim.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
+			if r.claim.Spec.CreatePrefix == nil {
+				r.claim.Status.Gateway = pointer.String(r.getGateway(*r.claim.Status.Prefix))
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func (r *getter) getGateway(prefix string) string {
 		r.l.Error(err, "cannot get gateway parent rpefix")
 		return ""
 	}
-	gatewaySelector, err := r.alloc.GetGatewayLabelSelector(string(pi.GetSubnetName()))
+	gatewaySelector, err := r.claim.GetGatewayLabelSelector(string(pi.GetSubnetName()))
 	if err != nil {
 		r.l.Error(err, "cannot get gateway label selector")
 		return ""

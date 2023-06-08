@@ -22,49 +22,49 @@ import (
 	"fmt"
 	"time"
 
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation] {
-	return clientproxy.New[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation](
+func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*vlanv1alpha1.VLANIndex, *vlanv1alpha1.VLANClaim] {
+	return clientproxy.New[*vlanv1alpha1.VLANIndex, *vlanv1alpha1.VLANClaim](
 		ctx, clientproxy.Config{
 			Address:     cfg.Address,
 			Name:        "vlan-client-proxy",
 			Group:       vlanv1alpha1.GroupVersion.Group, // Group of GVK for event handling
-			Normalizefn: NormalizeKRMToAllocPb,
+			Normalizefn: NormalizeKRMToResourcePb,
 			ValidateFn:  ValidateResponse,
 		})
 }
 
-// ValidateResponse handes validates changes in the allocation response
+// ValidateResponse handes validates changes in the claim response
 // when doing refreshes
-func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool {
-	origAlloc := vlanv1alpha1.VLANAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), &origAlloc); err != nil {
+func ValidateResponse(origResp *resourcepb.ClaimResponse, newResp *resourcepb.ClaimResponse) bool {
+	origClaim := vlanv1alpha1.VLANClaim{}
+	if err := json.Unmarshal([]byte(origResp.Status), &origClaim); err != nil {
 		return false
 	}
-	newAlloc := vlanv1alpha1.VLANAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), &newAlloc); err != nil {
+	newClaim := vlanv1alpha1.VLANClaim{}
+	if err := json.Unmarshal([]byte(origResp.Status), &newClaim); err != nil {
 		return false
 	}
-	if origAlloc.Status.VLANID != nil {
-		if newAlloc.Status.VLANID == nil {
+	if origClaim.Status.VLANID != nil {
+		if newClaim.Status.VLANID == nil {
 			return false
 		}
-		if *origAlloc.Status.VLANID != *newAlloc.Status.VLANID {
+		if *origClaim.Status.VLANID != *newClaim.Status.VLANID {
 			return false
 		}
 	}
-	if origAlloc.Status.VLANRange != nil {
-		if newAlloc.Status.VLANRange == nil {
+	if origClaim.Status.VLANRange != nil {
+		if newClaim.Status.VLANRange == nil {
 			return false
 		}
-		if *origAlloc.Status.VLANRange != *newAlloc.Status.VLANRange {
+		if *origClaim.Status.VLANRange != *newClaim.Status.VLANRange {
 			return false
 		}
 	}
@@ -72,12 +72,12 @@ func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocRes
 
 }
 
-// NormalizeKRMToAllocPb normalizes the input to a generalized GRPC allocation request
-// First we normalize the object to an allocation -> this is specific to the source/own client.Object
+// NormalizeKRMToResourcePb normalizes the input to a generalized GRPC claim request
+// First we normalize the object to an claim -> this is specific to the source/own client.Object
 // Once normalized we can do generic processing -> add system desfined labels in the user defined labels
-// in the spec and transform to an allocPB proto message
-func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error) {
-	var alloc *vlanv1alpha1.VLANAllocation
+// in the spec and transform to an resourcePB proto message
+func NormalizeKRMToResourcePb(o client.Object, d any) (*resourcepb.ClaimRequest, error) {
+	var claim *vlanv1alpha1.VLANClaim
 	expiryTime := "never"
 	nsnName := o.GetName()
 	switch o.GetObjectKind().GroupVersionKind().Kind {
@@ -86,27 +86,27 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		if !ok {
 			return nil, fmt.Errorf("unexpected error casting object to IPPrefix failed")
 		}
-		// create a new allocation CR from the owner CR
+		// create a new claimation CR from the owner CR
 		objectMeta := cr.ObjectMeta
 		if len(objectMeta.GetLabels()) == 0 {
 			objectMeta.Labels = map[string]string{}
 		}
-		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(vlanv1alpha1.VLANGroupVersionKind)
-		alloc = vlanv1alpha1.BuildVLANAllocation(
+		objectMeta.Labels[resourcev1alpha1.NephioOwnerGvkKey] = meta.GVKToString(vlanv1alpha1.VLANGroupVersionKind)
+		claim = vlanv1alpha1.BuildVLANClaim(
 			objectMeta,
-			vlanv1alpha1.VLANAllocationSpec{
-				VLANDatabase: cr.Spec.VLANDatabase,
-				VLANID:       cr.Spec.VLANID,
-				VLANRange:    cr.Spec.VLANRange,
+			vlanv1alpha1.VLANClaimSpec{
+				VLANIndex: cr.Spec.VLANIndex,
+				VLANID:    cr.Spec.VLANID,
+				VLANRange: cr.Spec.VLANRange,
 			},
-			vlanv1alpha1.VLANAllocationStatus{})
-	case vlanv1alpha1.VLANAllocationKind:
-		cr, ok := o.(*vlanv1alpha1.VLANAllocation)
+			vlanv1alpha1.VLANClaimStatus{})
+	case vlanv1alpha1.VLANClaimKind:
+		cr, ok := o.(*vlanv1alpha1.VLANClaim)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error casting object to IPAllocation failed")
+			return nil, fmt.Errorf("unexpected error casting object to VLANClaim  failed")
 		}
 		// given the cr exists we just do a deepcopy
-		alloc = cr.DeepCopy()
+		claim = cr.DeepCopy()
 		// addExpiryTime
 		t := time.Now().Add(time.Minute * 60)
 		b, err := t.MarshalText()
@@ -115,22 +115,22 @@ func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error
 		}
 		expiryTime = string(b)
 	default:
-		return nil, fmt.Errorf("cannot allocate resource for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
+		return nil, fmt.Errorf("cannot claimate resource for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
 	}
 
 	// generic processing
-	// add system defined labels to the user defined label section of the allocation spec
-	alloc.AddOwnerLabelsToCR()
-	// marshal the alloc
-	b, err := json.Marshal(alloc)
+	// add system defined labels to the user defined label section of the claimation spec
+	claim.AddOwnerLabelsToCR()
+	// marshal the claim
+	b, err := json.Marshal(claim)
 	if err != nil {
 		return nil, err
 	}
-	return clientproxy.BuildAllocPb(
+	return clientproxy.BuildResourcePb(
 			o,
 			nsnName,
 			string(b),
 			expiryTime,
-			vlanv1alpha1.VLANAllocationGroupVersionKind),
+			vlanv1alpha1.VLANClaimGroupVersionKind),
 		nil
 }

@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/alloc/alloc"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resource"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,15 +40,15 @@ type Proxy[T1, T2 client.Object] interface {
 	CreateIndex(ctx context.Context, cr T1) error
 	// Delete deletes the cache instance in the backend
 	DeleteIndex(ctx context.Context, cr T1) error
-	// Get returns the allocated resource
-	GetAllocation(ctx context.Context, cr client.Object, d any) (T2, error)
-	// Allocate allocates a resource
-	Allocate(ctx context.Context, cr client.Object, d any) (T2, error)
-	// DeAllocate deallocates a resource
-	DeAllocate(ctx context.Context, cr client.Object, d any) error
+	// Get returns the claimed resource
+	GetClaim(ctx context.Context, cr client.Object, d any) (T2, error)
+	// Claim claims a resource
+	Claim(ctx context.Context, cr client.Object, d any) (T2, error)
+	// DeleteClaim deletes the claim
+	DeleteClaim(ctx context.Context, cr client.Object, d any) error
 }
 
-type Normalizefn func(o client.Object, d any) (*allocpb.AllocRequest, error)
+type Normalizefn func(o client.Object, d any) (*resourcepb.ClaimRequest, error)
 
 type Config struct {
 	Name        string
@@ -80,11 +80,11 @@ type clientproxy[T1, T2 client.Object] struct {
 	// adress for the server
 	address string
 	// client
-	m           sync.RWMutex
-	allocClient alloc.Client
+	m              sync.RWMutex
+	resourceClient resource.Client
 	// watch channel for the watch
 	watchCancel context.CancelFunc
-	// normalizes the specific allocation to the AllocPB GRPC message
+	// normalizes the specific resource to the resourcePB GRPC message
 	normalizeFn Normalizefn
 	// this is the cache with GVK namespace, name
 	cache Cache
@@ -125,40 +125,40 @@ func (r *clientproxy[T1, T2]) start(ctx context.Context) {
 				// walks the cache and check the expiry time
 				keysToRefresh := r.cache.ValidateExpiryTime(ctx)
 				var wg sync.WaitGroup
-				for objKey, allocpbResp := range keysToRefresh {
-					r.l.Info("refresh allocation", "gvk", objKey.gvk, "nsn", objKey.nsn)
+				for objKey, resourcepbResp := range keysToRefresh {
+					r.l.Info("refresh claim", "gvk", objKey.gvk, "nsn", objKey.nsn)
 					wg.Add(1)
 					t := time.Now().Add(time.Minute * 60)
 					b, err := t.MarshalText()
 					if err != nil {
 						r.l.Error(err, "cannot marshal the time during refresh")
 					}
-					req := &allocpb.AllocRequest{
-						Header:     allocpbResp.GetHeader(),
-						Spec:       allocpbResp.GetSpec(),
+					req := &resourcepb.ClaimRequest{
+						Header:     resourcepbResp.GetHeader(),
+						Spec:       resourcepbResp.GetSpec(),
 						ExpiryTime: string(b)}
 
 					ownerGvk := schema.GroupVersionKind{
-						Group:   allocpbResp.GetHeader().GetOwnerGvk().GetGroup(),
-						Version: allocpbResp.GetHeader().GetOwnerGvk().GetVersion(),
-						Kind:    allocpbResp.GetHeader().GetOwnerGvk().GetKind(),
+						Group:   resourcepbResp.GetHeader().GetOwnerGvk().GetGroup(),
+						Version: resourcepbResp.GetHeader().GetOwnerGvk().GetVersion(),
+						Kind:    resourcepbResp.GetHeader().GetOwnerGvk().GetKind(),
 					}
 					ownerNsn := types.NamespacedName{
-						Namespace: allocpbResp.GetHeader().GetOwnerNsn().GetNamespace(),
-						Name:      allocpbResp.GetHeader().GetOwnerNsn().GetName(),
+						Namespace: resourcepbResp.GetHeader().GetOwnerNsn().GetNamespace(),
+						Name:      resourcepbResp.GetHeader().GetOwnerNsn().GetName(),
 					}
-					group := allocpbResp.GetHeader().GetGvk().GetGroup()
-					origresp := allocpbResp
+					group := resourcepbResp.GetHeader().GetGvk().GetGroup()
+					origresp := resourcepbResp
 					objKey := objKey
 
 					go func() {
 						defer wg.Done()
 
-						// refresh the allocation
-						resp, err := r.refreshAllocate(ctx, req)
+						// refresh the claim
+						resp, err := r.refreshClaim(ctx, req)
 						if err != nil {
 							// if we get an error in the response, log it and inform the client
-							r.l.Error(err, "refresh allocation failed")
+							r.l.Error(err, "refresh claim failed")
 							// remove the cache entry
 							r.cache.Delete(objKey)
 							r.informer.NotifyClient(ownerGvk, ownerNsn)
@@ -190,17 +190,17 @@ func (r *clientproxy[T1, T2]) CreateIndex(ctx context.Context, cr T1) error {
 	if err != nil {
 		return err
 	}
-	req := BuildAllocPb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
-	allocClient, err := r.getClient()
+	req := BuildResourcePb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
+	resourceClient, err := r.getClient()
 	if err != nil {
 		return err
 	}
-	_, err = allocClient.CreateIndex(ctx, req)
+	_, err = resourceClient.CreateIndex(ctx, req)
 	return err
 }
 
-func (r *clientproxy[T1, T2]) refreshAllocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
-	return r.allocate(ctx, alloc, true)
+func (r *clientproxy[T1, T2]) refreshClaim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error) {
+	return r.claim(ctx, claim, true)
 }
 
 func (r *clientproxy[T1, T2]) DeleteIndex(ctx context.Context, cr T1) error {
@@ -208,75 +208,75 @@ func (r *clientproxy[T1, T2]) DeleteIndex(ctx context.Context, cr T1) error {
 	if err != nil {
 		return err
 	}
-	req := BuildAllocPb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
-	allocClient, err := r.getClient()
+	req := BuildResourcePb(cr, cr.GetName(), string(b), "never", meta.GetGVKFromObject(cr))
+	resourceClient, err := r.getClient()
 	if err != nil {
 		return err
 	}
-	_, err = allocClient.DeleteIndex(ctx, req)
+	_, err = resourceClient.DeleteIndex(ctx, req)
 	return err
 }
 
-func (r *clientproxy[T1, T2]) GetAllocation(ctx context.Context, o client.Object, d any) (T2, error) {
-	r.l.Info("get allocated resource", "cr", o)
+func (r *clientproxy[T1, T2]) GetClaim(ctx context.Context, o client.Object, d any) (T2, error) {
+	r.l.Info("get claimed resource", "cr", o)
 	var x T2
-	// normalizes the input to the proxycache generalized allocation
+	// normalizes the input to the proxycache generalized claim
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return x, err
 	}
-	r.l.Info("get allocated resource", "allocPbRequest", req)
-	allocClient, err := r.getClient()
+	r.l.Info("get claimed resource", "resourcePbRequest", req)
+	resourceClient, err := r.getClient()
 	if err != nil {
 		return x, err
 	}
 	// TBD if we need to use the cache here
-	resp, err := allocClient.GetAllocation(ctx, req)
-	if err != nil || resp.GetStatusCode() != allocpb.StatusCode_Valid {
+	resp, err := resourceClient.GetClaim(ctx, req)
+	if err != nil || resp.GetStatusCode() != resourcepb.StatusCode_Valid {
 		return x, err
 	}
 
 	if err := json.Unmarshal([]byte(resp.Status), &x); err != nil {
 		return x, err
 	}
-	r.l.Info("allocate resource done", "result", x)
+	r.l.Info("claim resource done", "result", x)
 	return x, nil
 }
 
-func (r *clientproxy[T1, T2]) Allocate(ctx context.Context, o client.Object, d any) (T2, error) {
-	r.l.Info("allocate resource", "cr", o)
+func (r *clientproxy[T1, T2]) Claim(ctx context.Context, o client.Object, d any) (T2, error) {
+	r.l.Info("claim resource", "cr", o)
 	var x T2
-	// normalizes the input to the proxycache generalized allocation
+	// normalizes the input to the proxycache generalized claim
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return x, err
 	}
-	r.l.Info("allocate resource", "allobrequest", req)
+	r.l.Info("claim resource", "resourcePbrequest", req)
 
-	resp, err := r.allocate(ctx, req, false)
+	resp, err := r.claim(ctx, req, false)
 	if err != nil {
 		return x, err
 	}
 	if err := json.Unmarshal([]byte(resp.Status), &x); err != nil {
 		return x, err
 	}
-	r.l.Info("allocate resource done", "result", x)
+	r.l.Info("claim resource done", "result", x)
 	return x, nil
 }
 
-// refresh flag indicates if the allocation is initiated for a refresh
-func (r *clientproxy[T1, T2]) allocate(ctx context.Context, alloc *allocpb.AllocRequest, refresh bool) (*allocpb.AllocResponse, error) {
-	allocClient, err := r.getClient()
+// refresh flag indicates if the claim is initiated for a refresh
+func (r *clientproxy[T1, T2]) claim(ctx context.Context, claim *resourcepb.ClaimRequest, refresh bool) (*resourcepb.ClaimResponse, error) {
+	resourceClient, err := r.getClient()
 	if err != nil {
 		return nil, err
 	}
 
-	key := getKey(alloc)
+	key := getKey(claim)
 	if !refresh {
 		cacheData := r.cache.Get(key)
 		if cacheData != nil {
 			// check if the data is available and consistent
-			if isCacheDataValid(cacheData, alloc) {
+			if isCacheDataValid(cacheData, claim) {
 				r.l.Info("cache hit OK -> response from cache", "keyGVK", key.gvk, "keyNsn", key.nsn)
 				return cacheData, nil
 			}
@@ -285,62 +285,62 @@ func (r *clientproxy[T1, T2]) allocate(ctx context.Context, alloc *allocpb.Alloc
 	if refresh {
 		r.l.Info("cache hit NOK -> refresh from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
 	} else {
-		// allocate the resource from the central backend server
+		// claim the resource from the central backend server
 		r.l.Info("cache hit NOK -> response from backend server", "keyGVK", key.gvk, "keyNsn", key.nsn)
 	}
 
-	resp, err := allocClient.Allocate(ctx, alloc)
-	if err != nil || resp.GetStatusCode() != allocpb.StatusCode_Valid {
+	resp, err := resourceClient.Claim(ctx, claim)
+	if err != nil || resp.GetStatusCode() != resourcepb.StatusCode_Valid {
 		return resp, err
 	}
-	// if the allocation is successfull we add the entry in the cache
+	// if the claim is successfull we add the entry in the cache
 	r.cache.Add(key, resp)
 	return resp, err
 }
 
-func (r *clientproxy[T1, T2]) DeAllocate(ctx context.Context, o client.Object, d any) error {
-	// normalizes the input to the proxycache generalized allocation
+func (r *clientproxy[T1, T2]) DeleteClaim(ctx context.Context, o client.Object, d any) error {
+	// normalizes the input to the proxycache generalized claim
 	req, err := r.normalizeFn(o, d)
 	if err != nil {
 		return err
 	}
-	allocClient, err := r.getClient()
+	resourceClient, err := r.getClient()
 	if err != nil {
 		return err
 	}
-	_, err = allocClient.DeAllocate(ctx, req)
+	_, err = resourceClient.DeleteClaim(ctx, req)
 	if err != nil {
 		return err
 	}
-	// delete the cache only if the DeAllocation is successfull
+	// delete the cache only if the Delete Claim is successfull
 	r.cache.Delete(getKey(req))
 	return nil
 }
 
-func BuildAllocPb(o client.Object, nsnName, specBody, expiryTime string, gvk schema.GroupVersionKind) *allocpb.AllocRequest {
+func BuildResourcePb(o client.Object, nsnName, specBody, expiryTime string, gvk schema.GroupVersionKind) *resourcepb.ClaimRequest {
 	ownerGVK := o.GetObjectKind().GroupVersionKind()
 	// if the ownerGvk is in the labels we use this as ownerGVK
-	ownerGVKValue, ok := o.GetLabels()[allocv1alpha1.NephioOwnerGvkKey]
+	ownerGVKValue, ok := o.GetLabels()[resourcev1alpha1.NephioOwnerGvkKey]
 	if ok {
 		ownerGVK = meta.StringToGVK(ownerGVKValue)
 	}
-	return &allocpb.AllocRequest{
-		Header: &allocpb.Header{
-			Gvk: &allocpb.GVK{
+	return &resourcepb.ClaimRequest{
+		Header: &resourcepb.Header{
+			Gvk: &resourcepb.GVK{
 				Group:   gvk.Group,
 				Version: gvk.Version,
 				Kind:    gvk.Kind,
 			},
-			Nsn: &allocpb.NSN{
+			Nsn: &resourcepb.NSN{
 				Namespace: o.GetNamespace(),
 				Name:      nsnName, // this will be overwritten for niInstance prefixes
 			},
-			OwnerGvk: &allocpb.GVK{
+			OwnerGvk: &resourcepb.GVK{
 				Group:   ownerGVK.Group,
 				Version: ownerGVK.Version,
 				Kind:    ownerGVK.Kind,
 			},
-			OwnerNsn: &allocpb.NSN{
+			OwnerNsn: &resourcepb.NSN{
 				Namespace: o.GetNamespace(),
 				Name:      o.GetName(),
 			},

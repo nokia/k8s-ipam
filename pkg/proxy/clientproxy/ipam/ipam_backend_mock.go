@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func NewBackendMock(be backend.Backend) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation] {
+func NewBackendMock(be backend.Backend) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPClaim] {
 	return &bemock{
 		be: be,
 	}
@@ -56,16 +56,16 @@ func (r *bemock) DeleteIndex(ctx context.Context, cr *ipamv1alpha1.NetworkInstan
 	return r.be.DeleteIndex(ctx, b)
 }
 
-func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
+func (r *bemock) GetClaim(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPClaim, error) {
 	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return nil, err
 	}
-	b, err = r.be.GetAllocation(ctx, b)
+	b, err = r.be.GetClaim(ctx, b)
 	if err != nil {
 		return nil, err
 	}
-	a := &ipamv1alpha1.IPAllocation{}
+	a := &ipamv1alpha1.IPClaim{}
 	if err := json.Unmarshal(b, a); err != nil {
 		return nil, err
 	}
@@ -73,26 +73,26 @@ func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*i
 
 }
 
-func (r *bemock) Allocate(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPAllocation, error) {
+func (r *bemock) Claim(ctx context.Context, cr client.Object, d any) (*ipamv1alpha1.IPClaim, error) {
 	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return nil, err
 	}
-	b, err = r.be.Allocate(ctx, b)
+	b, err = r.be.Claim(ctx, b)
 	if err != nil {
 		return nil, err
 	}
-	a := &ipamv1alpha1.IPAllocation{}
+	a := &ipamv1alpha1.IPClaim{}
 	if err := json.Unmarshal(b, a); err != nil {
 		return nil, err
 	}
 	return a, nil
 }
 
-func (r *bemock) DeAllocate(ctx context.Context, cr client.Object, d any) error {
+func (r *bemock) DeleteClaim(ctx context.Context, cr client.Object, d any) error {
 	b, err := NormalizeKRMToBytes(cr, d)
 	if err != nil {
 		return err
 	}
-	return r.be.DeAllocate(ctx, b)
+	return r.be.DeleteClaim(ctx, b)
 }

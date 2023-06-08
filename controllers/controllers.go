@@ -27,50 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-/*
-// Setup package controllers.
-
-	func Setup(ctx context.Context, mgr ctrl.Manager, opts *shared.Options) error {
-		ipamproxyClient := ipam.New(ctx, clientproxy.Config{
-			Address: opts.Address,
-		})
-		opts.IpamClientProxy = ipamproxyClient
-		opts.VlanClientProxy = vlan.New(ctx, clientproxy.Config{
-			Address: opts.Address,
-		})
-
-		eventChs := map[schema.GroupVersionKind]chan event.GenericEvent{}
-		for _, setup := range []func(ctrl.Manager, *shared.Options) (schema.GroupVersionKind, chan event.GenericEvent, error){
-			ipamnetworkinstance.Setup,
-			vlandatabase.Setup,
-			ipamprefix.Setup,
-			vlanvlan.Setup,
-			ipamallocation.Setup,
-			vlanallocation.Setup,
-		} {
-			gvk, geCh, err := setup(mgr, opts)
-			if err != nil {
-				return err
-			}
-			eventChs[gvk] = geCh
-		}
-
-		for _, setup := range []func(ctx context.Context, mgr ctrl.Manager, cfg config.SpecializerControllerConfig) error{
-			ipamspec.Setup,
-			vlanspec.Setup,
-		} {
-			if err := setup(ctx, mgr, config.SpecializerControllerConfig{
-				PorchClient: opts.PorchClient,
-			}); err != nil {
-				return err
-			}
-		}
-
-		ipamproxyClient.AddEventChs(eventChs)
-
-		return nil
-	}
-*/
 type Reconciler interface {
 	reconcile.Reconciler
 

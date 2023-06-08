@@ -23,11 +23,11 @@ import (
 	"reflect"
 	"time"
 
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/nokia/k8s-ipam/pkg/utils/util"
 	corev1 "k8s.io/api/core/v1"
@@ -35,62 +35,62 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation] {
-	return clientproxy.New[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPAllocation](
+func New(ctx context.Context, cfg clientproxy.Config) clientproxy.Proxy[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPClaim] {
+	return clientproxy.New[*ipamv1alpha1.NetworkInstance, *ipamv1alpha1.IPClaim](
 		ctx, clientproxy.Config{
 			Address:     cfg.Address,
 			Name:        "ipam-client-proxy",
 			Group:       ipamv1alpha1.GroupVersion.Group, // Group of GVK for event handling
-			Normalizefn: NormalizeKRMToAllocPb,
+			Normalizefn: NormalizeKRMToResourcePb,
 			ValidateFn:  ValidateResponse,
 		})
 }
 
-// ValidateResponse handes validates changes in the allocation response
+// ValidateResponse handes validates changes in the claim response
 // when doing refreshes
-func ValidateResponse(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool {
-	origAlloc := ipamv1alpha1.IPAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), &origAlloc); err != nil {
+func ValidateResponse(origResp *resourcepb.ClaimResponse, newResp *resourcepb.ClaimResponse) bool {
+	origClaim := ipamv1alpha1.IPClaim{}
+	if err := json.Unmarshal([]byte(origResp.Status), &origClaim); err != nil {
 		return false
 	}
-	newAlloc := ipamv1alpha1.IPAllocation{}
-	if err := json.Unmarshal([]byte(origResp.Status), &newAlloc); err != nil {
+	newClaim := ipamv1alpha1.IPClaim{}
+	if err := json.Unmarshal([]byte(origResp.Status), &newClaim); err != nil {
 		return false
 	}
-	if origAlloc.Status.Prefix != nil {
-		if newAlloc.Status.Prefix == nil {
+	if origClaim.Status.Prefix != nil {
+		if newClaim.Status.Prefix == nil {
 			return false
 		}
-		if *origAlloc.Status.Prefix != *newAlloc.Status.Prefix {
+		if *origClaim.Status.Prefix != *newClaim.Status.Prefix {
 			return false
 		}
 	}
-	if origAlloc.Status.Gateway != nil {
-		if newAlloc.Status.Gateway == nil {
+	if origClaim.Status.Gateway != nil {
+		if newClaim.Status.Gateway == nil {
 			return false
 		}
-		if *origAlloc.Status.Gateway != *newAlloc.Status.Gateway {
+		if *origClaim.Status.Gateway != *newClaim.Status.Gateway {
 			return false
 		}
 	}
 	return true
 }
 
-// NormalizeKRMToAllocPb normalizes the input to a generalized GRPC allocation request
-// First we normalize the object to an allocation -> this is specific to the source/own client.Object
+// NormalizeKRMToResourcePb normalizes the input to a generalized GRPC resource request
+// First we normalize the object to an claim -> this is specific to the source/own client.Object
 // Once normalized we can do generic processing -> add system desfined labels in the user defined labels
-// in the spec and transform to an allocPB proto message
-func NormalizeKRMToAllocPb(o client.Object, d any) (*allocpb.AllocRequest, error) {
+// in the spec and transform to an resourcePB proto message
+func NormalizeKRMToResourcePb(o client.Object, d any) (*resourcepb.ClaimRequest, error) {
 	b, expiryTime, nsnName, err := NormalizeKRM(o, d)
 	if err != nil {
 		return nil, err
 	}
-	return clientproxy.BuildAllocPb(
+	return clientproxy.BuildResourcePb(
 			o,
 			nsnName,
 			string(b),
 			expiryTime,
-			ipamv1alpha1.IPAllocationGroupVersionKind),
+			ipamv1alpha1.IPClaimGroupVersionKind),
 		nil
 }
 
@@ -102,12 +102,12 @@ func NormalizeKRMToBytes(o client.Object, d any) ([]byte, error) {
 	return b, nil
 }
 
-// NormalizeKRMToAllocPb normalizes the input to a generalized GRPC allocation request
-// First we normalize the object to an allocation -> this is specific to the source/own client.Object
+// NormalizeKRMToResourcePb normalizes the input to a generalized GRPC resource request
+// First we normalize the object to an claim -> this is specific to the source/own client.Object
 // Once normalized we can do generic processing -> add system desfined labels in the user defined labels
-// in the spec and transform to an allocPB proto message
+// in the spec and transform to an resourcePB proto message
 func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
-	var alloc *ipamv1alpha1.IPAllocation
+	var claim *ipamv1alpha1.IPClaim
 	expiryTime := "never"
 	nsnName := o.GetName()
 	switch o.GetObjectKind().GroupVersionKind().Kind {
@@ -116,7 +116,7 @@ func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 		if !ok {
 			return nil, "", "", fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
 		}
-		// create a new allocation CR from the owner CR
+		// create a new claim CR from the owner CR
 		pi, err := iputil.New(cr.Spec.Prefix)
 		if err != nil {
 			return nil, "", "", err
@@ -125,27 +125,27 @@ func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 		if len(objectMeta.GetLabels()) == 0 {
 			objectMeta.Labels = map[string]string{}
 		}
-		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.IPPrefixGroupVersionKind)
-		alloc = ipamv1alpha1.BuildIPAllocation(
+		objectMeta.Labels[resourcev1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.IPPrefixGroupVersionKind)
+		claim = ipamv1alpha1.BuildIPClaim(
 			objectMeta,
-			ipamv1alpha1.IPAllocationSpec{
+			ipamv1alpha1.IPClaimSpec{
 				Kind:            cr.Spec.Kind,
 				NetworkInstance: cr.Spec.NetworkInstance,
 				Prefix:          &cr.Spec.Prefix,
 				PrefixLength:    util.PointerUint8(pi.GetPrefixLength().Int()),
 				CreatePrefix:    pointer.Bool(true),
-				AllocationLabels: allocv1alpha1.AllocationLabels{
+				ClaimLabels: resourcev1alpha1.ClaimLabels{
 					UserDefinedLabels: cr.Spec.UserDefinedLabels,
 				},
 			},
-			ipamv1alpha1.IPAllocationStatus{})
-	case ipamv1alpha1.IPAllocationKind:
-		cr, ok := o.(*ipamv1alpha1.IPAllocation)
+			ipamv1alpha1.IPClaimStatus{})
+	case ipamv1alpha1.IPClaimKind:
+		cr, ok := o.(*ipamv1alpha1.IPClaim)
 		if !ok {
 			return nil, "", "", fmt.Errorf("unexpected error casting object expected: %s, got: %v", o.GetObjectKind().GroupVersionKind().Kind, reflect.TypeOf(o))
 		}
 		// given the cr exists we just do a deepcopy
-		alloc = cr.DeepCopy()
+		claim = cr.DeepCopy()
 		// addExpiryTime
 		t := time.Now().Add(time.Minute * 60)
 		b, err := t.MarshalText()
@@ -162,7 +162,7 @@ func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 		if !ok {
 			return nil, "", "", fmt.Errorf("unexpected error casting object to Ip Prefix failed")
 		}
-		// create a new allocation CR from the owner CR
+		// create a new claim CR from the owner CR
 		objectMeta := cr.ObjectMeta
 		// the name of the nsn is set to the prefixName within the network instance
 		objectMeta.Name = cr.GetNameFromNetworkInstancePrefix(prefix.Prefix)
@@ -170,15 +170,15 @@ func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 		if len(objectMeta.GetLabels()) == 0 {
 			objectMeta.Labels = map[string]string{}
 		}
-		objectMeta.Labels[allocv1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind)
+		objectMeta.Labels[resourcev1alpha1.NephioOwnerGvkKey] = meta.GVKToString(ipamv1alpha1.NetworkInstanceGroupVersionKind)
 
 		pi, err := iputil.New(prefix.Prefix)
 		if err != nil {
 			return nil, "", "", err
 		}
-		alloc = ipamv1alpha1.BuildIPAllocation(
+		claim = ipamv1alpha1.BuildIPClaim(
 			objectMeta,
-			ipamv1alpha1.IPAllocationSpec{
+			ipamv1alpha1.IPClaimSpec{
 				Kind: ipamv1alpha1.PrefixKindAggregate,
 				NetworkInstance: corev1.ObjectReference{
 					Name:      cr.GetName(),
@@ -187,20 +187,20 @@ func NormalizeKRM(o client.Object, d any) ([]byte, string, string, error) {
 				Prefix:       &prefix.Prefix,
 				PrefixLength: util.PointerUint8(pi.GetPrefixLength().Int()),
 				CreatePrefix: pointer.Bool(true),
-				AllocationLabels: allocv1alpha1.AllocationLabels{
+				ClaimLabels: resourcev1alpha1.ClaimLabels{
 					UserDefinedLabels: prefix.UserDefinedLabels,
 				},
 			},
-			ipamv1alpha1.IPAllocationStatus{})
+			ipamv1alpha1.IPClaimStatus{})
 	default:
-		return nil, "", "", fmt.Errorf("cannot allocate prefix for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
+		return nil, "", "", fmt.Errorf("cannot claim prefix for unknown kind, got %s", o.GetObjectKind().GroupVersionKind().Kind)
 	}
 
 	// do generic processing
-	// add system defined labels to the user defined label section of the allocation spec
-	alloc.AddOwnerLabelsToCR()
-	// marshal the alloc
-	b, err := json.Marshal(alloc)
+	// add system defined labels to the user defined label section of the claim spec
+	claim.AddOwnerLabelsToCR()
+	// marshal the claim
+	b, err := json.Marshal(claim)
 	if err != nil {
 		return nil, "", "", err
 	}

@@ -1,12 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/GoogleContainerTools/kpt v1.0.0-beta.29.0.20230327202912-01513604feaa h1:NoMxs7zUBrf6ZL8aUE/gj7oPlQzYm7JQwcsJ2EJtvJY=
-github.com/GoogleContainerTools/kpt v1.0.0-beta.29.0.20230327202912-01513604feaa/go.mod h1:eAERMIKb67/4uZU56CULVA8Pc/OQ/YWsha0ja/sFHHM=
-github.com/GoogleContainerTools/kpt-functions-sdk/go/api v0.0.0-20220720212527-133180134b93 h1:c1GhPzYzU2a3E+/2WB9OxoljK2pNYfsBF5Fz9GkdYXs=
-github.com/GoogleContainerTools/kpt-functions-sdk/go/api v0.0.0-20220720212527-133180134b93/go.mod h1:gkK43tTaPXFNASpbIbQImzhmt1hdcdin++kvzTblykc=
-github.com/GoogleContainerTools/kpt-functions-sdk/go/fn v0.0.0-20230302070146-e8e9cb3c3ae2 h1:GDUCDAY2ijsUjg70QPMvWKezRxGKKzU07ckVc5uTgZA=
-github.com/GoogleContainerTools/kpt-functions-sdk/go/fn v0.0.0-20230302070146-e8e9cb3c3ae2/go.mod h1:Pnd3ImgaWS3OBVjztSiGMACMf+CDs20l5nT5Oljy/tA=
 github.com/GoogleContainerTools/kpt/porch/api v0.0.0-20230504200302-14c7b353e6b6 h1:U5QOwyapVo8PcFzMr4hSPOMIYlNRVn35tINRk9WntXQ=
 github.com/GoogleContainerTools/kpt/porch/api v0.0.0-20230504200302-14c7b353e6b6/go.mod h1:xQ4kNXVytubqrhwIqABBO/Ya4/v7m6VehpKEv43gCtE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
@@ -120,7 +114,6 @@ github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8Hm
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0 h1:VzM3TYHDgqPkettiP6I6q2jOeQFL4nrJM+UcAc4f6Fs=
 github.com/kentik/patricia v1.2.0 h1:WZcp8V8GQhsya0bMZuXktEH/Wz+aBlhiMle4tExkj6M=
 github.com/kentik/patricia v1.2.0/go.mod h1:6jY40ESetsbfi04/S12iJlsiS6DYL2B2W+WAcqoDHtw=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
@@ -146,8 +139,6 @@ github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 h1:n6/
 github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00/go.mod h1:Pm3mSP3c5uWn86xMLZ5Sa7JB9GsEZySvHYXCTK4E9q4=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/nephio-project/nephio v0.0.0-20230430115622-89c76dea2d39 h1:2g61jdDEwdU2k9fXFgjei8+B42xH5pcK8N8U8WfWCNI=
-github.com/nephio-project/nephio v0.0.0-20230430115622-89c76dea2d39/go.mod h1:vUWmnYgnP0tC92cfxTtAtwaGLnn7jBc1ZbyAn0rgtG8=
 github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094 h1:oHjcKSeHB2s/ahYNvqFPZbekUBCrA1rMO7wmaw+O6Y0=
 github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094/go.mod h1:oE13Jb5gopskPCv0YERhXwqxWIbp6uVsma/uxuP/jKc=
 github.com/onsi/ginkgo/v2 v2.9.5 h1:+6Hr4uxzP4XIUyAkg61dWBw8lb/gc4/X5luuxN/EC+Q=
@@ -369,8 +360,6 @@ sigs.k8s.io/controller-runtime v0.15.0 h1:ML+5Adt3qZnMSYxZ7gAverBLNPSMQEibtzAgp0
 sigs.k8s.io/controller-runtime v0.15.0/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/kustomize/api v0.12.1 h1:7YM7gW3kYBwtKvoY216ZzY+8hM+lV53LUayghNRJ0vM=
-sigs.k8s.io/kustomize/api v0.12.1/go.mod h1:y3JUhimkZkR6sbLNwfJHxvo1TCLwuwm14sCYnkH6S1s=
 sigs.k8s.io/kustomize/kyaml v0.14.2 h1:9WSwztbzwGszG1bZTziQUmVMrJccnyrLb5ZMKpJGvXw=
 sigs.k8s.io/kustomize/kyaml v0.14.2/go.mod h1:AN1/IpawKilWD7V+YvQwRGUvuUOOWpjsHu6uHwonSF4=
 sigs.k8s.io/structured-merge-diff/v4 v4.2.3 h1:PRbqxJClWWYMNV1dhaG4NsibJbArud9kFxnAMREiWFE=

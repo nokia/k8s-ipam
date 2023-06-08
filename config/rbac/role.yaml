@@ -74,58 +74,6 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ipam.alloc.nephio.org
-  resources:
-  - ipprefixes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ipam.alloc.nephio.org
-  resources:
-  - ipprefixes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ipam.alloc.nephio.org
-  resources:
-  - ipprefixes/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipallocations
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipallocations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ipam.nephio.org
-  resources:
-  - ipallocations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - ipam.nephio.org
   resources:
   - networkinstances
@@ -152,9 +100,9 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlanallocations
+  - ipclaims
   verbs:
   - create
   - delete
@@ -164,23 +112,23 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlanallocations/finalizers
+  - ipclaims/finalizers
   verbs:
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlanallocations/status
+  - ipclaims/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlandatabases
+  - ipprefixes
   verbs:
   - create
   - delete
@@ -190,15 +138,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlandatabases/finalizers
+  - ipprefixes/finalizers
   verbs:
   - update
 - apiGroups:
-  - ipam.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - vlandatabases/status
+  - ipprefixes/status
   verbs:
   - get
   - patch
@@ -230,7 +178,59 @@ rules:
   - patch
   - update
 - apiGroups:
-  - vlan.alloc.nephio.org
+  - vlan.resource.nephio.org
+  resources:
+  - vlanclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - vlan.resource.nephio.org
+  resources:
+  - vlanclaims/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - vlan.resource.nephio.org
+  resources:
+  - vlanclaims/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - vlan.resource.nephio.org
+  resources:
+  - vlanindices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - vlan.resource.nephio.org
+  resources:
+  - vlanindices/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - vlan.resource.nephio.org
+  resources:
+  - vlanindices/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - vlan.resource.nephio.org
   resources:
   - vlans
   verbs:
@@ -242,13 +242,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - vlan.alloc.nephio.org
+  - vlan.resource.nephio.org
   resources:
   - vlans/finalizers
   verbs:
   - update
 - apiGroups:
-  - vlan.alloc.nephio.org
+  - vlan.resource.nephio.org
   resources:
   - vlans/status
   verbs:

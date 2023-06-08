@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
 	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	topov1alpha1 "github.com/nokia/k8s-ipam/apis/topo/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
@@ -110,7 +110,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if meta.WasDeleted(cr) {
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
-			cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		r.l.Info("Successfully deleted resource")
@@ -121,13 +121,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// implicitly when we update our status with the new error condition. If
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
-		cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := validate(cr); err != nil {
 		r.l.Error(err, "failed validation")
-		cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{}, r.Status().Update(ctx, cr)
 	}
 
@@ -136,7 +136,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	existingresources, err := r.getExistingResources(ctx, cr)
 	if err != nil {
 		r.l.Error(err, "cannot get existing resources")
-		cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -146,18 +146,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	for _, o := range existingresources {
 		if err := r.Delete(ctx, o); err != nil {
 			r.l.Error(err, "cannot delete existing resources")
-			cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 	for _, o := range newResources {
 		if err := r.Apply(ctx, o); err != nil {
 			r.l.Error(err, "cannot apply resource")
-			cr.SetConditions(allocv1alpha1.Failed(err.Error()))
+			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
-	cr.SetConditions(allocv1alpha1.Ready())
+	cr.SetConditions(resourcev1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 

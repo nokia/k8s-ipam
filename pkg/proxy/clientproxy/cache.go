@@ -22,26 +22,26 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Cache interface {
-	Get(ObjectKindKey) *allocpb.AllocResponse
-	Add(ObjectKindKey, *allocpb.AllocResponse)
+	Get(ObjectKindKey) *resourcepb.ClaimResponse
+	Add(ObjectKindKey, *resourcepb.ClaimResponse)
 	Delete(ObjectKindKey)
-	ValidateExpiryTime(context.Context) map[ObjectKindKey]*allocpb.AllocResponse
+	ValidateExpiryTime(context.Context) map[ObjectKindKey]*resourcepb.ClaimResponse
 }
 
 func NewCache() Cache {
 	return &cache{
-		c: map[ObjectKindKey]*allocpb.AllocResponse{},
+		c: map[ObjectKindKey]*resourcepb.ClaimResponse{},
 	}
 }
 
-// ObjectKindKey is the key of the Allocation, not the ownerKey
+// ObjectKindKey is the key of the Claim, not the ownerKey
 type ObjectKindKey struct {
 	gvk schema.GroupVersionKind
 	nsn types.NamespacedName
@@ -49,23 +49,23 @@ type ObjectKindKey struct {
 
 type cache struct {
 	m sync.RWMutex
-	c map[ObjectKindKey]*allocpb.AllocResponse
+	c map[ObjectKindKey]*resourcepb.ClaimResponse
 	l logr.Logger
 }
 
-func (r *cache) Get(key ObjectKindKey) *allocpb.AllocResponse {
+func (r *cache) Get(key ObjectKindKey) *resourcepb.ClaimResponse {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if allocRsp, ok := r.c[key]; ok {
-		return allocRsp
+	if claimRsp, ok := r.c[key]; ok {
+		return claimRsp
 	}
 	return nil
 }
 
-func (r *cache) Add(key ObjectKindKey, allocRsp *allocpb.AllocResponse) {
+func (r *cache) Add(key ObjectKindKey, claimRsp *resourcepb.ClaimResponse) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.c[key] = allocRsp
+	r.c[key] = claimRsp
 }
 
 func (r *cache) Delete(key ObjectKindKey) {
@@ -74,38 +74,38 @@ func (r *cache) Delete(key ObjectKindKey) {
 	delete(r.c, key)
 }
 
-func getKey(alloc *allocpb.AllocRequest) ObjectKindKey {
+func getKey(claim *resourcepb.ClaimRequest) ObjectKindKey {
 	return ObjectKindKey{
 		gvk: schema.GroupVersionKind{
-			Group:   alloc.Header.Gvk.Group,
-			Version: alloc.Header.Gvk.Version,
-			Kind:    alloc.Header.Gvk.Kind,
+			Group:   claim.Header.Gvk.Group,
+			Version: claim.Header.Gvk.Version,
+			Kind:    claim.Header.Gvk.Kind,
 		},
 		nsn: types.NamespacedName{
-			Namespace: alloc.Header.Nsn.Namespace,
-			Name:      alloc.Header.Nsn.Name,
+			Namespace: claim.Header.Nsn.Namespace,
+			Name:      claim.Header.Nsn.Name,
 		},
 	}
 }
 
-func isCacheDataValid(cacheResp *allocpb.AllocResponse, allocReq *allocpb.AllocRequest) bool {
-	if cacheResp.Spec != allocReq.Spec {
+func isCacheDataValid(cacheResp *resourcepb.ClaimResponse, claim *resourcepb.ClaimRequest) bool {
+	if cacheResp.Spec != claim.Spec {
 		return false
 	}
-	if cacheResp.StatusCode != allocpb.StatusCode_Valid {
+	if cacheResp.StatusCode != resourcepb.StatusCode_Valid {
 		return false
 	}
 	return true
 }
 
-func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*allocpb.AllocResponse {
+func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*resourcepb.ClaimResponse {
 	r.l = log.FromContext(ctx)
 	r.m.RLock()
 	defer r.m.RUnlock()
-	allocsToRefresh := map[ObjectKindKey]*allocpb.AllocResponse{}
-	for key, allocpbResp := range r.c {
-		if allocpbResp.ExpiryTime != "never" && allocpbResp.StatusCode == allocpb.StatusCode_Valid {
-			t, err := time.Parse(time.RFC3339, allocpbResp.ExpiryTime)
+	claimsToRefresh := map[ObjectKindKey]*resourcepb.ClaimResponse{}
+	for key, resourcepbResp := range r.c {
+		if resourcepbResp.ExpiryTime != "never" && resourcepbResp.StatusCode == resourcepb.StatusCode_Valid {
+			t, err := time.Parse(time.RFC3339, resourcepbResp.ExpiryTime)
 			if err != nil {
 				r.l.Error(err, "cannot unmarshal expirytime", "key", key)
 				continue
@@ -114,9 +114,9 @@ func (r *cache) ValidateExpiryTime(ctx context.Context) map[ObjectKindKey]*alloc
 			r.l.Info("expiry", "now", time.Now(), "expiryTime", t, "minRefreshTime", minRefreshTime, "delta", t.Sub(minRefreshTime), "key", key.gvk, "nsn", key.nsn)
 			if t.Sub(minRefreshTime) < 0 {
 				// add key to keys to be refreshed
-				allocsToRefresh[key] = allocpbResp
+				claimsToRefresh[key] = resourcepbResp
 			}
 		}
 	}
-	return allocsToRefresh
+	return claimsToRefresh
 }

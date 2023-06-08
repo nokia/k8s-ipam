@@ -31,10 +31,10 @@ type Backend interface {
 	AddWatch(ownerGvkKey, ownerGvk string, fn CallbackFn)
 	// Delete a dynamic watch with callback deom the backend index
 	DeleteWatch(ownerGvkKey, ownerGvk string)
-	//GetAllocation return the allocation if it exists
-	GetAllocation(ctx context.Context, cr []byte) ([]byte, error)
-	// Allocate allocates an entry in the backend index
-	Allocate(ctx context.Context, cr []byte) ([]byte, error)
-	// DeAllocate deallocates an entry in the backend index
-	DeAllocate(ctx context.Context, cr []byte) error
+	//GetClaim return the claim if it exists
+	GetClaim(ctx context.Context, cr []byte) ([]byte, error)
+	// Claim claims an entry in the backend index
+	Claim(ctx context.Context, cr []byte) ([]byte, error)
+	// DeleteClaim delete a claim in the backend index
+	DeleteClaim(ctx context.Context, cr []byte) error
 }

@@ -18,7 +18,7 @@ package backend
 
 import (
 	"github.com/hansthienpondt/nipam/pkg/table"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 )
 
-type CallbackFn func(table.Routes, allocpb.StatusCode)
+type CallbackFn func(table.Routes, resourcepb.StatusCode)

@@ -30,14 +30,14 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
-	_ "github.com/nokia/k8s-ipam/controllers/ipamallocation"
-	_ "github.com/nokia/k8s-ipam/controllers/ipamnetworkinstance"
-	_ "github.com/nokia/k8s-ipam/controllers/ipamprefix"
-	_ "github.com/nokia/k8s-ipam/controllers/ipamspecializer"
+	//_ "github.com/nokia/k8s-ipam/controllers/ipamspecializer"
+	_ "github.com/nokia/k8s-ipam/controllers/ipclaim"
+	_ "github.com/nokia/k8s-ipam/controllers/ipnetworkinstance"
+	_ "github.com/nokia/k8s-ipam/controllers/ipprefix"
 	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
-	_ "github.com/nokia/k8s-ipam/controllers/vlanallocation"
-	_ "github.com/nokia/k8s-ipam/controllers/vlandatabase"
-	_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
+	_ "github.com/nokia/k8s-ipam/controllers/vlanclaim"
+	_ "github.com/nokia/k8s-ipam/controllers/vlanindex"
+	//_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanvlan"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,8 +50,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/nephio-project/nephio-controller-poc/pkg/porch"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
@@ -173,10 +173,10 @@ func main() {
 	},
 		grpcserver.WithCreateIndexHandler(ipamServerProxy.CreateIndex),
 		grpcserver.WithDeleteIndexHandler(ipamServerProxy.DeleteIndex),
-		grpcserver.WithGetAllocHandler(ipamServerProxy.GetAllocation),
-		grpcserver.WithAllocHandler(ipamServerProxy.Allocate),
-		grpcserver.WithDeAllocHandler(ipamServerProxy.DeAllocate),
-		grpcserver.WithWatchAllocHandler(ipamServerProxy.Watch),
+		grpcserver.WithGetClaimHandler(ipamServerProxy.GetClaim),
+		grpcserver.WithClaimHandler(ipamServerProxy.Claim),
+		grpcserver.WithDeleteClaimHandler(ipamServerProxy.DeleteClaim),
+		grpcserver.WithWatchClaimHandler(ipamServerProxy.Watch),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)

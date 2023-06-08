@@ -45,10 +45,10 @@ rules:
   - create
   - delete
 - apiGroups:
-  - ipam.alloc.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - ipallocations
-  - ipallocations/status
+  - ipclaims
+  - ipclaims/status
   - ipprefixes
   - ipprefixes/status
   - networkinstances
@@ -75,12 +75,12 @@ rules:
   - create
   - delete
 - apiGroups:
-  - vlan.alloc.nephio.org
+  - vlan.resource.nephio.org
   resources:
-  - vlanallocations
-  - vlanallocations/status
-  - vlandatabases
-  - vlandatabases/status
+  - vlanclaims
+  - vlanclaims/status
+  - vlanindices
+  - vlanindices/status
   - vlans
   - vlans/status
   verbs:

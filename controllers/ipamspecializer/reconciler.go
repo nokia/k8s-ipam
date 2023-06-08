@@ -15,12 +15,13 @@ limitations under the License.
 */
 package ipamspecializer
 
+/*
 import (
 	"context"
 
 	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
 	porchv1alpha1 "github.com/GoogleContainerTools/kpt/porch/api/porch/v1alpha1"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/controllers/specializerreconciler"
@@ -54,7 +55,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 	r.PorchClient = cfg.PorchClient
 	r.For = corev1.ObjectReference{
 		APIVersion: ipamv1alpha1.SchemeBuilder.GroupVersion.Identifier(),
-		Kind:       ipamv1alpha1.IPAllocationKind,
+		Kind:       ipamv1alpha1.IPClaimKind,
 	}
 	r.Krmfn = fn.ResourceListProcessorFunc(fnr.Run)
 
@@ -68,3 +69,4 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 type reconciler struct {
 	specializerreconciler.Reconciler
 }
+*/

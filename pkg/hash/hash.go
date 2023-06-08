@@ -23,7 +23,7 @@ import (
 type HashTable interface {
 	Insert(string, string, map[string]string) uint32
 	Delete(string, string, map[string]string)
-	GetAllocated() (uint32, []*string)
+	GetClaim() (uint32, []*string)
 }
 
 type node struct {
@@ -59,16 +59,16 @@ func (h *hashTable) Delete(k, n string, l map[string]string) {
 	h.delete(0, hidx, k, n, l)
 }
 
-func (h *hashTable) GetAllocated() (uint32, []*string) {
+func (h *hashTable) GetClaim() (uint32, []*string) {
 	used := make([]*string, 0)
-	allocated := uint32(0)
+	claimed := uint32(0)
 	for _, n := range h.nodes {
 		if n.key != "" {
-			allocated++
+			claimed++
 			used = append(used, &n.key)
 		}
 	}
-	return allocated, used
+	return claimed, used
 }
 
 func (h *hashTable) insert(hidx uint32, k, n string, l map[string]string) uint32 {
@@ -93,7 +93,7 @@ func (h *hashTable) insert(hidx uint32, k, n string, l map[string]string) uint32
 }
 
 // k is the hashkey
-// n is the name of the register or allocation
+// n is the name of the register or claim
 // l is the label
 // ofidx is the overflow idx, used to ensure if we delete a resource that does not exist we stop
 // hidx is the hash idx and we use overflow mapping by incrementing the hidx if a hash collision occurs
@@ -101,7 +101,7 @@ func (h *hashTable) delete(ofidx, hidx uint32, k, n string, l map[string]string)
 	// if entry is empty, insert the key and return the hash index
 	if h.nodes[hidx].key == k {
 		delete(h.nodes[hidx].register, n)
-		// the hash entry has no longer has registers/allocations, so we can delete the key
+		// the hash entry has no longer has registers/claims, so we can delete the key
 		if len(h.nodes[hidx].register) == 0 {
 			h.nodes[hidx] = &node{
 				register: make(map[string]labels.Set),

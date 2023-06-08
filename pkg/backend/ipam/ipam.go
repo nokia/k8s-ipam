@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -137,47 +137,47 @@ func (r *be) List(ctx context.Context, b []byte) (any, error) {
 	return rib.GetTable(), nil
 }
 
-func (r *be) GetAllocation(ctx context.Context, b []byte) ([]byte, error) {
-	cr := &ipamv1alpha1.IPAllocation{}
+func (r *be) GetClaim(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &ipamv1alpha1.IPClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return nil, err
 	}
 
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("get allocated entry", "selectors", cr.GetSelectorLabels())
+	r.l.Info("get claim entry", "selectors", cr.GetSelectorLabels())
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
-	// initialized with alloc, rib and prefix if present
+	// initialized with claim, rib and prefix if present
 	op, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		return nil, err
 	}
-	allocatedPrefix, err := op.Get(ctx)
+	claimedPrefix, err := op.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	r.l.Info("get allocated entry done", "allocatedPrefix", allocatedPrefix)
-	return json.Marshal(allocatedPrefix)
+	r.l.Info("get claim entry done", "claimedPrefix", claimedPrefix)
+	return json.Marshal(claimedPrefix)
 }
 
-// Allocate allocates the prefix
-func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
-	cr := &ipamv1alpha1.IPAllocation{}
+// Claim the prefix
+func (r *be) Claim(ctx context.Context, b []byte) ([]byte, error) {
+	cr := &ipamv1alpha1.IPClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return nil, err
 	}
 
 	r.l = log.FromContext(ctx).WithValues("name", cr.GetName())
-	r.l.Info("allocate entry", "prefix", cr.Spec.Prefix, "networkInstance", cr.Spec.NetworkInstance)
+	r.l.Info("claim entry", "prefix", cr.Spec.Prefix, "networkInstance", cr.Spec.NetworkInstance)
 
 	// get the runtime based the following parameters
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
-	// initialized with alloc, rib and prefix if present
+	// initialized with claim, rib and prefix if present
 	op, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		return nil, err
@@ -195,16 +195,15 @@ func (r *be) Allocate(ctx context.Context, b []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.l.Info("allocate prefix done", "updatedAlloc", cr)
-	//return updatedAlloc, r.updateConfigMap(ctx, alloc)
+	r.l.Info("claim prefix done", "updated Claim", cr)
 	if err := r.store.Get().SaveAll(ctx, cr.GetCacheID()); err != nil {
 		return nil, err
 	}
 	return json.Marshal(cr)
 }
 
-func (r *be) DeAllocate(ctx context.Context, b []byte) error {
-	cr := &ipamv1alpha1.IPAllocation{}
+func (r *be) DeleteClaim(ctx context.Context, b []byte) error {
+	cr := &ipamv1alpha1.IPClaim{}
 	if err := json.Unmarshal(b, cr); err != nil {
 		return err
 	}
@@ -215,15 +214,15 @@ func (r *be) DeAllocate(ctx context.Context, b []byte) error {
 	// prefixkind
 	// hasprefix -> if prefix parsing is nok we return an error
 	// networkinstance -> if not initialized we get an error
-	// initialized with alloc, rib and prefix if present
+	// initialized with claim, rib and prefix if present
 	rt, err := r.runtimes.Get(cr, false)
 	if err != nil {
 		r.l.Error(err, "cannot get runtime")
 		return err
 	}
-	// we trust the create prefix since it was already allocated
+	// we trust the create prefix since it was already claimed
 	if err := rt.Delete(ctx); err != nil {
-		r.l.Error(err, "cannot deallocate resource")
+		r.l.Error(err, "cannot delete claimed resource")
 		return err
 	}
 	return r.store.Get().SaveAll(ctx, cr.GetCacheID())

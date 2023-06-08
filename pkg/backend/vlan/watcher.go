@@ -20,14 +20,14 @@ import (
 	"context"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 )
 
-type CallbackFn func(table.Routes, allocpb.StatusCode)
+type CallbackFn func(table.Routes, resourcepb.StatusCode)
 
 type Watcher interface {
 	addWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn)
 	deleteWatch(ownerGvkKey, ownerGvk string)
-	handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode)
+	handleUpdate(ctx context.Context, routes table.Routes, statusCode resourcepb.StatusCode)
 }

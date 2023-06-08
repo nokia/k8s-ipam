@@ -22,12 +22,12 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type CallbackFn func(table.Routes, allocpb.StatusCode)
+type CallbackFn func(table.Routes, resourcepb.StatusCode)
 
 type updateContext struct {
 	routes     []table.Route
@@ -37,7 +37,7 @@ type updateContext struct {
 type Watcher interface {
 	addWatch(ownerGvkKey, ownerGvk string, fn backend.CallbackFn)
 	deleteWatch(ownerGvkKey, ownerGvk string)
-	handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode)
+	handleUpdate(ctx context.Context, routes table.Routes, statusCode resourcepb.StatusCode)
 }
 
 func newWatcher() Watcher {
@@ -75,7 +75,7 @@ func (r *watcher) deleteWatch(ownerGvkKey, ownerGvk string) {
 	}
 }
 
-func (r *watcher) handleUpdate(ctx context.Context, routes table.Routes, statusCode allocpb.StatusCode) {
+func (r *watcher) handleUpdate(ctx context.Context, routes table.Routes, statusCode resourcepb.StatusCode) {
 	r.l = log.FromContext(ctx)
 	r.m.RLock()
 	defer r.m.RUnlock()

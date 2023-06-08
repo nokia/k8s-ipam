@@ -29,9 +29,9 @@ type Storage[T1, T2 any] interface {
 	// Destroy removes the store db
 	Destroy(ctx context.Context, ref corev1.ObjectReference) error
 
-	Get(ctx context.Context, alloc T1) ([]T2, error)
-	Set(ctx context.Context, alloc T1) error
-	Delete(ctx context.Context, alloc T1) error
+	Get(ctx context.Context, claim T1) ([]T2, error)
+	Set(ctx context.Context, claim T1) error
+	Delete(ctx context.Context, claim T1) error
 }
 
 func NewNopStorage[T1, T2 any]() Storage[T1, T2] {
@@ -49,6 +49,6 @@ func (r *nopStorage[T1, T2]) SaveAll(ctx context.Context, ref corev1.ObjectRefer
 func (r *nopStorage[T1, T2]) Destroy(ctx context.Context, ref corev1.ObjectReference) error {
 	return nil
 }
-func (r *nopStorage[T1, T2]) Get(ctx context.Context, alloc T1) ([]T2, error) { return nil, nil }
-func (r *nopStorage[T1, T2]) Set(ctx context.Context, alloc T1) error         { return nil }
-func (r *nopStorage[T1, T2]) Delete(ctx context.Context, alloc T1) error      { return nil }
+func (r *nopStorage[T1, T2]) Get(ctx context.Context, claim T1) ([]T2, error) { return nil, nil }
+func (r *nopStorage[T1, T2]) Set(ctx context.Context, claim T1) error         { return nil }
+func (r *nopStorage[T1, T2]) Delete(ctx context.Context, claim T1) error      { return nil }

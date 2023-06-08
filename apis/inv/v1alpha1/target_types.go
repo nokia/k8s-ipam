@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,12 +67,12 @@ type TargetSpec struct {
 
 // TargetStatus defines the observed state of Target
 type TargetStatus struct {
-	// ConditionedStatus provides the status of the Target allocation using conditions
+	// ConditionedStatus provides the status of the Target using conditions
 	// 2 conditions are used:
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
-	allocv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 }
 
 // +kubebuilder:object:root=true

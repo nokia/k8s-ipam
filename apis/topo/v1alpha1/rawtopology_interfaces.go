@@ -17,16 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 )
 
 // GetCondition returns the condition based on the condition kind
-func (r *RawTopology) GetCondition(t allocv1alpha1.ConditionType) allocv1alpha1.Condition {
+func (r *RawTopology) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
 	return r.Status.GetCondition(t)
 }
 
 // SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
 // to be set at once
-func (r *RawTopology) SetConditions(c ...allocv1alpha1.Condition) {
+func (r *RawTopology) SetConditions(c ...resourcev1alpha1.Condition) {
 	r.Status.SetConditions(c...)
 }

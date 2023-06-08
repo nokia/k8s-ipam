@@ -9,14 +9,10 @@ go 1.20
 //replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
 
 require (
-	github.com/GoogleContainerTools/kpt v1.0.0-beta.29.0.20230327202912-01513604feaa
-	github.com/GoogleContainerTools/kpt-functions-sdk/go/fn v0.0.0-20230302070146-e8e9cb3c3ae2
-	github.com/GoogleContainerTools/kpt/porch/api v0.0.0-20230504200302-14c7b353e6b6
 	github.com/go-logr/logr v1.2.4
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/hansthienpondt/nipam v0.0.5
-	github.com/nephio-project/nephio v0.0.0-20230430115622-89c76dea2d39
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.7
@@ -40,7 +36,7 @@ require (
 )
 
 require (
-	github.com/GoogleContainerTools/kpt-functions-sdk/go/api v0.0.0-20220720212527-133180134b93 // indirect
+	github.com/GoogleContainerTools/kpt/porch/api v0.0.0-20230504200302-14c7b353e6b6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -98,6 +94,5 @@ require (
 	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )

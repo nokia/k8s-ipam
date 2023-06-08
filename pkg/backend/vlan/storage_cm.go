@@ -22,8 +22,8 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/pkg/errors"
@@ -35,7 +35,7 @@ import (
 )
 
 type Storage interface {
-	Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+	Get() backend.Storage[*vlanv1alpha1.VLANClaim, map[string]labels.Set]
 }
 
 type storageConfig struct {
@@ -49,7 +49,7 @@ func newCMStorage(cfg *storageConfig) (Storage, error) {
 		cache: cfg.cache,
 	}
 
-	be, err := backend.NewCMBackend[*vlanv1alpha1.VLANAllocation, map[string]labels.Set](&backend.CMConfig{
+	be, err := backend.NewCMBackend[*vlanv1alpha1.VLANClaim, map[string]labels.Set](&backend.CMConfig{
 		Client:      cfg.client,
 		GetData:     r.GetData,
 		RestoreData: r.RestoreData,
@@ -66,12 +66,12 @@ func newCMStorage(cfg *storageConfig) (Storage, error) {
 
 type cm struct {
 	c     client.Client
-	be    backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+	be    backend.Storage[*vlanv1alpha1.VLANClaim, map[string]labels.Set]
 	cache backend.Cache[db.DB[uint16]]
 	l     logr.Logger
 }
 
-func (r *cm) Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set] {
+func (r *cm) Get() backend.Storage[*vlanv1alpha1.VLANClaim, map[string]labels.Set] {
 	return r.be
 }
 
@@ -96,12 +96,12 @@ func (r *cm) GetData(ctx context.Context, ref corev1.ObjectReference) ([]byte, e
 
 func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *corev1.ConfigMap) error {
 	r.l = log.FromContext(ctx)
-	allocations := map[uint16]labels.Set{}
-	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &allocations); err != nil {
+	claims := map[uint16]labels.Set{}
+	if err := yaml.Unmarshal([]byte(cm.Data[backend.ConfigMapKey]), &claims); err != nil {
 		r.l.Error(err, "unmarshal error from configmap data")
 		return err
 	}
-	r.l.Info("restore data", "ref", ref, "allocations", allocations)
+	r.l.Info("restore data", "ref", ref, "claims", claims)
 
 	// Get
 	ca, err := r.cache.Get(ref, true)
@@ -113,34 +113,34 @@ func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *co
 	if err := r.c.List(context.Background(), vlanList); err != nil {
 		return errors.Wrap(err, "cannot get vlan list")
 	}
-	r.restoreVLANs(ctx, ca, allocations, vlanList)
+	r.restoreVLANs(ctx, ca, claims, vlanList)
 
-	vlanAllocationList := &vlanv1alpha1.VLANAllocationList{}
+	vlanClaimList := &vlanv1alpha1.VLANClaimList{}
 	if err := r.c.List(context.Background(), vlanList); err != nil {
-		return errors.Wrap(err, "cannot get vlan allocation list")
+		return errors.Wrap(err, "cannot get vlan claim list")
 	}
-	r.restoreVLANs(ctx, ca, allocations, vlanAllocationList)
+	r.restoreVLANs(ctx, ca, claims, vlanClaimList)
 
 	return nil
 }
 
-func (r *cm) restoreVLANs(ctx context.Context, ca db.DB[uint16], allocations map[uint16]labels.Set, input any) {
+func (r *cm) restoreVLANs(ctx context.Context, ca db.DB[uint16], claims map[uint16]labels.Set, input any) {
 	var ownerGVK string
 	var restoreFunc func(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, specData any)
 	switch input.(type) {
 	case *vlanv1alpha1.VLANList:
 		ownerGVK = vlanv1alpha1.VLANKindGVKString
 		restoreFunc = r.restoreStaticVLANs
-	case *vlanv1alpha1.VLANAllocationList:
-		ownerGVK = vlanv1alpha1.VLANAllocationKindGVKString
+	case *vlanv1alpha1.VLANClaimList:
+		ownerGVK = vlanv1alpha1.VLANClaimKindGVKString
 		restoreFunc = r.restoreDynamicVLANs
 	default:
 		r.l.Error(fmt.Errorf("expecting networkInstance, ipprefixList or ipALlocaationList, got %T", reflect.TypeOf(input)), "unexpected input data to restore")
 	}
-	for vlanID, labels := range allocations {
-		r.l.Info("restore allocation", "vlanID", vlanID, "labels", labels)
-		// handle the allocation owned by the network instance
-		if labels[allocv1alpha1.NephioOwnerGvkKey] == ownerGVK {
+	for vlanID, labels := range claims {
+		r.l.Info("restore claims", "vlanID", vlanID, "labels", labels)
+		// handle the claims owned by the network instance
+		if labels[resourcev1alpha1.NephioOwnerGvkKey] == ownerGVK {
 			restoreFunc(ctx, ca, vlanID, labels, input)
 		}
 	}
@@ -155,8 +155,8 @@ func (r *cm) restoreStaticVLANs(ctx context.Context, ca db.DB[uint16], vlanID ui
 	}
 	for _, vlan := range vlanList.Items {
 		r.l.Info("restore static VLANs", "vlanName", vlan.GetName(), "vlanID", vlan.Spec.VLANID)
-		if labels[allocv1alpha1.NephioNsnNameKey] == vlan.GetName() &&
-			labels[allocv1alpha1.NephioNsnNamespaceKey] == vlan.GetNamespace() {
+		if labels[resourcev1alpha1.NephioNsnNameKey] == vlan.GetName() &&
+			labels[resourcev1alpha1.NephioNsnNamespaceKey] == vlan.GetNamespace() {
 
 			if vlanID != *vlan.Spec.VLANID {
 				// could happen if the db is initializing
@@ -172,29 +172,29 @@ func (r *cm) restoreStaticVLANs(ctx context.Context, ca db.DB[uint16], vlanID ui
 }
 
 func (r *cm) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID uint16, labels labels.Set, input any) {
-	r.l = log.FromContext(ctx).WithValues("type", "VLANAllocations", "vlanID", vlanID)
-	vlanAllocationList, ok := input.(*vlanv1alpha1.VLANAllocationList)
+	r.l = log.FromContext(ctx).WithValues("type", "vlanClaims", "vlanID", vlanID)
+	vlanClaimList, ok := input.(*vlanv1alpha1.VLANClaimList)
 	if !ok {
-		r.l.Error(fmt.Errorf("expecting VLANAllocationList got %T", reflect.TypeOf(input)), "unexpected input data to restore")
+		r.l.Error(fmt.Errorf("expecting vlanClaimList got %T", reflect.TypeOf(input)), "unexpected input data to restore")
 		return
 	}
-	for _, alloc := range vlanAllocationList.Items {
-		r.l.Info("restore Dynamic allocation", "alloc", alloc.GetName(), "vlanID", alloc.Spec.VLANID)
-		if labels[allocv1alpha1.NephioNsnNameKey] == alloc.GetName() &&
-			labels[allocv1alpha1.NephioNsnNamespaceKey] == alloc.GetNamespace() {
+	for _, claim := range vlanClaimList.Items {
+		r.l.Info("restore Dynamic cliams", "claim", claim.GetName(), "vlanID", claim.Spec.VLANID)
+		if labels[resourcev1alpha1.NephioNsnNameKey] == claim.GetName() &&
+			labels[resourcev1alpha1.NephioNsnNamespaceKey] == claim.GetNamespace() {
 
-			// for allocations the vlanID can be defined in the spec or in the status
+			// for claims the vlanID can be defined in the spec or in the status
 			// we want to make the next logic uniform
-			allocVLANID := alloc.Spec.VLANID
-			if alloc.Spec.VLANID == nil {
-				allocVLANID = alloc.Status.VLANID
+			claimVLANID := claim.Spec.VLANID
+			if claim.Spec.VLANID == nil {
+				claimVLANID = claim.Status.VLANID
 			}
 
-			if allocVLANID == nil || (allocVLANID != nil && vlanID != *allocVLANID) {
+			if claimVLANID == nil || (claimVLANID != nil && vlanID != *claimVLANID) {
 				r.l.Error(fmt.Errorf("strange that the vlanID(S) dont match"),
 					"mismatch vlanIDs",
 					"stored vlanID", vlanID,
-					"alloc vlanID", allocVLANID)
+					"claimed vlanID", claimVLANID)
 			}
 			r.l.Info("restored Dynamic VLAN", "VLANID", vlanID)
 			ca.Set(db.NewEntry(vlanID, labels))
@@ -204,14 +204,14 @@ func (r *cm) restoreDynamicVLANs(ctx context.Context, ca db.DB[uint16], vlanID u
 
 func newNopCMStorage() Storage {
 	return &nopcm{
-		be: backend.NewNopStorage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set](),
+		be: backend.NewNopStorage[*vlanv1alpha1.VLANClaim, map[string]labels.Set](),
 	}
 }
 
 type nopcm struct {
-	be backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set]
+	be backend.Storage[*vlanv1alpha1.VLANClaim, map[string]labels.Set]
 }
 
-func (r *nopcm) Get() backend.Storage[*vlanv1alpha1.VLANAllocation, map[string]labels.Set] {
+func (r *nopcm) Get() backend.Storage[*vlanv1alpha1.VLANClaim, map[string]labels.Set] {
 	return r.be
 }

@@ -21,12 +21,12 @@ import (
 	"sync"
 
 	"github.com/hansthienpondt/nipam/pkg/table"
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 )
 
 type Runtimes interface {
-	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
+	Get(claim *ipamv1alpha1.IPClaim, initializing bool) (Runtime, error)
 }
 
 type RuntimeConfig struct {
@@ -36,47 +36,47 @@ type RuntimeConfig struct {
 
 func NewRuntimes(c *RuntimeConfig) Runtimes {
 	return &runtimes{
-		prefixRuntime: newPrefixRuntime(c),
-		allocRuntime:  newAllocRuntime(c),
+		prefixRuntime:  newPrefixRuntime(c),
+		dynamicRuntime: newDynamicRuntime(c),
 	}
 }
 
 type runtimes struct {
-	prefixRuntime runtime
-	allocRuntime  runtime
+	prefixRuntime  runtime
+	dynamicRuntime runtime
 }
 
-func (r *runtimes) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
-	if alloc.Spec.Prefix == nil {
-		return r.allocRuntime.Get(alloc, initializing)
+func (r *runtimes) Get(claim *ipamv1alpha1.IPClaim, initializing bool) (Runtime, error) {
+	if claim.Spec.Prefix == nil {
+		return r.dynamicRuntime.Get(claim, initializing)
 	}
-	return r.prefixRuntime.Get(alloc, initializing)
+	return r.prefixRuntime.Get(claim, initializing)
 }
 
 type runtime interface {
-	Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error)
+	Get(claim *ipamv1alpha1.IPClaim, initializing bool) (Runtime, error)
 }
 
 type Runtime interface {
-	Get(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
+	Get(ctx context.Context) (*ipamv1alpha1.IPClaim, error)
 	Validate(ctx context.Context) (string, error)
-	Apply(ctx context.Context) (*ipamv1alpha1.IPAllocation, error)
+	Apply(ctx context.Context) (*ipamv1alpha1.IPClaim, error)
 	Delete(ctx context.Context) error
 }
 
 type PrefixRuntimeConfig struct {
 	initializing bool
-	alloc        *ipamv1alpha1.IPAllocation
+	claim        *ipamv1alpha1.IPClaim
 	rib          *table.RIB
 	fnc          *PrefixValidatorFunctionConfig
 	watcher      Watcher
 }
 
-type AllocRuntimeConfig struct {
+type DynamicRuntimeConfig struct {
 	initializing bool
-	alloc        *ipamv1alpha1.IPAllocation
+	claim        *ipamv1alpha1.IPClaim
 	rib          *table.RIB
-	fnc          *AllocValidatorFunctionConfig
+	fnc          *DynamicValidatorFunctionConfig
 	watcher      Watcher
 }
 
@@ -120,31 +120,31 @@ type ipamPrefixRuntime struct {
 	oc      map[ipamv1alpha1.PrefixKind]*PrefixValidatorFunctionConfig
 }
 
-func (r *ipamPrefixRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
+func (r *ipamPrefixRuntime) Get(claim *ipamv1alpha1.IPClaim, initializing bool) (Runtime, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	// the initializing flag allows to get the rib even when initializing
 	// if not set and the rib is initializing an error will be returned
-	rib, err := r.cache.Get(alloc.GetCacheID(), initializing)
+	rib, err := r.cache.Get(claim.GetCacheID(), initializing)
 	if err != nil {
 		return nil, err
 	}
 
 	return NewPrefixRuntime(&PrefixRuntimeConfig{
 		initializing: initializing,
-		alloc:        alloc,
+		claim:        claim,
 		rib:          rib,
 		watcher:      r.watcher,
-		fnc:          r.oc[alloc.Spec.Kind],
+		fnc:          r.oc[claim.Spec.Kind],
 	})
 
 }
 
-func newAllocRuntime(c *RuntimeConfig) Runtimes {
-	return &ipamAllocRuntime{
+func newDynamicRuntime(c *RuntimeConfig) Runtimes {
+	return &ipamDynamicRuntime{
 		cache:   c.cache,
 		watcher: c.watcher,
-		oc: map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig{
+		oc: map[ipamv1alpha1.PrefixKind]*DynamicValidatorFunctionConfig{
 			ipamv1alpha1.PrefixKindNetwork: {
 				validateInputFn: validateInput,
 			},
@@ -161,27 +161,27 @@ func newAllocRuntime(c *RuntimeConfig) Runtimes {
 	}
 }
 
-type ipamAllocRuntime struct {
+type ipamDynamicRuntime struct {
 	cache   backend.Cache[*table.RIB]
 	watcher Watcher
 	m       sync.Mutex
-	oc      map[ipamv1alpha1.PrefixKind]*AllocValidatorFunctionConfig
+	oc      map[ipamv1alpha1.PrefixKind]*DynamicValidatorFunctionConfig
 }
 
-func (r *ipamAllocRuntime) Get(alloc *ipamv1alpha1.IPAllocation, initializing bool) (Runtime, error) {
+func (r *ipamDynamicRuntime) Get(claim *ipamv1alpha1.IPClaim, initializing bool) (Runtime, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	// get rib, returns an error if not yet initialized based on the init flag
-	rib, err := r.cache.Get(alloc.GetCacheID(), initializing)
+	rib, err := r.cache.Get(claim.GetCacheID(), initializing)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewAllocRuntime(&AllocRuntimeConfig{
+	return NewDynamicRuntime(&DynamicRuntimeConfig{
 		initializing: initializing,
-		alloc:        alloc,
+		claim:        claim,
 		rib:          rib,
 		watcher:      r.watcher,
-		fnc:          r.oc[alloc.Spec.Kind],
+		fnc:          r.oc[claim.Spec.Kind],
 	})
 }

@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func NewBackendMock(be backend.Backend) clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation] {
+func NewBackendMock(be backend.Backend) clientproxy.Proxy[*vlanv1alpha1.VLANIndex, *vlanv1alpha1.VLANClaim] {
 	return &bemock{
 		be: be,
 	}
@@ -40,7 +40,7 @@ type bemock struct {
 
 func (r *bemock) AddEventChs(map[schema.GroupVersionKind]chan event.GenericEvent) {}
 
-func (r *bemock) CreateIndex(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
+func (r *bemock) CreateIndex(ctx context.Context, cr *vlanv1alpha1.VLANIndex) error {
 	b, err := json.Marshal(cr)
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (r *bemock) CreateIndex(ctx context.Context, cr *vlanv1alpha1.VLANDatabase)
 	return r.be.CreateIndex(ctx, b)
 }
 
-func (r *bemock) DeleteIndex(ctx context.Context, cr *vlanv1alpha1.VLANDatabase) error {
+func (r *bemock) DeleteIndex(ctx context.Context, cr *vlanv1alpha1.VLANIndex) error {
 	b, err := json.Marshal(cr)
 	if err != nil {
 		return err
@@ -56,16 +56,16 @@ func (r *bemock) DeleteIndex(ctx context.Context, cr *vlanv1alpha1.VLANDatabase)
 	return r.be.DeleteIndex(ctx, b)
 }
 
-func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*vlanv1alpha1.VLANAllocation, error) {
+func (r *bemock) GetClaim(ctx context.Context, cr client.Object, d any) (*vlanv1alpha1.VLANClaim, error) {
 	b, err := json.Marshal(cr)
 	if err != nil {
 		return nil, err
 	}
-	b, err = r.be.GetAllocation(ctx, b)
+	b, err = r.be.GetClaim(ctx, b)
 	if err != nil {
 		return nil, err
 	}
-	a := &vlanv1alpha1.VLANAllocation{}
+	a := &vlanv1alpha1.VLANClaim{}
 	if err := json.Unmarshal(b, a); err != nil {
 		return nil, err
 	}
@@ -73,26 +73,26 @@ func (r *bemock) GetAllocation(ctx context.Context, cr client.Object, d any) (*v
 
 }
 
-func (r *bemock) Allocate(ctx context.Context, cr client.Object, d any) (*vlanv1alpha1.VLANAllocation, error) {
+func (r *bemock) Claim(ctx context.Context, cr client.Object, d any) (*vlanv1alpha1.VLANClaim, error) {
 	b, err := json.Marshal(cr)
 	if err != nil {
 		return nil, err
 	}
-	b, err = r.be.Allocate(ctx, b)
+	b, err = r.be.Claim(ctx, b)
 	if err != nil {
 		return nil, err
 	}
-	a := &vlanv1alpha1.VLANAllocation{}
+	a := &vlanv1alpha1.VLANClaim{}
 	if err := json.Unmarshal(b, a); err != nil {
 		return nil, err
 	}
 	return a, nil
 }
 
-func (r *bemock) DeAllocate(ctx context.Context, cr client.Object, d any) error {
+func (r *bemock) DeleteClaim(ctx context.Context, cr client.Object, d any) error {
 	b, err := json.Marshal(cr)
 	if err != nil {
 		return err
 	}
-	return r.be.DeAllocate(ctx, b)
+	return r.be.DeleteClaim(ctx, b)
 }

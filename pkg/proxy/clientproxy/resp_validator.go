@@ -19,10 +19,10 @@ package clientproxy
 import (
 	"sync"
 
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 )
 
-type RefreshRespValidatorFn func(origResp *allocpb.AllocResponse, newResp *allocpb.AllocResponse) bool
+type RefreshRespValidatorFn func(origResp *resourcepb.ClaimResponse, newResp *resourcepb.ClaimResponse) bool
 
 // validates the response from the grpc server with the specific validate fn
 type ResponseValidator interface {

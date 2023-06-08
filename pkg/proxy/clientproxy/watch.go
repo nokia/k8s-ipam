@@ -21,9 +21,9 @@ import (
 	"errors"
 	"time"
 
-	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/ipam/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
+	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -52,20 +52,20 @@ func (r *clientproxy[T1, T2]) stopWatches() {
 
 func (r *clientproxy[T1, T2]) startWatch(ctx context.Context, gvk schema.GroupVersionKind) {
 	// client side of the RPC stream
-	var stream allocpb.Allocation_WatchAllocClient
+	var stream resourcepb.Resource_WatchClaimClient
 
 	for {
-		allocClient, err := r.getClient()
+		resourceClient, err := r.getClient()
 		if err != nil {
 			r.l.Error(err, "failed to get client")
 			continue
 		}
 
 		if stream == nil {
-			if stream, err = allocClient.WatchAlloc(ctx, &allocpb.WatchRequest{
-				Header: &allocpb.Header{
-					OwnerGvk: meta.PointerAllocPBGVK(meta.GetAllocPbGVKFromSchemaGVK(gvk)),
-					Gvk:      meta.PointerAllocPBGVK(meta.GetAllocPbGVKFromSchemaGVK(ipamv1alpha1.IPAllocationGroupVersionKind)), // TODO make it independent
+			if stream, err = resourceClient.WatchClaim(ctx, &resourcepb.WatchRequest{
+				Header: &resourcepb.Header{
+					OwnerGvk: meta.PointerResourcePBGVK(meta.GetResourcePbGVKFromSchemaGVK(gvk)),
+					Gvk:      meta.PointerResourcePBGVK(meta.GetResourcePbGVKFromSchemaGVK(ipamv1alpha1.IPClaimGroupVersionKind)), // TODO make it independent
 				}}); err != nil && !errors.Is(err, context.Canceled) {
 				if er, ok := status.FromError(err); ok {
 					switch er.Code() {
@@ -97,18 +97,18 @@ func (r *clientproxy[T1, T2]) startWatch(ctx context.Context, gvk schema.GroupVe
 			continue
 		}
 		r.l.Info("watch response -> notify client", "gvk", gvk, "header", response.Header, "state", response.StatusCode)
-		if response.StatusCode == allocpb.StatusCode_Unknown {
+		if response.StatusCode == resourcepb.StatusCode_Unknown {
 			// invalidate the cache
 			r.cache.Delete(ObjectKindKey{
-				gvk: meta.GetSchemaGVKFromAllocPbGVK(response.Header.Gvk),
-				nsn: meta.GetTypeNSNFromAllocPbNSN(response.Header.Nsn),
+				gvk: meta.GetSchemaGVKFromResourcePbGVK(response.Header.Gvk),
+				nsn: meta.GetTypeNSNFromResourcePbNSN(response.Header.Nsn),
 			})
 		}
 
 		// inform the ownerGVK to retrigger a reconcilation event
 		r.informer.NotifyClient(
-			meta.GetSchemaGVKFromAllocPbGVK(response.Header.OwnerGvk),
-			meta.GetTypeNSNFromAllocPbNSN(response.Header.OwnerNsn),
+			meta.GetSchemaGVKFromResourcePbGVK(response.Header.OwnerGvk),
+			meta.GetTypeNSNFromResourcePbNSN(response.Header.OwnerNsn),
 		)
 	}
 }

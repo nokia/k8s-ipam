@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
-	allocv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/common/v1alpha1"
-	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/alloc/vlan/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
@@ -57,9 +57,9 @@ const (
 	//reconcileFailed = "reconcile failed"
 )
 
-//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=vlan.alloc.nephio.org,resources=vlans/finalizers,verbs=update
+//+kubebuilder:rbac:groups=vlan.resource.nephio.org,resources=vlans,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=vlan.resource.nephio.org,resources=vlans/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=vlan.resource.nephio.org,resources=vlans/finalizers,verbs=update
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -78,6 +78,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 
 	return map[schema.GroupVersionKind]chan event.GenericEvent{vlanv1alpha1.VLANGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
+			Named("VLAN").
 			For(&vlanv1alpha1.VLAN{}).
 			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			//Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
@@ -88,7 +89,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconf
 type reconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	ClientProxy  clientproxy.Proxy[*vlanv1alpha1.VLANDatabase, *vlanv1alpha1.VLANAllocation]
+	ClientProxy  clientproxy.Proxy[*vlanv1alpha1.VLANIndex, *vlanv1alpha1.VLANClaim]
 	pollInterval time.Duration
 	finalizer    *resource.APIFinalizer
 
@@ -113,11 +114,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if meta.WasDeleted(cr) {
 		// if the prefix condition is false it means the prefix was not active in the ipam
 		// we can delete it w/o deleting it from the IPAM
-		if cr.GetCondition(allocv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
-			if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
+		if cr.GetCondition(resourcev1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
+			if err := r.ClientProxy.DeleteClaim(ctx, cr, nil); err != nil {
 				if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") {
 					r.l.Error(err, "cannot delete resource")
-					cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
+					cr.SetConditions(resourcev1alpha1.ReconcileError(err), resourcev1alpha1.Unknown())
 					return reconcile.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 				}
 			}
@@ -125,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
-			cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
+			cr.SetConditions(resourcev1alpha1.ReconcileError(err), resourcev1alpha1.Unknown())
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
@@ -138,7 +139,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// implicitly when we update our status with the new error condition. If
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
-		cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
+		cr.SetConditions(resourcev1alpha1.ReconcileError(err), resourcev1alpha1.Unknown())
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -148,19 +149,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Namespace: cr.GetCacheID().Namespace,
 		Name:      cr.GetCacheID().Name,
 	}
-	idx := &vlanv1alpha1.VLANDatabase{}
+	idx := &vlanv1alpha1.VLANIndex{}
 	if err := r.Get(ctx, idxName, idx); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		r.l.Info("cannot allocate resource, index not found", "idx", idxName)
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("index not found"))
+		r.l.Info("cannot claim resource, index not found", "idx", idxName)
+		cr.SetConditions(resourcev1alpha1.ReconcileSuccess(), resourcev1alpha1.Failed("index not found"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// check deletion timestamp of the network instance
 	if meta.WasDeleted(idx) {
-		r.l.Info("cannot allocate resource, network-intance not ready")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed("network-instance not ready"))
+		r.l.Info("cannot claim resource, network-intance not ready")
+		cr.SetConditions(resourcev1alpha1.ReconcileSuccess(), resourcev1alpha1.Failed("network-instance not ready"))
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -168,32 +169,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// if there is a difference, we need to delete the prefix
 	if cr.Status.VLANID != nil && cr.Spec.VLANID != nil &&
 		*cr.Status.VLANID != *cr.Spec.VLANID {
-		r.l.Info("deallocate resource", "spec VLANID", cr.Spec.VLANID, "status VLANID", cr.Status.VLANID)
-		if err := r.ClientProxy.DeAllocate(ctx, cr, nil); err != nil {
+		r.l.Info("delete claim", "spec VLANID", cr.Spec.VLANID, "status VLANID", cr.Status.VLANID)
+		if err := r.ClientProxy.DeleteClaim(ctx, cr, nil); err != nil {
 			if !strings.Contains(err.Error(), "not ready") || !strings.Contains(err.Error(), "not found") || !strings.Contains(err.Error(), "initalizing") {
 				r.l.Error(err, "cannot delete resource")
-				cr.SetConditions(allocv1alpha1.ReconcileError(err), allocv1alpha1.Unknown())
+				cr.SetConditions(resourcev1alpha1.ReconcileError(err), resourcev1alpha1.Unknown())
 				return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 	}
 	// TODO VLAN Range
 
-	allocResp, err := r.ClientProxy.Allocate(ctx, cr, nil)
+	claimResp, err := r.ClientProxy.Claim(ctx, cr, nil)
 	if err != nil {
-		r.l.Error(err, "cannot allocate resource")
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Failed(err.Error()))
+		r.l.Error(err, "cannot claim resource")
+		cr.SetConditions(resourcev1alpha1.ReconcileSuccess(), resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	if *allocResp.Status.VLANID != *cr.Spec.VLANID {
+	if *claimResp.Status.VLANID != *cr.Spec.VLANID {
 		//we got a different prefix than requested
-		r.l.Error(err, "prefix allocation failed", "requested", cr.Spec.VLANID, "allocated", allocResp.Status.VLANID)
-		cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Unknown())
+		r.l.Error(err, "prefix claim failed", "requested", cr.Spec.VLANID, "claimed", claimResp.Status.VLANID)
+		cr.SetConditions(resourcev1alpha1.ReconcileSuccess(), resourcev1alpha1.Unknown())
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	r.l.Info("Successfully reconciled resource")
 	cr.Status.VLANID = cr.Spec.VLANID
-	cr.SetConditions(allocv1alpha1.ReconcileSuccess(), allocv1alpha1.Ready())
+	cr.SetConditions(resourcev1alpha1.ReconcileSuccess(), resourcev1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

@@ -110,7 +110,7 @@ spec:
               fieldPath: status.hostIP
         - name: RESOURCE_BACKEND
           value: "127.0.0.1:9999"
-        - name: ENABLE_IPALLOCATION
+        - name: ENABLE_IPCLAIM
           value: "true"
         - name: ENABLE_NETWORKINSTANCE
           value: "true"
@@ -118,11 +118,11 @@ spec:
           value: "true"
         #- name: ENABLE_IPSPECIALIZER
         #  value: "true"
-        - name: ENABLE_VLANALLOCATION
+        - name: ENABLE_VLANCLAIM
           value: "true"
-        - name: ENABLE_VLANDATABASE
+        - name: ENABLE_VLANINDEX
           value: "true"
-        - name: ENABLE_vlan
+        - name: ENABLE_VLAN
           value: "true"
         #- name: ENABLE_VLANSPECIALIZER
         #  value: "true"

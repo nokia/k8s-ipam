@@ -5,21 +5,21 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/nokia/k8s-ipam/pkg/alloc/allocpb"
 	"github.com/nokia/k8s-ipam/pkg/backend"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"google.golang.org/grpc/peer"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type Proxy interface {
-	CreateIndex(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
-	DeleteIndex(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
-	GetAllocation(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
-	Allocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error)
-	DeAllocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error)
-	Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error
+	CreateIndex(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
+	DeleteIndex(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
+	GetClaim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error)
+	Claim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error)
+	DeleteClaim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error)
+	Watch(in *resourcepb.WatchRequest, stream resourcepb.Resource_WatchClaimServer) error
 }
 
 type Config struct {
@@ -42,89 +42,89 @@ type serverproxy struct {
 	l logr.Logger
 }
 
-func (r *serverproxy) CreateIndex(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
-	be, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(alloc.Header.Gvk).GroupVersion()]
+func (r *serverproxy) CreateIndex(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error) {
+	be, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(claim.Header.Gvk).GroupVersion()]
 	if !ok {
-		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
-		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
+		r.l.Error(fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk), "backendend not registered")
+		return nil, fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk)
 	}
-	err := be.CreateIndex(ctx, []byte(alloc.Spec))
+	err := be.CreateIndex(ctx, []byte(claim.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot create index", "spec", alloc.Spec)
+		r.l.Error(err, "cannot create index", "spec", claim.Spec)
 		return nil, err
 	}
 	r.l.Info("create index done")
-	return &allocpb.EmptyResponse{}, nil
+	return &resourcepb.EmptyResponse{}, nil
 }
 
-func (r *serverproxy) DeleteIndex(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
-	be, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(alloc.Header.Gvk).GroupVersion()]
+func (r *serverproxy) DeleteIndex(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error) {
+	be, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(claim.Header.Gvk).GroupVersion()]
 	if !ok {
-		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
-		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
+		r.l.Error(fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk), "backendend not registered")
+		return nil, fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk)
 	}
-	err := be.DeleteIndex(ctx, []byte(alloc.Spec))
+	err := be.DeleteIndex(ctx, []byte(claim.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot delete index", "spec", alloc.Spec)
+		r.l.Error(err, "cannot delete index", "spec", claim.Spec)
 		return nil, err
 	}
 	r.l.Info("delete index done")
-	return &allocpb.EmptyResponse{}, nil
+	return &resourcepb.EmptyResponse{}, nil
 }
 
-func (r *serverproxy) GetAllocation(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
-	be, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(alloc.Header.Gvk).GroupVersion()]
+func (r *serverproxy) GetClaim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error) {
+	be, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(claim.Header.Gvk).GroupVersion()]
 	if !ok {
-		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
-		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
+		r.l.Error(fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk), "backendend not registered")
+		return nil, fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk)
 	}
-	b, err := be.GetAllocation(ctx, []byte(alloc.Spec))
+	b, err := be.GetClaim(ctx, []byte(claim.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot get allocation", "spec", alloc.Spec)
+		r.l.Error(err, "cannot get claim", "spec", claim.Spec)
 		return nil, err
 	}
-	resp := &allocpb.AllocResponse{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
+	resp := &resourcepb.ClaimResponse{Header: claim.Header, Spec: claim.Spec, StatusCode: resourcepb.StatusCode_Unknown, ExpiryTime: claim.ExpiryTime}
 	resp.Status = string(b)
-	resp.StatusCode = allocpb.StatusCode_Valid
-	r.l.Info("get allocation done")
+	resp.StatusCode = resourcepb.StatusCode_Valid
+	r.l.Info("get claim done")
 	return resp, nil
 }
 
-func (r *serverproxy) Allocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.AllocResponse, error) {
-	be, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(alloc.Header.Gvk).GroupVersion()]
+func (r *serverproxy) Claim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.ClaimResponse, error) {
+	be, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(claim.Header.Gvk).GroupVersion()]
 	if !ok {
-		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
-		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
+		r.l.Error(fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk), "backendend not registered")
+		return nil, fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk)
 	}
 
-	b, err := be.Allocate(ctx, []byte(alloc.Spec))
+	b, err := be.Claim(ctx, []byte(claim.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot allocate", "spec", alloc.Spec)
+		r.l.Error(err, "cannot claim", "spec", claim.Spec)
 		return nil, err
 	}
-	resp := &allocpb.AllocResponse{Header: alloc.Header, Spec: alloc.Spec, StatusCode: allocpb.StatusCode_Unknown, ExpiryTime: alloc.ExpiryTime}
+	resp := &resourcepb.ClaimResponse{Header: claim.Header, Spec: claim.Spec, StatusCode: resourcepb.StatusCode_Unknown, ExpiryTime: claim.ExpiryTime}
 	resp.Status = string(b)
-	resp.StatusCode = allocpb.StatusCode_Valid
-	r.l.Info("allocation done")
+	resp.StatusCode = resourcepb.StatusCode_Valid
+	r.l.Info("claim done")
 	return resp, nil
 }
 
-func (r *serverproxy) DeAllocate(ctx context.Context, alloc *allocpb.AllocRequest) (*allocpb.EmptyResponse, error) {
-	be, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(alloc.Header.Gvk).GroupVersion()]
+func (r *serverproxy) DeleteClaim(ctx context.Context, claim *resourcepb.ClaimRequest) (*resourcepb.EmptyResponse, error) {
+	be, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(claim.Header.Gvk).GroupVersion()]
 	if !ok {
-		r.l.Error(fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk), "backendend not registered")
-		return nil, fmt.Errorf("backend not registered, got: %v", alloc.Header.Gvk)
+		r.l.Error(fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk), "backendend not registered")
+		return nil, fmt.Errorf("backend not registered, got: %v", claim.Header.Gvk)
 	}
-	err := be.DeAllocate(ctx, []byte(alloc.Spec))
+	err := be.DeleteClaim(ctx, []byte(claim.Spec))
 	if err != nil {
-		r.l.Error(err, "cannot deallocate", "spec", alloc.Spec)
+		r.l.Error(err, "cannot delete claim", "spec", claim.Spec)
 		return nil, err
 	}
-	r.l.Info("deallocate done")
-	return &allocpb.EmptyResponse{}, nil
+	r.l.Info("delete claim done")
+	return &resourcepb.EmptyResponse{}, nil
 }
 
-func (r *serverproxy) Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_WatchAllocServer) error {
+func (r *serverproxy) Watch(in *resourcepb.WatchRequest, stream resourcepb.Resource_WatchClaimServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 	addr := "unknown"
@@ -133,7 +133,7 @@ func (r *serverproxy) Watch(in *allocpb.WatchRequest, stream allocpb.Allocation_
 	}
 	r.l.Info("watch started", "client", addr, "ownerGvk", in.Header.OwnerGvk)
 
-	_, ok := r.backends[meta.GetSchemaGVKFromAllocPbGVK(in.Header.Gvk).GroupVersion()]
+	_, ok := r.backends[meta.GetSchemaGVKFromResourcePbGVK(in.Header.Gvk).GroupVersion()]
 	if !ok {
 		r.l.Error(fmt.Errorf("backend not registered, got: %v", in.Header.Gvk), "backendend not registered")
 		return fmt.Errorf("backend not registered, got: %v", in.Header.Gvk)
