@@ -99,7 +99,7 @@ func (s *GrpcServer) DeleteClaim(ctx context.Context, req *resourcepb.ClaimReque
 	return resp, nil
 }
 
-func (s *GrpcServer) WatchResource(in *resourcepb.WatchRequest, stream resourcepb.Resource_WatchClaimServer) error {
+func (s *GrpcServer) WatchClaim(in *resourcepb.WatchRequest, stream resourcepb.Resource_WatchClaimServer) error {
 	err := s.acquireSem(stream.Context())
 	if err != nil {
 		return err
