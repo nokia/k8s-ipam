@@ -46,21 +46,21 @@ func BuildLink(meta metav1.ObjectMeta, spec LinkSpec, status LinkStatus) *Link {
 	}
 }
 
-func (r *Link) GetLink2NodeNbr() (int, error) {
+func (r *Link) GetLink2NodeId() (int, error) {
 	v, ok := r.GetLabels()[NephioLinkToNodeKey]
 	if !ok {
 		return 0, fmt.Errorf("expecting label key %s and values 0 or 1", NephioLinkToNodeKey)
 	}
-	nbr, err := strconv.Atoi(v)
+	id, err := strconv.Atoi(v)
 	if err != nil {
 		return 0, err
 	}
-	switch nbr {
+	switch id {
 	case 0:
 		return 0, nil
 	case 1:
 		return 1, nil
 	default:
-		return 0, fmt.Errorf("expecting label key %s and values 0 or 1, got %d", NephioLinkToNodeKey, nbr)
+		return 0, fmt.Errorf("expecting label key %s and values 0 or 1, got %d", NephioLinkToNodeKey, id)
 	}
 }
