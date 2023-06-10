@@ -223,15 +223,17 @@ func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 	if r.claim.Spec.Kind == ipamv1alpha1.PrefixKindNetwork {
 		if pi.IsAddressPrefix() {
 			parentRoutes := route.Parents(r.rib)
-			//labels[ipamv1alpha1.NephioParentPrefixLengthKey] = iputil.PrefixLength(parentRoutes[0].Prefix().Bits()).String()
-			// construct the parent prefix info and store it in the applicator context
-			r.pi = iputil.NewPrefixInfo(netip.PrefixFrom(pi.GetIPAddress(), parentRoutes[0].Prefix().Bits()))
-			// delete the gateway if not the first or last address
-			if pi.GetIPPrefix() == r.pi.GetFirstIPPrefix() || pi.GetIPPrefix() == r.pi.GetLastIPPrefix() {
-				delete(labels, resourcev1alpha1.NephioGatewayKey)
-			}
-			// overwirite the subnet key
-			labels[resourcev1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+			if len(parentRoutes) > 0 {
+				// construct the parent prefix info and store it in the applicator context
+				r.pi = iputil.NewPrefixInfo(netip.PrefixFrom(pi.GetIPAddress(), parentRoutes[0].Prefix().Bits()))
+				// delete the gateway if not the first or last address
+				if pi.GetIPPrefix() == r.pi.GetFirstIPPrefix() || pi.GetIPPrefix() == r.pi.GetLastIPPrefix() {
+					delete(labels, resourcev1alpha1.NephioGatewayKey)
+				}
+				// overwirite the subnet key
+				labels[resourcev1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
+			} 
+			r.l.Info("address prefix without parent", "address", pi.GetIPAddress())
 		} else {
 			// no gateway allowed for non address based prefixes
 			delete(labels, resourcev1alpha1.NephioGatewayKey)
