@@ -17,9 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-	"strconv"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,24 +40,5 @@ func BuildLink(meta metav1.ObjectMeta, spec LinkSpec, status LinkStatus) *Link {
 		ObjectMeta: meta,
 		Spec:       spec,
 		Status:     status,
-	}
-}
-
-func (r *Link) GetLink2NodeId() (int, error) {
-	v, ok := r.GetLabels()[NephioLinkToNodeKey]
-	if !ok {
-		return 0, fmt.Errorf("expecting label key %s and values 0 or 1", NephioLinkToNodeKey)
-	}
-	id, err := strconv.Atoi(v)
-	if err != nil {
-		return 0, err
-	}
-	switch id {
-	case 0:
-		return 0, nil
-	case 1:
-		return 1, nil
-	default:
-		return 0, fmt.Errorf("expecting label key %s and values 0 or 1, got %d", NephioLinkToNodeKey, id)
 	}
 }
