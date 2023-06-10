@@ -25,7 +25,7 @@ const (
 	NephioSerialNumberKey  = "nephio.org/serial-number"
 	NephioGatewayKey       = "nephio.org/gateway"
 	NephioLinkTypeKey      = "nephio.org/link-type" // infra, loop
-	NephioLinkToNodeKey    = "nephio.org/link2node" // odd or even
+	NephioLinkToNodeKey    = "nephio.org/link-to-node" // odd or even
 	NephioEndpointGroupKey = "nephio.org/endpoint-group"
 	NephioNodeNameKey      = "nephio.org/node-name"
 	NephioLinkNameKey      = "nephio.org/link-name"
