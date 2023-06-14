@@ -1,5 +1,6 @@
 VERSION ?= latest
-REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
+#REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
+REGISTRY ?= docker.io/nephio
 PROJECT ?= resource-backend
 
 KPT_BLUEPRINT_CFG_DIR ?= blueprint/fn-config

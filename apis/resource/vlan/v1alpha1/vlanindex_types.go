@@ -25,14 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// VLANIndexSpec defines the desired state of VLANDatabase
+// VLANIndexSpec defines the desired state of VLANIndex
 type VLANIndexSpec struct {
 	// UserDefinedLabels define metadata to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
-// VLANIndexStatus defines the observed state of VLANDatabase
+// VLANIndexStatus defines the observed state of VLANIndex
 type VLANIndexStatus struct {
 	// ConditionedStatus provides the status of the VLAN Index using conditions
 	// 2 conditions are used:
@@ -59,7 +59,7 @@ type VLANIndex struct {
 
 //+kubebuilder:object:root=true
 
-// VLANIndexList contains a list of VLANDatabases
+// VLANIndexList contains a list of VLANIndices
 type VLANIndexList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`

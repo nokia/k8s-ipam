@@ -29,7 +29,7 @@ import (
 // VLANClaimSpec defines the desired state of VLANClaim
 type VLANClaimSpec struct {
 	// VLANIndex defines the vlan index for the VLAN Claim
-	VLANIndex corev1.ObjectReference `json:"vlanDatabase" yaml:"vlanDatabase"`
+	VLANIndex corev1.ObjectReference `json:"vlanIndex" yaml:"vlanIndex"`
 	// VLANID defines the vlan for the VLAN claim
 	VLANID *uint16 `json:"vlanID,omitempty" yaml:"vlanID,omitempty"`
 	// VLANRange defines the vlan range for the VLAN claim
