@@ -86,9 +86,10 @@ func (r *claimRuntime) Apply(ctx context.Context) (*ipamv1alpha1.IPClaim, error)
 		watcher:      r.watcher,
 	})
 	if err := a.ApplyDynamic(ctx); err != nil {
+		r.l.Error(err, "cannot apply dynamic claim")
 		return nil, err
 	}
-	r.l.Info("claim dynamic prefix done done", "status", r.claim.Status)
+	r.l.Info("apply dynamic prefix done done", "status", r.claim.Status)
 	return r.claim, nil
 
 }
