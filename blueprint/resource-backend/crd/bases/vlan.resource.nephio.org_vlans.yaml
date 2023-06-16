@@ -57,7 +57,10 @@ spec:
               range:
                 description: VLANRange defines a range of vlans
                 type: string
-              vlanDatabase:
+              vlanID:
+                description: VLANID defines the VLAN ID
+                type: integer
+              vlanIndex:
                 description: VLANIndex defines the vlan index for the VLAN claim
                 properties:
                   apiVersion:
@@ -83,11 +86,8 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              vlanID:
-                description: VLANID defines the VLAN ID
-                type: integer
             required:
-            - vlanDatabase
+            - vlanIndex
             type: object
           status:
             description: VLANStatus defines the observed state of VLAN

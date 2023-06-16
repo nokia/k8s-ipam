@@ -271,6 +271,9 @@ func (r *clientproxy[T1, T2]) claim(ctx context.Context, claim *resourcepb.Claim
 		return nil, err
 	}
 
+	// TEST
+	refresh = false
+
 	key := getKey(claim)
 	if !refresh {
 		cacheData := r.cache.Get(key)
@@ -294,7 +297,8 @@ func (r *clientproxy[T1, T2]) claim(ctx context.Context, claim *resourcepb.Claim
 		return resp, err
 	}
 	// if the claim is successfull we add the entry in the cache
-	r.cache.Add(key, resp)
+	// TEST DISABLE CACHE
+	//r.cache.Add(key, resp)
 	return resp, err
 }
 

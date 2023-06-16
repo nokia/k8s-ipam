@@ -232,7 +232,7 @@ func (r *applicator) GetUpdatedLabels(route table.Route) labels.Set {
 				}
 				// overwirite the subnet key
 				labels[resourcev1alpha1.NephioSubnetKey] = r.pi.GetSubnetName()
-			} 
+			}
 			r.l.Info("address prefix without parent", "address", pi.GetIPAddress())
 		} else {
 			// no gateway allowed for non address based prefixes

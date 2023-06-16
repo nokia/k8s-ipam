@@ -108,7 +108,10 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
-              vlanDatabase:
+              vlanID:
+                description: VLANID defines the vlan for the VLAN claim
+                type: integer
+              vlanIndex:
                 description: VLANIndex defines the vlan index for the VLAN Claim
                 properties:
                   apiVersion:
@@ -145,11 +148,8 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              vlanID:
-                description: VLANID defines the vlan for the VLAN claim
-                type: integer
             required:
-            - vlanDatabase
+            - vlanIndex
             type: object
           status:
             description: VLANClaimStatus defines the observed state of VLANClaim

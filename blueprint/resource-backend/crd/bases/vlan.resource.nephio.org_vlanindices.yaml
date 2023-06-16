@@ -41,7 +41,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: VLANIndexSpec defines the desired state of VLANDatabase
+            description: VLANIndexSpec defines the desired state of VLANIndex
             properties:
               labels:
                 additionalProperties:
@@ -50,7 +50,7 @@ spec:
                 type: object
             type: object
           status:
-            description: VLANIndexStatus defines the observed state of VLANDatabase
+            description: VLANIndexStatus defines the observed state of VLANIndex
             properties:
               conditions:
                 description: Conditions of the resource.
