@@ -237,6 +237,15 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 		)
 		resources[corev1.ObjectReference{APIVersion: o.GetResourceVersion(), Kind: o.GetObjectKind().GroupVersionKind().Kind, Name: o.GetName(), Namespace: o.GetNamespace()}] = o
 
+		targetSpec := invv1alpha1.TargetSpec{
+			ParametersRef: n.ParametersRef,
+			Provider:      n.Provider,
+			SecretName:    n.Provider,
+		}
+		if node.Address != nil {
+			a := fmt.Sprintf("%s:57400", *node.Address)
+			targetSpec.Address = &a
+		}
 		o = invv1alpha1.BuildTarget(
 			metav1.ObjectMeta{
 				Name:            nodeName,
@@ -244,11 +253,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 				Labels:          labels,
 				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 			},
-			invv1alpha1.TargetSpec{
-				ParametersRef: n.ParametersRef,
-				Provider:      n.Provider,
-				SecretName:    n.Provider,
-			},
+			targetSpec,
 			invv1alpha1.TargetStatus{},
 		)
 		resources[corev1.ObjectReference{APIVersion: o.GetResourceVersion(), Kind: o.GetObjectKind().GroupVersionKind().Kind, Name: o.GetName(), Namespace: o.GetNamespace()}] = o

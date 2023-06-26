@@ -181,7 +181,6 @@ func Failed(msg string) Condition {
 		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}
-
 }
 
 // ReconcileSuccess returns a condition indicating that the controller
