@@ -243,8 +243,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			SecretName:    n.Provider,
 		}
 		if node.Address != nil {
-			a := fmt.Sprintf("%s:57400", *node.Address)
-			targetSpec.Address = &a
+			targetSpec.Address = node.Address
 		}
 		o = invv1alpha1.BuildTarget(
 			metav1.ObjectMeta{
