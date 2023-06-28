@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 const (
+	// action
+	NephioAPIAction = "nephio.org/action" // values get
 	// system defined common
 	NephioOwnerGvkKey          = "nephio.org/owner-gvk"
 	NephioOwnerNsnNameKey      = "nephio.org/owner-nsn-name"
