@@ -22,14 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *TargetList) GetItems() []client.Object {
-	objs := []client.Object{}
-	for _, r := range r.Items {
-		objs = append(objs, &r)
-	}
-	return objs
-}
-
 // GetCondition returns the condition based on the condition kind
 func (r *Target) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
 	return r.Status.GetCondition(t)
@@ -39,6 +31,14 @@ func (r *Target) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1
 // to be set at once
 func (r *Target) SetConditions(c ...resourcev1alpha1.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *TargetList) GetItems() []client.Object {
+	objs := []client.Object{}
+	for _, r := range r.Items {
+		objs = append(objs, &r)
+	}
+	return objs
 }
 
 // BuildTarget returns a Target from a client Object a crName and

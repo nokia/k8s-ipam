@@ -17,9 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// GetCondition returns the condition based on the condition kind
+func (r *Link) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
+	return r.Status.GetCondition(t)
+}
+
+// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
+// to be set at once
+func (r *Link) SetConditions(c ...resourcev1alpha1.Condition) {
+	r.Status.SetConditions(c...)
+}
 
 func (r *LinkList) GetItems() []client.Object {
 	objs := []client.Object{}

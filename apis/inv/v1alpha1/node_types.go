@@ -37,11 +37,11 @@ type NodeSpec struct {
 	Location *Location `json:"location,omitempty" yaml:"location,omitempty"`
 
 	// ParametersRef points to the vendor or implementation specific params for the
-	// network.
+	// node.
 	// +optional
 	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
 
-	// Provider specifies the provider implementing this network.
+	// Provider specifies the provider implementing this node.
 	Provider string `json:"provider" yaml:"provider"`
 }
 
