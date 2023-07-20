@@ -13,7 +13,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/hansthienpondt/nipam v0.0.5
-	github.com/henderiw-nephio/network-node-operator v0.0.0-20230720073557-10766595a804
+	github.com/henderiw-nephio/network-node-operator v0.0.0-20230720112421-9611ace58803
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/nephio-project/nephio/controllers/pkg v0.0.0-20230629025102-1d5a6bc22053
 	github.com/onsi/ginkgo/v2 v2.9.5
