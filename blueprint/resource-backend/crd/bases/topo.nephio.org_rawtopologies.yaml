@@ -24,7 +24,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: RawTopology is the Schema for the vlan API
+        description: RawTopology is the Schema for the rawTopology API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -142,7 +142,7 @@ spec:
                           type: string
                       type: object
                     parametersRef:
-                      description: ParametersRef points to the vendor or implementation specific params for the network.
+                      description: ParametersRef points to the vendor or implementation specific params for the node.
                       properties:
                         apiVersion:
                           description: API version of the referent.
@@ -168,7 +168,7 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     provider:
-                      description: Provider specifies the provider implementing this network.
+                      description: Provider specifies the provider implementing this node.
                       type: string
                   required:
                   - provider

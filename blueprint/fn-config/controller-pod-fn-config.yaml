@@ -128,5 +128,7 @@ spec:
         #  value: "true"
         - name: ENABLE_RAWTOPOLOGIES
           value: "true"
+        - name: ENABLE_NODES
+          value: "true"
   services:
     

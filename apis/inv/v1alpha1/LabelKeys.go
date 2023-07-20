@@ -40,4 +40,11 @@ const (
 	NephioIndexKey            = "nephio.org/index"
 	NephioProviderKey         = "nephio.org/provider"
 	NephioWiringKey           = "nephio.org/wiring"
+	// user defined topology
+	NephioTopologyPosition   = "topo.nephio.org/position"
+	NephioTopologyRack       = "topo.nephio.org/rack"
+	NephioTopologyPodIndex   = "topo.nephio.org/pod-index"
+	NephioTopologyPlaneIndex = "topo.nephio.org/plane-index"
+	NephioTopologyRackIndex  = "topo.nephio.org/rack-index"
+	NephioTopologyNodeIndex  = "topo.nephio.org/node-index"
 )

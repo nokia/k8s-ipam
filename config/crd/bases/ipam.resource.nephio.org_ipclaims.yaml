@@ -153,8 +153,7 @@ spec:
                   If not present we use assume /32 for ipv4 and /128 for ipv6
                 type: integer
               selector:
-                description: Selector defines the selector criterias for the VLAN
-                  claim
+                description: Selector defines the selector criterias
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.

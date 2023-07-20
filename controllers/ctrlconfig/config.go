@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ctrlrconfig
+package ctrlconfig
 
 import (
 	"time"
 
+	"github.com/henderiw-nephio/network-node-operator/pkg/node"
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
@@ -36,4 +37,5 @@ type ControllerConfig struct {
 	Copts           controller.Options
 	Ipam            backend.Backend
 	Vlan            backend.Backend
+	Noderegistry    node.NodeRegistry
 }

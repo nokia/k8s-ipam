@@ -37,7 +37,7 @@ import (
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
-	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
+	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"github.com/nokia/k8s-ipam/pkg/resource"
@@ -62,7 +62,7 @@ const (
 //+kubebuilder:rbac:groups=vlan.resource.nephio.org,resources=vlans/finalizers,verbs=update
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
+func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	// register scheme
 	if err := vlanv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		return nil, err

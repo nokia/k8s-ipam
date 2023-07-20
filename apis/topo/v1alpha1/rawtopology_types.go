@@ -64,7 +64,7 @@ type RawTopologyStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:resource:categories={nephio,inv}
-// RawTopology is the Schema for the vlan API
+// RawTopology is the Schema for the rawTopology API
 type RawTopology struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`

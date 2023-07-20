@@ -25,7 +25,7 @@ import (
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	topov1alpha1 "github.com/nokia/k8s-ipam/apis/topo/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
-	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
+	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/resource"
 	"github.com/pkg/errors"
@@ -45,7 +45,7 @@ func init() {
 }
 
 const (
-	finalizer = "vlan.nephio.org/finalizer"
+	finalizer = "topo.nephio.org/finalizer"
 	// error
 	errGetCr        = "cannot get resource"
 	errUpdateStatus = "cannot update status"
@@ -62,9 +62,11 @@ const (
 //+kubebuilder:rbac:groups=inv.nephio.org,resources=links/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=inv.nephio.org,resources=endpoints,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=inv.nephio.org,resources=endpoints/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=inv.nephio.org,resources=targets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=inv.nephio.org,resources=targets/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
+func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	// register scheme
 	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		return nil, err
@@ -280,7 +282,6 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 		linkName := fmt.Sprintf("%s-%s-%s-%s", eps[0].NodeName, eps[0].InterfaceName, eps[1].NodeName, eps[1].InterfaceName)
 
 		for _, e := range l.Endpoints {
-
 			// the endpoint provider is the node provider
 			epSpec := invv1alpha1.EndpointSpec{
 				EndpointProperties: e,

@@ -31,12 +31,15 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	//_ "github.com/nokia/k8s-ipam/controllers/ipamspecializer"
+	"github.com/henderiw-nephio/network-node-operator/pkg/node"
+	"github.com/henderiw-nephio/network-node-operator/pkg/node/srlinux"
 	_ "github.com/nokia/k8s-ipam/controllers/ipclaim"
 	_ "github.com/nokia/k8s-ipam/controllers/ipnetworkinstance"
 	_ "github.com/nokia/k8s-ipam/controllers/ipprefix"
 	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanclaim"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanindex"
+
 	//_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanvlan"
 
@@ -53,7 +56,7 @@ import (
 	ipamv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/ipam/v1alpha1"
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
-	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
+	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"github.com/nokia/k8s-ipam/internal/grpcserver"
 	"github.com/nokia/k8s-ipam/internal/healthhandler"
 	"github.com/nokia/k8s-ipam/pkg/backend"
@@ -117,7 +120,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctrlCfg := &ctrlrconfig.ControllerConfig{
+	ctrlCfg := &ctrlconfig.ControllerConfig{
 		Address: os.Getenv("RESOURCE_BACKEND"),
 		IpamClientProxy: ipamcp.New(ctx, clientproxy.Config{
 			Address: os.Getenv("RESOURCE_BACKEND"),
@@ -125,8 +128,9 @@ func main() {
 		VlanClientProxy: vlancp.New(ctx, clientproxy.Config{
 			Address: os.Getenv("RESOURCE_BACKEND"),
 		}),
-		PorchClient: porchClient,
-		Poll:        5 * time.Second,
+		Noderegistry: registerSupportedNodeProviders(),
+		PorchClient:  porchClient,
+		Poll:         5 * time.Second,
 		Copts: controller.Options{
 			MaxConcurrentReconciles: 1,
 		},
@@ -211,4 +215,11 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 		return true
 	}
 	return false
+}
+
+func registerSupportedNodeProviders() node.NodeRegistry {
+	nodeRegistry := node.NewNodeRegistry()
+	srlinux.Register(nodeRegistry)
+
+	return nodeRegistry
 }

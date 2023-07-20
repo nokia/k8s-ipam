@@ -45,14 +45,14 @@ rules:
   - create
   - delete
 - apiGroups:
-  - ipam.resource.nephio.org
+  - topo.nephio.org
   resources:
-  - ipclaims
-  - ipclaims/status
-  - ipprefixes
-  - ipprefixes/status
-  - networkinstances
-  - networkinstances/status
+  - interconnects
+  - interconnects/status
+  - interconnectsets
+  - interconnectsets/status
+  - rawtopologies
+  - rawtopologies/status
   verbs:
   - get
   - list
@@ -62,10 +62,14 @@ rules:
   - create
   - delete
 - apiGroups:
-  - topo.nephio.org
+  - ipam.resource.nephio.org
   resources:
-  - rawtopologies
-  - rawtopologies/status
+  - ipclaims
+  - ipclaims/status
+  - ipprefixes
+  - ipprefixes/status
+  - networkinstances
+  - networkinstances/status
   verbs:
   - get
   - list

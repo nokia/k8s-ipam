@@ -19,7 +19,7 @@ package controllers
 import (
 	"context"
 
-	"github.com/nokia/k8s-ipam/controllers/ctrlrconfig"
+	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -37,7 +37,7 @@ type Reconciler interface {
 	//BindFlags(prefix string, flags *flag.FlagSet)
 
 	// Setup registers the reconciler to run under the specified manager
-	Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlrconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error)
+	Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfig.ControllerConfig) (map[schema.GroupVersionKind]chan event.GenericEvent, error)
 }
 
 var Reconcilers = map[string]Reconciler{}
