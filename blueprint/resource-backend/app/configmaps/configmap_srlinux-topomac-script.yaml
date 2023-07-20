@@ -1,0 +1,25 @@
+# Copyright 2023 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: srlinux-topomac-script
+  annotations: {}
+data:
+  topomac.sh: |
+    #!/bin/bash
+    # this script is used to generate random OUI for base mac entry of an SR Linux topology yaml file
+
+    template_path="/tmp/topo/topo-template.yml"
+    final_path="/tmp/topology.yml"
+
+    # generate random bytes
+    b1=$(printf "%02X" $(shuf -i 0-255 -n1))
+    b2=$(printf "%02X" $(shuf -i 0-255 -n1))
+    mac_portion=$b1:$b2
+
+    cp $template_path $final_path
+
+    sed -i s/__RANDMAC__/$mac_portion/g $final_path

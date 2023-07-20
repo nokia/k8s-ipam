@@ -1,0 +1,131 @@
+# Copyright 2023 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: srlinux-variants
+  annotations: {}
+data:
+  ixrd1: |
+    # ixrd1
+    chassis_configuration:
+      "chassis_type": 64
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 175
+
+    slot_configuration:
+      1:
+        "card_type": 175
+        "mda_type": 196
+  ixrd2: |
+    # ixrd2
+    chassis_configuration:
+      "chassis_type": 65
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 176
+
+    slot_configuration:
+      1:
+        "card_type": 176
+        "mda_type": 195
+  ixrd2l: |
+    # ixrd2l
+    chassis_configuration:
+      "chassis_type": 72
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 187
+
+    slot_configuration:
+      1:
+        "card_type": 187
+        "mda_type": 200
+  ixrd3: |
+    # ixrd3
+    chassis_configuration:
+      "chassis_type": 66
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 177
+
+    slot_configuration:
+      1:
+        "card_type": 177
+        "mda_type": 194
+  ixrd3l: |
+    # ixrd3l
+    chassis_configuration:
+      "chassis_type": 73
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 188
+
+    slot_configuration:
+      1:
+        "card_type": 188
+        "mda_type": 202
+  ixrh2: |
+    # ixrh2
+    chassis_configuration:
+      "chassis_type": 61
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 179
+
+    slot_configuration:
+      1:
+        "card_type": 179
+        "mda_type": 197
+  ixrh3: |
+    # ixrh3
+    chassis_configuration:
+      "chassis_type": 62
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 178
+
+    slot_configuration:
+      1:
+        "card_type": 178
+        "mda_type": 198
+  ixr6: |
+    # ixr6
+    chassis_configuration:
+      "chassis_type": 42
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 69
+
+    slot_configuration:
+      1:
+        "card_type": 127
+        "mda_type": 36
+  ixr6e: |
+    # ixr6e
+    chassis_configuration:
+      "chassis_type": 68
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 184
+
+    slot_configuration:
+      1:
+        "card_type": 182
+        "mda_type": 199
+  ixr10: |
+    # ixr10
+    chassis_configuration:
+      "chassis_type": 43
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 69
+
+    slot_configuration:
+      1:
+        "card_type": 127
+        "mda_type": 36
+  ixr10e: |-
+    # ixr10e
+    chassis_configuration:
+      "chassis_type": 69
+      "base_mac": 02:__RANDMAC__:00:00:00
+      "cpm_card_type": 184
+
+    slot_configuration:
+      1:
+        "card_type": 182
+        "mda_type": 199
