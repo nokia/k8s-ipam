@@ -38,9 +38,10 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady   ConditionReason = "Ready"
-	ConditionReasonFailed  ConditionReason = "Failed"
-	ConditionReasonUnknown ConditionReason = "Unknown"
+	ConditionReasonReady    ConditionReason = "Ready"
+	ConditionReasonFailed   ConditionReason = "Failed"
+	ConditionReasonUnknown  ConditionReason = "Unknown"
+	ConditionReasonNotReady ConditionReason = "NotReady"
 )
 
 // Reasons a resource is synced or not
@@ -168,6 +169,18 @@ func Unknown() Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonUnknown),
+	}}
+}
+
+// NotReady returns a condition that indicates the resource is in an
+// not ready status.
+func NotReady(msg string) Condition {
+	return Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonNotReady),
+		Message:            msg,
 	}}
 }
 

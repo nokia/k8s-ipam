@@ -32,6 +32,8 @@ rules:
   - endpoints/status
   - links
   - links/status
+  - nodeconfigs
+  - nodeconfigs/status
   - nodes
   - nodes/status
   - targets
