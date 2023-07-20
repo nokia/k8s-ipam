@@ -71,3 +71,4 @@ spec:
   - name: "e1-33"
     speed: "100G"
   - name: "e1-34"
+    speed: "100G"

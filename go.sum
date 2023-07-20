@@ -106,8 +106,8 @@ github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hansthienpondt/nipam v0.0.5 h1:83Mdwdgx3l9tvio8u8ufan97MWx49n38IJwgSBgATEc=
 github.com/hansthienpondt/nipam v0.0.5/go.mod h1:dJI5FdzV6iaQyaOH4htGqJNs6wGieJeX3lhPj1Ah19U=
-github.com/henderiw-nephio/network-node-operator v0.0.0-20230720132946-840909b3b074 h1:zVy67QvU6K0a+0cWukFzt9B5TfpZqg7TiMuBcG69Ju4=
-github.com/henderiw-nephio/network-node-operator v0.0.0-20230720132946-840909b3b074/go.mod h1:5K4vKrErr4dOWw/b5uxHM9bC90WvCt6J2p3SCyOJk/E=
+github.com/henderiw-nephio/network-node-operator v0.0.0-20230720134514-da912bdde369 h1:URlPxBZejn8Oe0OeHtgO8YfJOLTZXTeNi3SwNIQ9zlA=
+github.com/henderiw-nephio/network-node-operator v0.0.0-20230720134514-da912bdde369/go.mod h1:5K4vKrErr4dOWw/b5uxHM9bC90WvCt6J2p3SCyOJk/E=
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/imdario/mergo v0.3.16 h1:wwQJbIsHYGMUyLSPrEq1CT16AhnhNJQ51+4fdHUnCl4=
 github.com/imdario/mergo v0.3.16/go.mod h1:WBLT9ZmE3lPoWsEzCh9LPo3TiwVN+ZKEjmz+hD27ysY=
