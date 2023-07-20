@@ -41,6 +41,7 @@ import (
 )
 
 func init() {
+	fmt.Println("register nodes")
 	controllers.Register("nodes", &reconciler{})
 }
 

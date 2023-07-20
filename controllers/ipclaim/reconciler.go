@@ -18,6 +18,7 @@ package ipclaim
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -44,6 +45,7 @@ import (
 )
 
 func init() {
+	fmt.Println("register ipclaim")
 	controllers.Register("ipclaim", &reconciler{})
 }
 
