@@ -84,8 +84,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 		ctrl.NewControllerManagedBy(mgr).
 			Named("Node").
 			For(&invv1alpha1.Node{}).
-			Owns(&invv1alpha1.Endpoint{}).
-			Owns(&invv1alpha1.Target{}).
+			//Owns(&invv1alpha1.Endpoint{}).
+			//Owns(&invv1alpha1.Target{}).
 			Complete(r)
 }
 
@@ -116,7 +116,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{}, nil
 	}
 
-	cr = cr.DeepCopy()
+	//cr = cr.DeepCopy()
 	if meta.WasDeleted(cr) {
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
