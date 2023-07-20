@@ -164,12 +164,12 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 		return err
 	}
 	// get interfaces
-	itfces, err := node.GetInterfaces(nc)
+	nm, err := node.GetInterfaces(ctx, nc)
 	if err != nil {
 		return err
 	}
 	// build endpoints based on the node model
-	for _, itfce := range itfces {
+	for _, itfce := range nm.Spec.Interfaces {
 		r.resources.AddNewResource(buildEndpoint(cr, itfce))
 	}
 
@@ -204,7 +204,7 @@ func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 	)
 }
 
-func buildEndpoint(cr *invv1alpha1.Node, itfce node.Interface) *invv1alpha1.Endpoint {
+func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface) *invv1alpha1.Endpoint {
 	labels := map[string]string{}
 	labels[invv1alpha1.NephioTopologyKey] = cr.GetLabels()[invv1alpha1.NephioTopologyKey]
 	labels[invv1alpha1.NephioProviderKey] = cr.GetLabels()[invv1alpha1.NephioProviderKey]
