@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package nodec
+package node
 
 import (
 	"context"
@@ -175,6 +175,9 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 
 func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 	labels := cr.GetLabels()
+	if len(labels) == 0 {
+		labels = map[string]string{}
+	}
 	for k, v := range cr.Spec.GetUserDefinedLabels() {
 		labels[k] = v
 	}
