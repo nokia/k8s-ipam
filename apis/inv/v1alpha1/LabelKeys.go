@@ -47,4 +47,6 @@ const (
 	NephioTopologyPlaneIndex = "topo.nephio.org/plane-index"
 	NephioTopologyRackIndex  = "topo.nephio.org/rack-index"
 	NephioTopologyNodeIndex  = "topo.nephio.org/node-index"
+
+	RevisionHash = "nephio.org/revision-hash"
 )
