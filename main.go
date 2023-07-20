@@ -39,6 +39,7 @@ import (
 	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanclaim"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanindex"
+	_ "github.com/nokia/k8s-ipam/controllers/node"
 
 	//_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanvlan"
