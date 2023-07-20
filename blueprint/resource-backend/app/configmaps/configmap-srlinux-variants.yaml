@@ -5,7 +5,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: srlinux-variants
+  name: srlinux.nokia.com-variants
   annotations: {}
 data:
   ixrd1: |

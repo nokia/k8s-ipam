@@ -5,7 +5,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: srlinux-topomac-script
+  name: srlinux.nokia.com-topomac-script
   annotations: {}
 data:
   topomac.sh: |

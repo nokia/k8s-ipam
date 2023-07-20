@@ -84,8 +84,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 		ctrl.NewControllerManagedBy(mgr).
 			Named("Node").
 			For(&invv1alpha1.Node{}).
-			//Owns(&invv1alpha1.Endpoint{}).
-			//Owns(&invv1alpha1.Target{}).
+			Owns(&invv1alpha1.Endpoint{}).
+			Owns(&invv1alpha1.Target{}).
 			Complete(r)
 }
 
@@ -140,6 +140,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	// update labels in case they are not set
+	cr.Labels[invv1alpha1.NephioNodeNameKey] = cr.GetName()
+	cr.Labels[invv1alpha1.NephioProviderKey] = cr.Spec.Provider
 	cr.SetConditions(resourcev1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }

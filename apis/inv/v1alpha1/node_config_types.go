@@ -63,5 +63,5 @@ var (
 	NodeConfigKind             = reflect.TypeOf(NodeConfig{}).Name()
 	NodeConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: NodeConfigKind}.String()
 	NodeConfigKindAPIVersion   = NodeConfigKind + "." + GroupVersion.String()
-	NodeCOnfigGroupVersionKind = GroupVersion.WithKind(NodeConfigKind)
+	NodeConfigGroupVersionKind = GroupVersion.WithKind(NodeConfigKind)
 )

@@ -7,7 +7,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: srlinux-k8s-entrypoint
+  name: srlinux.nokia.com-k8s-entrypoint
   annotations: {}
 data:
   k8s-entrypoint.sh: |
