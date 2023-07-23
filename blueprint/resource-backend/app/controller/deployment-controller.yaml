@@ -90,6 +90,7 @@ spec:
         - name: ENABLE_NODES
           value: "true"
         image: europe-docker.pkg.dev/srlinux/eu.gcr.io/resource-backend-controller:latest
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
             path: /healthz
