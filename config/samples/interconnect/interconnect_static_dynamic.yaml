@@ -1,0 +1,47 @@
+apiVersion: topo.nephio.org/v1alpha1
+kind: Interconnect
+metadata:
+  name: static
+spec:
+  links:
+  - name: 'server' + '-' + index + eth0 + switch1 + e1-1
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth0
+      logicalEndpointName: bond0
+      topology: cluster01
+    - topology: dc
+      selector:
+        inv.nephio.org/redundancy-group: rack1
+        inv.nephio.org/rack-index: 0
+        inv.nephio.org/interface-index: index
+  - name: 'server' + '-' + index + eth1 + switch2 + e1-1
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth0
+      logicalEndpointName: bond0
+    - topology: dc
+      selector:
+        topo.nephio.org/redundancy-group: rack1
+        topo.nephio.org/rack-index: 1
+        inv.nephio.org/interface-index: index
+  - name: 'server' + '-' + index + eth3 + switch1 + e1-2
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth3
+      logicalEndpointName: bond1
+    - topology: dc
+      selector:
+        topo.nephio.org/redundancy-group: rack1
+        topo.nephio.org/rack-index: 1
+        inv.nephio.org/interface-index: index
+  - name: 'server' + '-' + index + eth4 + switch2 + e1-2
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth4
+      logicalEndpointName: bond1
+    - topology: dc
+      selector:
+        topo.nephio.org/redundancy-group: rack1
+        topo.nephio.org/rack-index: 1
+        inv.nephio.org/interface-index: index

@@ -187,8 +187,8 @@ func (r *Prefix) GetAddressClaimContext(rtName, nodeName, namespace string, labe
 			resourcev1alpha1.NephioNsnNamespaceKey: namespace,
 		},
 		AddressUserDefinedLabels: map[string]string{
-			invv1alpha1.NephioNodeNameKey:     nodeName,
-			resourcev1alpha1.NephioPurposeKey: "node loopback address",
+			invv1alpha1.NephioInventoryNodeNameKey: nodeName,
+			resourcev1alpha1.NephioPurposeKey:      "node loopback address",
 		},
 	}
 }

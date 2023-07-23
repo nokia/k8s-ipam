@@ -27,32 +27,62 @@ import (
 
 // InterconnectSpec defines the desired state of Interconnect
 type InterconnectSpec struct {
-	// Topology defines the topology to which this interconnect applies
-	Topology string `json:"topology" yaml:"topology"`
 	// Links define the links part of the interconnect
-	Links []InterconnectLink `json:"links,omitempty" yaml:"links,omitempty"`
+	Links []InterconnectLink `json:"links" yaml:"links"`
+	// topologies define the topologies used to interconnect
+	// can either be specified globally (here) or at the endpoint level of the
+	// interconnectLink. When specified globally (here) it can only have 2 topologies
+	// the local topologies will be
+	// +kubebuilder:validation:MaxItems:=2
+	// +kubebuilder:validation:MinItems:=2
+	Topologies []string `json:"topologies,omitempty" yaml:"topologies,omitempty"`
 }
 
 type InterconnectLink struct {
 	Name *string `json:"name,omitempty" yaml:"name,omitempty"`
-	// Lag defines if the interconnect link is part of a link aggregation group
-	// A link aggregation group can be single-homed ot multi-homed based on the endpoint
-	// node name.
-	Lag *bool `json:"lag,omitempty" yaml:"lag,omitempty"`
+	// LogicalLinkIndex defines the index to which this logical link belongs
+	// when using abstract interconnect links this is derived from the link index
+	LogicalLinkIndex *int `json:"LogicalLinkIndex,omitempty" yaml:"LogicalLinkIndex,omitempty"`
+	// Links define the physical links in an interconnect link
+	// this means this is an abstract interconnect link
+	Links *uint32 `json:"links,omitempty" yaml:"links,omitempty"`
+	// lag, vesi
+	Type *string `json:"type,omitempty" yaml:"type,omitempty"`
+
+	Lacp *bool `json:"lacp,omitempty" yaml:"lacp,omitempty"`
 	// Endpoints defines exactly 2 endpoints, the first entry is the local endpoint, the 2nd entry
 	// is the remote endpoint
-	Endpoints []InterconnectLinkEndpoint `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`
+	// +kubebuilder:validation:MaxItems:=2
+	// +kubebuilder:validation:MinItems:=2
+	Endpoints []InterconnectLinkEndpoint `json:"endpoints" yaml:"endpoints"`
+
+	// UserDefinedLabels define metadata  associated to the resource.
+	// defined in the spec to distingiush metadata labels from user defined labels
+	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // InterconnectLinkEndpoint
 type InterconnectLinkEndpoint struct {
+	// topology defines the topology to which this endpoint belongs
+	Topology *string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	// logicalEndpointName
+	LogicalEndpointName *string `json:"logicalEndpointName,omitempty" yaml:"logicalEndpointName,omitempty"`
+
+	// InterfaceName defines the name of the interface on which this interconnect originates/terminates
 	InterfaceName *string `json:"interfaceName,omitempty" yaml:"interfaceName,omitempty"`
-	// NodeName provide the name of the node on which this interconnect originates
+	// NodeName provide the name of the node on which this interconnect originates/terminates
 	// NodeName allows for multi-homing if multiple endpoints of a InterconnectLink reside on
 	// different nodes
 	NodeName *string `json:"nodeName,omitempty" yaml:"nodeName,omitempty"`
+
 	// +kubebuilder:validation:Optional
 	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
+
+	SelectorPolicy *SelectorPolicy `json:"selectorPolicy,omitempty" yaml:"selectorPolicy,omitempty"`
+}
+
+type SelectorPolicy struct {
+	MultiHomedNodes *uint32 `json:"multiHomedNodes,omitempty" yaml:"multiHomedNodes,omitempty"`
 }
 
 // InterconnectStatus defines the observed state of Interconnect

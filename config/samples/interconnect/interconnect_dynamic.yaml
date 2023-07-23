@@ -1,0 +1,37 @@
+apiVersion: topo.nephio.org/v1alpha1
+kind: Interconnect
+metadata:
+  name: dynamic
+spec:
+  topologies:
+  - cluster0
+  - nephio
+  links:
+  - name: logical-link1
+    logicalLinks: 2
+    type: lag
+    endpoints:
+    - selector:
+        topo.nephio.org/topology: cluster01
+        topo.nephio.org/node-name: 'server' + '-' + index
+      logicalEndpointName: bond0
+    - selector:
+        topo.nephio.org/topology: dc
+        topo.nephio.org/redundancy-group: rack1
+        inv.nephio.org/interface-index: index
+      selectorPolicy:
+        multiHomedNodes: 2
+  - name: logical-link2
+    logicalLinks: 2
+    type: lag
+    endpoints:
+    - selector:
+        topo.nephio.org/topology: cluster01
+        topo.nephio.org/node-name: 'server' + '-' + index
+      selectorPolicy:
+        logicalEndpointName: bond1
+    - selector:
+        topo.nephio.org/topology: dc
+        topo.nephio.org/redundancy-group: rack1
+      selectorPolicy:
+        multiHomedNodes: 2

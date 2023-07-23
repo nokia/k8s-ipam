@@ -97,8 +97,8 @@ func validateLink2Nodes(topo topov1alpha1.RawTopology) error {
 	invalidNodeRef := []string{}
 	for _, l := range topo.Spec.Links {
 		for _, e := range l.Endpoints {
-			epString := fmt.Sprintf("%s:%s", e.NodeName, e.InterfaceName)
-			if _, ok := topo.Spec.Nodes[e.NodeName]; !ok {
+			epString := fmt.Sprintf("%s:%s", *e.NodeName, *e.InterfaceName)
+			if _, ok := topo.Spec.Nodes[*e.NodeName]; !ok {
 				invalidNodeRef = append(invalidNodeRef, epString)
 			}
 		}
@@ -115,7 +115,7 @@ func validateLinks(topo topov1alpha1.RawTopology) error {
 	dups := []string{}
 	for _, l := range topo.Spec.Links {
 		for _, e := range l.Endpoints {
-			epString := fmt.Sprintf("%s:%s", e.NodeName, e.InterfaceName)
+			epString := fmt.Sprintf("%s:%s", *e.NodeName, *e.InterfaceName)
 			if _, ok := endpoints[epString]; ok {
 				dups = append(dups, epString)
 			}
@@ -147,14 +147,13 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 			invv1alpha1.NodeSpec{
 				UserDefinedLabels: n.UserDefinedLabels,
 				Location:          n.Location,
-				ParametersRef:     n.ParametersRef,
 				Provider:          n.Provider,
 			},
 			invv1alpha1.NodeStatus{},
 		))
 	}
 	for _, l := range topo.Spec.Links {
-		eps := make([]invv1alpha1.LinkEndpoint, 0, 2)
+		eps := make([]invv1alpha1.EndpointSpec, 0, 2)
 
 		// define labels - use all the node labels
 		labels := map[string]string{}
@@ -163,34 +162,32 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 			labels[k] = v
 		}
 		for _, e := range l.Endpoints {
-			for k, v := range topo.Spec.Nodes[e.NodeName].Labels {
+			for k, v := range topo.Spec.Nodes[*e.NodeName].Labels {
 				labels[k] = v
 			}
 		}
 
 		for _, e := range l.Endpoints {
-			eps = append(eps, invv1alpha1.LinkEndpoint{
-				NodeName:      e.NodeName,
-				InterfaceName: e.InterfaceName,
+			eps = append(eps, invv1alpha1.EndpointSpec{
+				NodeName:      *e.NodeName,
+				InterfaceName: *e.InterfaceName,
 			})
 
 			// the endpoint provider is the node provider
 			epSpec := invv1alpha1.EndpointSpec{
-				EndpointProperties: e,
-				Provider: invv1alpha1.Provider{
-					Provider: topo.Spec.Nodes[e.NodeName].Provider,
-				},
+				NodeName:      *e.NodeName,
+				InterfaceName: *e.InterfaceName,
 			}
 
 			epLabels := map[string]string{}
 			for k, v := range labels {
 				epLabels[k] = v
 			}
-			epLabels[invv1alpha1.NephioProviderKey] = topo.Spec.Nodes[e.NodeName].Provider
+			epLabels[invv1alpha1.NephioProviderKey] = topo.Spec.Nodes[*e.NodeName].Provider
 
 			endpoints = append(endpoints, invv1alpha1.BuildEndpoint(
 				metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName),
+					Name:      fmt.Sprintf("%s-%s", *e.NodeName, *e.InterfaceName),
 					Namespace: topo.Namespace,
 					Labels:    epLabels,
 				},
@@ -207,14 +204,8 @@ func generateTopoDetails(topo topov1alpha1.RawTopology) error {
 				Labels:    labels,
 			},
 			invv1alpha1.LinkSpec{
-				Endpoints: eps,
-				LinkProperties: invv1alpha1.LinkProperties{
-					LagMember:         l.LagMember,
-					Lacp:              l.Lacp,
-					Lag:               l.Lag,
-					UserDefinedLabels: l.UserDefinedLabels,
-					ParametersRef:     l.ParametersRef,
-				},
+				Endpoints:         eps,
+				UserDefinedLabels: l.UserDefinedLabels,
 			},
 			invv1alpha1.LinkStatus{},
 		))

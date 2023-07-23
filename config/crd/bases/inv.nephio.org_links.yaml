@@ -46,9 +46,19 @@ spec:
                 description: Endpoints define the node + interface endpoints associated
                   with this link
                 items:
+                  description: EndpointSpec defines the desired state of Endpoint
                   properties:
                     interfaceName:
                       type: string
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: Labels as user defined labels
+                      type: object
+                    lacpFallback:
+                      description: LacpFallback defines if the link is part of a lag
+                        mutually exclusive with Lag parameter
+                      type: boolean
                     nodeName:
                       type: string
                   required:
@@ -63,55 +73,6 @@ spec:
                   type: string
                 description: Labels as user defined labels
                 type: object
-              lacp:
-                description: Lacp defines if the lag enabled LACP
-                type: boolean
-              lag:
-                description: lag defines if the link is a lag mutually exclusive with
-                  LagMember parameter
-                type: boolean
-              lagMember:
-                description: LagMember defines if the link is part of a lag mutually
-                  exclusive with Lag parameter
-                type: boolean
-              parametersRef:
-                description: ParametersRef points to the vendor or implementation
-                  specific params for the network.
-                properties:
-                  apiVersion:
-                    description: API version of the referent.
-                    type: string
-                  fieldPath:
-                    description: 'If referring to a piece of an object instead of
-                      an entire object, this string should contain a valid JSON/Go
-                      field access statement, such as desiredState.manifest.containers[2].
-                      For example, if the object reference is to a container within
-                      a pod, this would take on a value like: "spec.containers{name}"
-                      (where "name" refers to the name of the container that triggered
-                      the event) or if no container name is specified "spec.containers[2]"
-                      (container with index 2 in this pod). This syntax is chosen
-                      only to have some well-defined way of referencing a part of
-                      an object. TODO: this design is not final and this field is
-                      subject to change in the future.'
-                    type: string
-                  kind:
-                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                    type: string
-                  namespace:
-                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                    type: string
-                  resourceVersion:
-                    description: 'Specific resourceVersion to which this reference
-                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                    type: string
-                  uid:
-                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
             required:
             - endpoints
             type: object

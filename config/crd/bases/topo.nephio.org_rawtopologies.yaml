@@ -50,32 +50,92 @@ spec:
               links:
                 items:
                   properties:
+                    LogicalLinkIndex:
+                      description: LogicalLinkIndex defines the index to which this
+                        logical link belongs when using abstract interconnect links
+                        this is derived from the link index
+                      type: integer
                     endpoints:
+                      description: Endpoints defines exactly 2 endpoints, the first
+                        entry is the local endpoint, the 2nd entry is the remote endpoint
                       items:
+                        description: InterconnectLinkEndpoint
                         properties:
                           interfaceName:
+                            description: InterfaceName defines the name of the interface
+                              on which this interconnect originates/terminates
                             type: string
-                          labels:
-                            additionalProperties:
-                              type: string
-                            description: Labels as user defined labels
-                            type: object
-                          lacpFallback:
-                            description: LacpFallback defines if the link is part
-                              of a lag mutually exclusive with Lag parameter
-                            type: boolean
-                          multiHoming:
-                            description: MultiHoming defines if the endpoint is multi-homed
-                            type: boolean
-                          multiHomingName:
-                            description: MultiHomingName defines the name of the multi-homing
+                          logicalEndpointName:
+                            description: logicalEndpointName
                             type: string
                           nodeName:
+                            description: NodeName provide the name of the node on
+                              which this interconnect originates/terminates NodeName
+                              allows for multi-homing if multiple endpoints of a InterconnectLink
+                              reside on different nodes
                             type: string
-                        required:
-                        - interfaceName
-                        - nodeName
+                          selector:
+                            description: A label selector is a label query over a
+                              set of resources. The result of matchLabels and matchExpressions
+                              are ANDed. An empty label selector matches all objects.
+                              A null label selector matches no objects.
+                            properties:
+                              matchExpressions:
+                                description: matchExpressions is a list of label selector
+                                  requirements. The requirements are ANDed.
+                                items:
+                                  description: A label selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: key is the label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: operator represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists and DoesNotExist.
+                                      type: string
+                                    values:
+                                      description: values is an array of string values.
+                                        If the operator is In or NotIn, the values
+                                        array must be non-empty. If the operator is
+                                        Exists or DoesNotExist, the values array must
+                                        be empty. This array is replaced during a
+                                        strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: matchLabels is a map of {key,value} pairs.
+                                  A single {key,value} in the matchLabels map is equivalent
+                                  to an element of matchExpressions, whose key field
+                                  is "key", the operator is "In", and the values array
+                                  contains only "value". The requirements are ANDed.
+                                type: object
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          selectorPolicy:
+                            properties:
+                              multiHomedNodes:
+                                format: int32
+                                type: integer
+                            type: object
+                          topology:
+                            description: topology defines the topology to which this
+                              endpoint belongs
+                            type: string
                         type: object
+                      maxItems: 2
+                      minItems: 2
                       type: array
                     labels:
                       additionalProperties:
@@ -83,55 +143,17 @@ spec:
                       description: Labels as user defined labels
                       type: object
                     lacp:
-                      description: Lacp defines if the lag enabled LACP
                       type: boolean
-                    lag:
-                      description: lag defines if the link is a lag mutually exclusive
-                        with LagMember parameter
-                      type: boolean
-                    lagMember:
-                      description: LagMember defines if the link is part of a lag
-                        mutually exclusive with Lag parameter
-                      type: boolean
-                    parametersRef:
-                      description: ParametersRef points to the vendor or implementation
-                        specific params for the network.
-                      properties:
-                        apiVersion:
-                          description: API version of the referent.
-                          type: string
-                        fieldPath:
-                          description: 'If referring to a piece of an object instead
-                            of an entire object, this string should contain a valid
-                            JSON/Go field access statement, such as desiredState.manifest.containers[2].
-                            For example, if the object reference is to a container
-                            within a pod, this would take on a value like: "spec.containers{name}"
-                            (where "name" refers to the name of the container that
-                            triggered the event) or if no container name is specified
-                            "spec.containers[2]" (container with index 2 in this pod).
-                            This syntax is chosen only to have some well-defined way
-                            of referencing a part of an object. TODO: this design
-                            is not final and this field is subject to change in the
-                            future.'
-                          type: string
-                        kind:
-                          description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                          type: string
-                        name:
-                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                          type: string
-                        namespace:
-                          description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                          type: string
-                        resourceVersion:
-                          description: 'Specific resourceVersion to which this reference
-                            is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                          type: string
-                        uid:
-                          description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                          type: string
-                      type: object
-                      x-kubernetes-map-type: atomic
+                    links:
+                      description: Links define the physical links in an interconnect
+                        link this means this is an abstract interconnect link
+                      format: int32
+                      type: integer
+                    name:
+                      type: string
+                    type:
+                      description: lag, vesi
+                      type: string
                   required:
                   - endpoints
                   type: object
@@ -147,8 +169,11 @@ spec:
                 type: object
               nodes:
                 additionalProperties:
+                  description: NodeSpec defines the desired state of Node
                   properties:
                     address:
+                      description: Address is the address of the mgmt interface of
+                        this node
                       type: string
                     labels:
                       additionalProperties:
@@ -156,17 +181,18 @@ spec:
                       description: Labels as user defined labels
                       type: object
                     location:
-                      description: Location provider the location information where
-                        this resource is located
+                      description: Location defines the location information where
+                        this resource is located in lon/lat coordinates
                       properties:
                         latitude:
                           type: string
                         longitude:
                           type: string
                       type: object
-                    parametersRef:
-                      description: ParametersRef points to the vendor or implementation
-                        specific params for the node.
+                    nodeConfigName:
+                      description: NodeConfigName provides a reference to a node config
+                        resource only name is used, we expect the namespace to be
+                        the same as the node for now
                       properties:
                         apiVersion:
                           description: API version of the referent.

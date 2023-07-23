@@ -32,6 +32,8 @@ rules:
   - endpoints/status
   - links
   - links/status
+  - logicalendpoints
+  - logicalendpoints/status
   - nodeconfigs
   - nodeconfigs/status
   - nodemodels
@@ -53,8 +55,6 @@ rules:
   resources:
   - interconnects
   - interconnects/status
-  - interconnectsets
-  - interconnectsets/status
   - rawtopologies
   - rawtopologies/status
   verbs:
@@ -74,6 +74,19 @@ rules:
   - ipprefixes/status
   - networkinstances
   - networkinstances/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
+- apiGroups:
+  - auto.nephio.org
+  resources:
+  - replicasets
+  - replicasets/status
   verbs:
   - get
   - list

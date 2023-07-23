@@ -1,0 +1,34 @@
+apiVersion: topo.nephio.org/v1alpha1
+kind: Interconnect
+metadata:
+  name: static
+spec:
+  links:
+  - name: 'server' + '-' + index + eth0 + switch1 + e1-1
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth0
+      logicalEndpointName: bond0
+    - nodeName: switch
+      interfaceName: e1-1
+  - name: 'server' + '-' + index + eth1 + switch2 + e1-1
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth0
+      logicalEndpointName: bond0
+    - nodeName: switch
+      interfaceName: e1-1
+  - name: 'server' + '-' + index + eth3 + switch1 + e1-2
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth3
+      logicalEndpointName: bond1
+    - nodeName: switch
+      interfaceName: e1-2
+  - name: 'server' + '-' + index + eth4 + switch2 + e1-2
+    endpoints:
+    - nodeName: 'server' + '-' + index
+      interfaceName: eth4
+      logicalEndpointName: bond1
+    - nodeName: switch
+      interfaceName: e1-2

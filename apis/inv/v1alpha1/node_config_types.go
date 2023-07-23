@@ -18,12 +18,15 @@ package v1alpha1
 import (
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type NodeConfigSpec struct {
-	// Model encodes SR Linux variant (ixr-d3, ixr-6e, etc)
+	// Provider specifies the provider implementing this node config.
+	Provider string `json:"provider" yaml:"provider"`
+	// Model encodes variants (e.g. srlinux ixr-d3, ixr-6e, etc)
 	Model *string `json:"model,omitempty"`
 	// Image used to bootup the container
 	Image *string `json:"image,omitempty"`
@@ -33,6 +36,10 @@ type NodeConfigSpec struct {
 	LicenseKey *string `json:"licenseKey,omitempty"`
 	// Constraints defaines the key/value constraints e.g. cpu, memory
 	Constraints map[string]string `json:"constraints,omitempty"`
+	// ParametersRef points to the vendor or implementation specific params for the
+	// node.
+	// +optional
+	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
 }
 
 //+kubebuilder:object:root=true

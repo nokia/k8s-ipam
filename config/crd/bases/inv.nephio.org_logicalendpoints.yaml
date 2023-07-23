@@ -5,17 +5,17 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: targets.inv.nephio.org
+  name: logicalendpoints.inv.nephio.org
 spec:
   group: inv.nephio.org
   names:
     categories:
     - nephio
     - inv
-    kind: Target
-    listKind: TargetList
-    plural: targets
-    singular: target
+    kind: LogicalEndpoint
+    listKind: LogicalEndpointList
+    plural: logicalendpoints
+    singular: logicalendpoint
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -25,7 +25,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Target is the Schema for the vlan API
+        description: LogicalEndpoint is the Schema for the vlan API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,83 +40,51 @@ spec:
           metadata:
             type: object
           spec:
-            description: TargetSpec defines the desired state of Target
+            description: LogicalEndpointSpec defines the desired state of LogicalEndpoint
             properties:
-              address:
-                description: Address defines the address of the mgmt ip address of
-                  the target
-                type: string
-              encoding:
-                enum:
-                - unknown
-                - JSON
-                - JSON_IETF
-                - bytes
-                - protobuf
-                - ASCII
-                type: string
-              insecure:
-                type: boolean
-              parametersRef:
-                description: ParametersRef points to the vendor or implementation
-                  specific params for the target.
-                properties:
-                  apiVersion:
-                    description: API version of the referent.
-                    type: string
-                  fieldPath:
-                    description: 'If referring to a piece of an object instead of
-                      an entire object, this string should contain a valid JSON/Go
-                      field access statement, such as desiredState.manifest.containers[2].
-                      For example, if the object reference is to a container within
-                      a pod, this would take on a value like: "spec.containers{name}"
-                      (where "name" refers to the name of the container that triggered
-                      the event) or if no container name is specified "spec.containers[2]"
-                      (container with index 2 in this pod). This syntax is chosen
-                      only to have some well-defined way of referencing a part of
-                      an object. TODO: this design is not final and this field is
-                      subject to change in the future.'
-                    type: string
-                  kind:
-                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                    type: string
-                  namespace:
-                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                    type: string
-                  resourceVersion:
-                    description: 'Specific resourceVersion to which this reference
-                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                    type: string
-                  uid:
-                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                    type: string
+              endpoints:
+                description: Endpoints define the endpoints that belong to the logical
+                  link this can be more than 2
+                items:
+                  description: EndpointSpec defines the desired state of Endpoint
+                  properties:
+                    interfaceName:
+                      type: string
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: Labels as user defined labels
+                      type: object
+                    lacpFallback:
+                      description: LacpFallback defines if the link is part of a lag
+                        mutually exclusive with Lag parameter
+                      type: boolean
+                    nodeName:
+                      type: string
+                  required:
+                  - interfaceName
+                  - nodeName
+                  type: object
+                type: array
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels as user defined labels
                 type: object
-                x-kubernetes-map-type: atomic
-              protocol:
-                enum:
-                - unknown
-                - gnmi
-                - netconf
-                type: string
-              provider:
-                description: Provider specifies the provider using this target.
-                type: string
-              secretName:
-                description: SecretName defines the name of the secret
-                type: string
-              skipVerify:
+              lacp:
+                description: Lacp defines if the lag enabled LACP
                 type: boolean
-              tlsSecretName:
+              lagName:
+                description: we dont set multihoming as it can be derived from the
+                  endpoints MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"`
+                  LagName defines the lag name for the logical single-homed or multi-homed
+                  endpoint
                 type: string
             required:
-            - provider
-            - secretName
+            - endpoints
             type: object
           status:
-            description: TargetStatus defines the observed state of Target
+            description: LogicalEndpointStatus defines the observed state of LogicalEndpoint
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -178,6 +146,17 @@ spec:
                   - type
                   type: object
                 type: array
+              esi:
+                description: ESI defines the ethernet segment identifier of the logical
+                  link if set this is a multi-homed logical endpoint the ESI is a
+                  global unique identifier within the administrative domain/topology
+                format: int32
+                type: integer
+              lagId:
+                description: LagId defines the lag id for the logical single-homed
+                  or multi-homed endpoint
+                format: int32
+                type: integer
             type: object
         type: object
     served: true

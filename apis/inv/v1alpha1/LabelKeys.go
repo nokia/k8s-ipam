@@ -18,18 +18,18 @@ package v1alpha1
 
 const (
 	// system defined inventory
-	NephioPositionKey      = "inv.nephio.org/position" // spine, leaf, cluster
-	NephioVendorTypeKey    = "inv.nephio.org/vendor-type"
-	NephioPlatformKey      = "inv.nephio.org/platform"
-	NephioMACAddressKey    = "nephio.org/mac-address"
-	NephioSerialNumberKey  = "nephio.org/serial-number"
-	NephioGatewayKey       = "nephio.org/gateway"
-	NephioLinkTypeKey      = "nephio.org/link-type" // infra, loop
-	NephioLink2NodeKey     = "nephio.org/link2node" // 0 or 1
-	NephioEndpointGroupKey = "nephio.org/endpoint-group"
-	NephioNodeNameKey      = "nephio.org/node-name"
-	NephioLinkNameKey      = "nephio.org/link-name"
-	NephioInterfaceNameKey = "nephio.org/interface-name"
+	NephioPositionKey               = "inv.nephio.org/position" // spine, leaf, cluster
+	NephioVendorTypeKey             = "inv.nephio.org/vendor-type"
+	NephioPlatformKey               = "inv.nephio.org/platform"
+	NephioMACAddressKey             = "inv.nephio.org/mac-address"
+	NephioSerialNumberKey           = "inv.nephio.org/serial-number"
+	NephioGatewayKey                = "inv.nephio.org/gateway"
+	NephioLinkTypeKey               = "inv.nephio.org/link-type" // infra, loop
+	NephioLink2NodeKey              = "inv.nephio.org/link2node" // 0 or 1
+	NephioEndpointGroupKey          = "inv.nephio.org/endpoint-group"
+	NephioInventoryNodeNameKey      = "inv.nephio.org/node-name"
+	NephioInventoryLinkNameKey      = "inv.nephio.org/link-name"
+	NephioInventoryInterfaceNameKey = "inv.nephio.org/interface-name"
 	// user defined common
 	NephioTopologyKey         = "topo.nephio.org/topology"
 	NephioClusterNameKey      = "nephio.org/cluster-name"
@@ -41,12 +41,13 @@ const (
 	NephioProviderKey         = "nephio.org/provider"
 	NephioWiringKey           = "nephio.org/wiring"
 	// user defined topology
-	NephioTopologyPosition   = "topo.nephio.org/position"
-	NephioTopologyRack       = "topo.nephio.org/rack"
-	NephioTopologyPodIndex   = "topo.nephio.org/pod-index"
-	NephioTopologyPlaneIndex = "topo.nephio.org/plane-index"
-	NephioTopologyRackIndex  = "topo.nephio.org/rack-index"
-	NephioTopologyNodeIndex  = "topo.nephio.org/node-index"
+	NephioInventoryRack                = "inv.nephio.org/rack"
+	NephioInventoryPodIndex            = "inv.nephio.org/pod-index"
+	NephioInventoryPlaneIndex          = "inv.nephio.org/plane-index"
+	NephioInventoryRackIndex           = "inv.nephio.org/rack-index"
+	NephioInventoryNodeIndex           = "inv.nephio.org/node-index"
+	NephioInventoryNodeRedundancyGroup = "inv.nephio.org/node-redundancy-group"
+	NephioInventoryEndpointIndex       = "inv.nephio.org/interface-index"
 
 	RevisionHash = "nephio.org/revision-hash"
 )

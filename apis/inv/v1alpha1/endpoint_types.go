@@ -27,25 +27,12 @@ import (
 
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
-	EndpointProperties `json:",inline" yaml:",inline"`
-	Provider           `json:",inline" yaml:",inline"`
-}
-
-type EndpointProperties struct {
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
 	NodeName      string `json:"nodeName" yaml:"nodeName"`
 	// LacpFallback defines if the link is part of a lag
 	// mutually exclusive with Lag parameter
 	// +optional
 	LacpFallback *bool `json:"lacpFallback,omitempty" yaml:"lacpFallback,omitempty"`
-
-	// MultiHoming defines if the endpoint is multi-homed
-	// +optional
-	MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"`
-
-	// MultiHomingName defines the name of the multi-homing
-	// +optional
-	MultiHomingName *string `json:"multiHomingName,omitempty" yaml:"multiHomingName,omitempty"`
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels

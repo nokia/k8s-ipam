@@ -2,7 +2,9 @@ apiVersion: inv.nephio.org/v1alpha1
 kind: NodeModel
 metadata:
   name: srlinux.nokia.com-ixrd3l
+  annotations: {}
 spec:
+  provider: srlinux.nokia.com
   interfaces:
   - name: "e1-1"
     speed: "10G"

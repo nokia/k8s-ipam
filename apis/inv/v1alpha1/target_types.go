@@ -49,13 +49,10 @@ const (
 type TargetSpec struct {
 	// Provider specifies the provider using this target.
 	Provider string `json:"provider" yaml:"provider"`
-	// ParametersRef points to the vendor or implementation specific params for the
-	// target.
-	// +optional
-	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
-
-	Address    *string `json:"address,omitempty" yaml:"address,omitempty"`
-	SecretName string  `json:"secretName" yaml:"secretName"`
+	// Address defines the address of the mgmt ip address of the target
+	Address *string `json:"address,omitempty" yaml:"address,omitempty"`
+	// SecretName defines the name of the secret
+	SecretName string `json:"secretName" yaml:"secretName"`
 	//+kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;
 	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	Insecure *bool     `json:"insecure,omitempty" yaml:"insecure,omitempty"`
@@ -63,6 +60,10 @@ type TargetSpec struct {
 	Protocol      *Protocol `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 	SkipVerify    *bool     `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
 	TLSSecretName *string   `json:"tlsSecretName,omitempty" yaml:"tlsSecretName,omitempty"`
+	// ParametersRef points to the vendor or implementation specific params for the
+	// target.
+	// +optional
+	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
 }
 
 // TargetStatus defines the observed state of Target

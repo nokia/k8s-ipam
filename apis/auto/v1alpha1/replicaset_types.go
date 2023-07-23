@@ -44,8 +44,10 @@ type ReplicaSetSpec struct {
 }
 
 type ObjectSelector struct {
-	SelectorVariable string `json:"selectorVariable" yaml:"selectorVariable"`
+	// VariableName is the name of the variable that is used for variable propagation
+	VariableName string `json:"variableName" yaml:"variableName"`
 
+	// LabelSelector to select the objects based on metadata
 	metav1.LabelSelector `json:",inline" yaml:",inline"`
 	// APIVersion of the target resources
 	// +optional

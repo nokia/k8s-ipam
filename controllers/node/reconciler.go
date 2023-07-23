@@ -18,7 +18,9 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	"github.com/henderiw-nephio/network-node-operator/pkg/node"
@@ -29,12 +31,14 @@ import (
 	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/resources"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -86,6 +90,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 			For(&invv1alpha1.Node{}).
 			Owns(&invv1alpha1.Endpoint{}).
 			Owns(&invv1alpha1.Target{}).
+			Watches(&invv1alpha1.NodeConfig{}, &nodeConfigEventHandler{client: mgr.GetClient()}).
+			Watches(&invv1alpha1.NodeModel{}, &nodeModelEventHandler{client: mgr.GetClient()}).
 			Complete(r)
 }
 
@@ -111,7 +117,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// requeued implicitly because we return an error.
 		if resource.IgnoreNotFound(err) != nil {
 			r.l.Error(err, errGetCr)
-			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+			return ctrl.Result{}, perrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return reconcile.Result{}, nil
 	}
@@ -121,7 +127,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
 			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		r.l.Info("Successfully deleted resource")
 		return reconcile.Result{Requeue: false}, nil
@@ -132,48 +138,99 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if err := r.populateResources(ctx, cr); err != nil {
+	usedRefs, err := r.populateResources(ctx, cr)
+	if err != nil {
+		// populate resources failed
+		if errd := r.resources.APIDelete(ctx, cr); errd != nil {
+			err = errors.Join(err, errd)
+			r.l.Error(err, "cannot populate and delete existingresources")
+			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		cr.Status.UsedNodeConfigRef = nil
+		cr.Status.UsedNodeModelRef = nil
 		r.l.Error(err, "cannot populate resources")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	cr.Status.UsedNodeConfigRef = usedRefs.usedNodeConfigref
+	cr.Status.UsedNodeModelRef = usedRefs.usedNodeModelref
 	// update labels in case they are not set
-	cr.Labels[invv1alpha1.NephioNodeNameKey] = cr.GetName()
+	if len(cr.Labels) == 0 {
+		cr.Labels = map[string]string{}
+	}
+	cr.Labels[invv1alpha1.NephioInventoryNodeNameKey] = cr.GetName()
 	cr.Labels[invv1alpha1.NephioProviderKey] = cr.Spec.Provider
+	if err := r.Apply(ctx, cr); err != nil {
+		r.l.Error(err, "cannot update labels on resource")
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
+		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	if cr.Status.UsedNodeConfigRef != nil {
+		r.l.Info("cr status", "usedConfig", cr.Status.UsedNodeConfigRef)
+	}
+	if cr.Status.UsedNodeModelRef != nil {
+		r.l.Info("cr status", "usedModel", cr.Status.UsedNodeModelRef)
+	}
+
 	cr.SetConditions(resourcev1alpha1.Ready())
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	return ctrl.Result{}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
-func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node) error {
-	// initialize the resource list
-	r.resources.Init()
+func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node) (*usedRefs, error) {
+	// initialize the resource list + provide the topology key
+	r.resources.Init(client.MatchingLabels{
+		invv1alpha1.NephioTopologyKey: cr.GetLabels()[invv1alpha1.NephioTopologyKey],
+	})
 	// build target CR and add it to the resource inventory
 	r.resources.AddNewResource(buildTarget(cr))
 
 	// get the specific provider implementation of the network device
 	node, err := r.nodeRegistry.NewNodeOfProvider(cr.Spec.Provider, r.Client, r.scheme)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// get the node config associated to the node
 	nc, err := node.GetNodeConfig(ctx, cr)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	usedRefs := &usedRefs{}
+	if nc.APIVersion != "" && nc.Kind != "" {
+		usedRefs.usedNodeConfigref = &corev1.ObjectReference{
+			APIVersion: nc.APIVersion,
+			Kind:       nc.Kind,
+			Name:       nc.Name,
+			Namespace:  nc.Namespace,
+		}
 	}
 	// get interfaces
 	nm, err := node.GetInterfaces(ctx, nc)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	usedRefs.usedNodeModelref = &corev1.ObjectReference{
+		APIVersion: nm.APIVersion,
+		Kind:       nm.Kind,
+		Name:       nm.Name,
+		Namespace:  nm.Namespace,
 	}
 	// build endpoints based on the node model
-	for _, itfce := range nm.Spec.Interfaces {
-		r.resources.AddNewResource(buildEndpoint(cr, itfce))
+	for epIdx, itfce := range nm.Spec.Interfaces {
+		r.resources.AddNewResource(buildEndpoint(cr, itfce, epIdx))
 	}
 
-	return r.resources.APIApply(ctx)
+	r.l.Info("status", "usedModelConfig", cr.Status.UsedNodeModelRef.String())
+
+	return usedRefs, r.resources.APIApply(ctx, cr)
+}
+
+type usedRefs struct {
+	usedNodeConfigref *corev1.ObjectReference
+	usedNodeModelref  *corev1.ObjectReference
 }
 
 func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
@@ -185,9 +242,8 @@ func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 		labels[k] = v
 	}
 	targetSpec := invv1alpha1.TargetSpec{
-		ParametersRef: cr.Spec.ParametersRef,
-		Provider:      cr.Spec.Provider,
-		SecretName:    cr.Spec.Provider,
+		Provider:   cr.Spec.Provider,
+		SecretName: cr.Spec.Provider,
 	}
 	if cr.Spec.Address != nil {
 		targetSpec.Address = cr.Spec.Address
@@ -204,23 +260,19 @@ func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 	)
 }
 
-func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface) *invv1alpha1.Endpoint {
+func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface, epIdx int) *invv1alpha1.Endpoint {
 	labels := map[string]string{}
 	labels[invv1alpha1.NephioTopologyKey] = cr.GetLabels()[invv1alpha1.NephioTopologyKey]
 	labels[invv1alpha1.NephioProviderKey] = cr.GetLabels()[invv1alpha1.NephioProviderKey]
-	labels[invv1alpha1.NephioNodeNameKey] = cr.GetLabels()[invv1alpha1.NephioNodeNameKey]
-	labels[invv1alpha1.NephioInterfaceNameKey] = itfce.Name
+	labels[invv1alpha1.NephioInventoryNodeNameKey] = cr.GetLabels()[invv1alpha1.NephioInventoryNodeNameKey]
+	labels[invv1alpha1.NephioInventoryInterfaceNameKey] = itfce.Name
+	labels[invv1alpha1.NephioInventoryEndpointIndex] = strconv.Itoa(epIdx)
 	for k, v := range cr.Spec.GetUserDefinedLabels() {
 		labels[k] = v
 	}
 	epSpec := invv1alpha1.EndpointSpec{
-		EndpointProperties: invv1alpha1.EndpointProperties{
-			NodeName:      cr.GetName(),
-			InterfaceName: itfce.Name,
-		},
-		Provider: invv1alpha1.Provider{
-			Provider: cr.Spec.Provider,
-		},
+		NodeName:      cr.GetName(),
+		InterfaceName: itfce.Name,
 	}
 
 	return invv1alpha1.BuildEndpoint(

@@ -178,8 +178,8 @@ func validateLink2Nodes(topo *topov1alpha1.RawTopology) error {
 	invalidNodeRef := []string{}
 	for _, l := range topo.Spec.Links {
 		for _, e := range l.Endpoints {
-			epString := fmt.Sprintf("%s:%s", e.NodeName, e.InterfaceName)
-			if _, ok := topo.Spec.Nodes[e.NodeName]; !ok {
+			epString := fmt.Sprintf("%s:%s", *e.NodeName, *e.InterfaceName)
+			if _, ok := topo.Spec.Nodes[*e.NodeName]; !ok {
 				invalidNodeRef = append(invalidNodeRef, epString)
 			}
 		}
@@ -196,7 +196,7 @@ func validateLinks(topo *topov1alpha1.RawTopology) error {
 	dups := []string{}
 	for _, l := range topo.Spec.Links {
 		for _, e := range l.Endpoints {
-			epString := fmt.Sprintf("%s:%s", e.NodeName, e.InterfaceName)
+			epString := fmt.Sprintf("%s:%s", *e.NodeName, *e.InterfaceName)
 			if _, ok := endpoints[epString]; ok {
 				dups = append(dups, epString)
 			}
@@ -219,7 +219,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			labels[k] = v
 		}
 		labels[invv1alpha1.NephioTopologyKey] = cr.Name
-		labels[invv1alpha1.NephioNodeNameKey] = nodeName
+		labels[invv1alpha1.NephioInventoryNodeNameKey] = nodeName
 		labels[invv1alpha1.NephioProviderKey] = n.Provider
 		var o client.Object
 		o = invv1alpha1.BuildNode(
@@ -232,7 +232,6 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			invv1alpha1.NodeSpec{
 				UserDefinedLabels: n.UserDefinedLabels,
 				Location:          n.Location,
-				ParametersRef:     n.ParametersRef,
 				Provider:          n.Provider,
 			},
 			invv1alpha1.NodeStatus{},
@@ -240,9 +239,8 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 		resources[corev1.ObjectReference{APIVersion: o.GetResourceVersion(), Kind: o.GetObjectKind().GroupVersionKind().Kind, Name: o.GetName(), Namespace: o.GetNamespace()}] = o
 
 		targetSpec := invv1alpha1.TargetSpec{
-			ParametersRef: n.ParametersRef,
-			Provider:      n.Provider,
-			SecretName:    n.Provider,
+			Provider:   n.Provider,
+			SecretName: n.Provider,
 		}
 		if node.Address != nil {
 			targetSpec.Address = node.Address
@@ -261,7 +259,7 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 
 	}
 	for _, l := range cr.Spec.Links {
-		eps := make([]invv1alpha1.LinkEndpoint, 0, 2)
+		eps := make([]invv1alpha1.EndpointSpec, 0, 2)
 
 		// define labels - use all the node labels
 		labels := map[string]string{}
@@ -270,12 +268,12 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 			labels[k] = v
 		}
 		for _, e := range l.Endpoints {
-			for k, v := range cr.Spec.Nodes[e.NodeName].Labels {
+			for k, v := range cr.Spec.Nodes[*e.NodeName].Labels {
 				labels[k] = v
 			}
-			eps = append(eps, invv1alpha1.LinkEndpoint{
-				NodeName:      e.NodeName,
-				InterfaceName: e.InterfaceName,
+			eps = append(eps, invv1alpha1.EndpointSpec{
+				NodeName:      *e.NodeName,
+				InterfaceName: *e.InterfaceName,
 			})
 		}
 
@@ -284,24 +282,22 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 		for _, e := range l.Endpoints {
 			// the endpoint provider is the node provider
 			epSpec := invv1alpha1.EndpointSpec{
-				EndpointProperties: e,
-				Provider: invv1alpha1.Provider{
-					Provider: cr.Spec.Nodes[e.NodeName].Provider,
-				},
+				InterfaceName: *e.InterfaceName,
+				NodeName:      *e.NodeName,
 			}
 
 			epLabels := map[string]string{}
 			for k, v := range labels {
 				epLabels[k] = v
 			}
-			epLabels[invv1alpha1.NephioProviderKey] = cr.Spec.Nodes[e.NodeName].Provider
-			epLabels[invv1alpha1.NephioNodeNameKey] = e.NodeName
-			epLabels[invv1alpha1.NephioInterfaceNameKey] = e.InterfaceName
-			epLabels[invv1alpha1.NephioLinkNameKey] = linkName
+			epLabels[invv1alpha1.NephioProviderKey] = cr.Spec.Nodes[*e.NodeName].Provider
+			epLabels[invv1alpha1.NephioInventoryNodeNameKey] = *e.NodeName
+			epLabels[invv1alpha1.NephioInventoryInterfaceNameKey] = *e.InterfaceName
+			epLabels[invv1alpha1.NephioInventoryLinkNameKey] = linkName
 
 			o := invv1alpha1.BuildEndpoint(
 				metav1.ObjectMeta{
-					Name:            fmt.Sprintf("%s-%s", e.NodeName, e.InterfaceName),
+					Name:            fmt.Sprintf("%s-%s", *e.NodeName, *e.InterfaceName),
 					Namespace:       cr.Namespace,
 					Labels:          epLabels,
 					OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
@@ -320,14 +316,8 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 			},
 			invv1alpha1.LinkSpec{
-				Endpoints: eps,
-				LinkProperties: invv1alpha1.LinkProperties{
-					LagMember:         l.LagMember,
-					Lacp:              l.Lacp,
-					Lag:               l.Lag,
-					UserDefinedLabels: l.UserDefinedLabels,
-					ParametersRef:     l.ParametersRef,
-				},
+				Endpoints:         eps,
+				UserDefinedLabels: l.UserDefinedLabels,
 			},
 			invv1alpha1.LinkStatus{},
 		)

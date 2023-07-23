@@ -21,7 +21,6 @@ import (
 
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -31,40 +30,11 @@ type LinkSpec struct {
 	// Endpoints define the node + interface endpoints associated with this link
 	// +kubebuilder:validation:MaxItems:=2
 	// +kubebuilder:validation:MinItems:=2
-	Endpoints []LinkEndpoint `json:"endpoints"`
-
-	LinkProperties `json:",inline" yaml:",inline"`
-}
-
-type LinkEndpoint struct {
-	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
-	NodeName      string `json:"nodeName" yaml:"nodeName"`
-}
-
-type LinkProperties struct {
-	// LagMember defines if the link is part of a lag
-	// mutually exclusive with Lag parameter
-	// +optional
-	LagMember *bool `json:"lagMember,omitempty" yaml:"lagMember,omitempty"`
-	// Lacp defines if the lag enabled LACP
-	// +optional
-	Lacp *bool `json:"lacp,omitempty" yaml:"lacp,omitempty"`
-	// lag defines if the link is a lag
-	// mutually exclusive with LagMember parameter
-	// +optional
-	Lag *bool `json:"lag,omitempty" yaml:"lag,omitempty"`
+	Endpoints []EndpointSpec `json:"endpoints"`
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
-
-	// ParametersRef points to the vendor or implementation specific params for the
-	// network.
-	// +optional
-	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
-
-	// Provider specifies the provider implementing this network.
-	//Provider string `json:"provider" yaml:"provider"`
 }
 
 // LinkStatus defines the observed state of Link

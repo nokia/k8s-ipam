@@ -28,21 +28,19 @@ import (
 
 // NodeSpec defines the desired state of Node
 type NodeSpec struct {
+	// Provider specifies the provider implementing this node.
+	Provider string `json:"provider" yaml:"provider"`
+	// Address is the address of the mgmt interface of this node
 	Address *string `json:"address,omitempty" yaml:"address,omitempty"`
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
-
-	// Location provider the location information where this resource is located
+	// Location defines the location information where this resource is located
+	// in lon/lat coordinates
 	Location *Location `json:"location,omitempty" yaml:"location,omitempty"`
-
-	// ParametersRef points to the vendor or implementation specific params for the
-	// node.
-	// +optional
-	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
-
-	// Provider specifies the provider implementing this node.
-	Provider string `json:"provider" yaml:"provider"`
+	// NodeConfigName provides a reference to a node config resource
+	// only name is used, we expect the namespace to be the same as the node for now
+	NodeConfig *corev1.ObjectReference `json:"nodeConfigName,omitempty" yaml:"nodeConfigName,omitempty"`
 }
 
 type Location struct {
@@ -58,6 +56,9 @@ type NodeStatus struct {
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
 	resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	//
+	UsedNodeModelRef  *corev1.ObjectReference `json:"usedNodeModelRef,omitempty" yaml:"usedNodeModelRef,omitempty"`
+	UsedNodeConfigRef *corev1.ObjectReference `json:"usedNodeConfigRef,omitempty" yaml:"usedNodeConfigRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -38,6 +38,7 @@ spec:
             description: TargetSpec defines the desired state of Target
             properties:
               address:
+                description: Address defines the address of the mgmt ip address of the target
                 type: string
               encoding:
                 enum:
@@ -86,6 +87,7 @@ spec:
                 description: Provider specifies the provider using this target.
                 type: string
               secretName:
+                description: SecretName defines the name of the secret
                 type: string
               skipVerify:
                 type: boolean

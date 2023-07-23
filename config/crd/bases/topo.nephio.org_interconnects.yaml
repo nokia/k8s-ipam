@@ -46,6 +46,11 @@ spec:
                 description: Links define the links part of the interconnect
                 items:
                   properties:
+                    LogicalLinkIndex:
+                      description: LogicalLinkIndex defines the index to which this
+                        logical link belongs when using abstract interconnect links
+                        this is derived from the link index
+                      type: integer
                     endpoints:
                       description: Endpoints defines exactly 2 endpoints, the first
                         entry is the local endpoint, the 2nd entry is the remote endpoint
@@ -53,11 +58,16 @@ spec:
                         description: InterconnectLinkEndpoint
                         properties:
                           interfaceName:
+                            description: InterfaceName defines the name of the interface
+                              on which this interconnect originates/terminates
+                            type: string
+                          logicalEndpointName:
+                            description: logicalEndpointName
                             type: string
                           nodeName:
                             description: NodeName provide the name of the node on
-                              which this interconnect originates NodeName allows for
-                              multi-homing if multiple endpoints of a InterconnectLink
+                              which this interconnect originates/terminates NodeName
+                              allows for multi-homing if multiple endpoints of a InterconnectLink
                               reside on different nodes
                             type: string
                           selector:
@@ -109,23 +119,53 @@ spec:
                                 type: object
                             type: object
                             x-kubernetes-map-type: atomic
+                          selectorPolicy:
+                            properties:
+                              multiHomedNodes:
+                                format: int32
+                                type: integer
+                            type: object
+                          topology:
+                            description: topology defines the topology to which this
+                              endpoint belongs
+                            type: string
                         type: object
+                      maxItems: 2
+                      minItems: 2
                       type: array
-                    lag:
-                      description: Lag defines if the interconnect link is part of
-                        a link aggregation group A link aggregation group can be single-homed
-                        ot multi-homed based on the endpoint node name.
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: Labels as user defined labels
+                      type: object
+                    lacp:
                       type: boolean
+                    links:
+                      description: Links define the physical links in an interconnect
+                        link this means this is an abstract interconnect link
+                      format: int32
+                      type: integer
                     name:
                       type: string
+                    type:
+                      description: lag, vesi
+                      type: string
+                  required:
+                  - endpoints
                   type: object
                 type: array
-              topology:
-                description: Topology defines the topology to which this interconnect
-                  applies
-                type: string
+              topologies:
+                description: topologies define the topologies used to interconnect
+                  can either be specified globally (here) or at the endpoint level
+                  of the interconnectLink. When specified globally (here) it can only
+                  have 2 topologies the local topologies will be
+                items:
+                  type: string
+                maxItems: 2
+                minItems: 2
+                type: array
             required:
-            - topology
+            - links
             type: object
           status:
             description: InterconnectStatus defines the observed state of Interconnect

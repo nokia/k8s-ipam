@@ -18,12 +18,20 @@ package v1alpha1
 import (
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type NodeModelSpec struct {
+	// Provider specifies the provider implementing this node config.
+	Provider string `json:"provider" yaml:"provider"`
+	// Interfaces defines the interfaces belonging to the node model
 	Interfaces []NodeModelInterface `json:"interfaces" yaml:"interfaces"`
+	// ParametersRef points to the vendor or implementation specific params for the
+	// node.
+	// +optional
+	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
 }
 
 type NodeModelInterface struct {

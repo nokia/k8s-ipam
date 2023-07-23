@@ -1,0 +1,12 @@
+apiVersion: inv.nephio.org/v1alpha1
+kind: NodeModel
+metadata:
+  name: x.server.com-server1
+  annotations: {}
+spec:
+  provider: x.server.com
+  interfaces:
+  - name: "eth0"
+    speed: "25G"
+  - name: "eth1"
+    speed: "25G"

@@ -30,8 +30,8 @@ import (
 type RawTopologySpec struct {
 	//Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"`
 	// Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
-	Nodes map[string]NodeProperties `json:"nodes" yaml:"nodes"`
-	Links []LinkProperties          `json:"links" yaml:"links"`
+	Nodes map[string]invv1alpha1.NodeSpec `json:"nodes" yaml:"nodes"`
+	Links []InterconnectLink              `json:"links" yaml:"links"`
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
@@ -39,15 +39,6 @@ type RawTopologySpec struct {
 
 	// Location provider the location information where this resource is located
 	Location *invv1alpha1.Location `json:"location,omitempty" yaml:"location,omitempty"`
-}
-
-type NodeProperties struct {
-	invv1alpha1.NodeSpec `json:",inline" yaml:",inline"`
-}
-
-type LinkProperties struct {
-	Endpoints                  []invv1alpha1.EndpointProperties `json:"endpoints" yaml:"endpoints"`
-	invv1alpha1.LinkProperties `json:",inline" yaml:",inline"`
 }
 
 // RawTopologyStatus defines the observed state of RawTopology
