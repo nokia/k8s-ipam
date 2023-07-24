@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
@@ -62,7 +63,7 @@ func (r *nodeConfigEventHandler) add(ctx context.Context, obj runtime.Object, qu
 		return
 	}
 	r.l = log.FromContext(ctx)
-	r.l.Info("event", "kind", obj.GetObjectKind(), "name", cr.GetName())
+	r.l.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
 	// only select the nodes belonging to this provider
 	opts := []client.ListOption{

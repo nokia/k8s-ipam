@@ -141,23 +141,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	usedRefs, err := r.populateResources(ctx, cr)
-	if err != nil {
+	if err := r.populateResources(ctx, cr); err != nil {
 		// populate resources failed
 		if errd := r.resources.APIDelete(ctx, cr); errd != nil {
 			err = errors.Join(err, errd)
 			r.l.Error(err, "cannot populate and delete existingresources")
 			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		cr.Status.UsedNodeConfigRef = nil
-		cr.Status.UsedNodeModelRef = nil
 		r.l.Error(err, "cannot populate resources")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	cr.Status.UsedNodeConfigRef = usedRefs.usedNodeConfigref
-	cr.Status.UsedNodeModelRef = usedRefs.usedNodeModelref
-	// update labels in case they are not set
+	status := cr.Status.DeepCopy()
 	if len(cr.Labels) == 0 {
 		cr.Labels = map[string]string{}
 	}
@@ -169,6 +164,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
+	cr.Status = *status
 	if cr.Status.UsedNodeConfigRef != nil {
 		r.l.Info("cr status", "usedConfig", cr.Status.UsedNodeConfigRef)
 	}
@@ -180,7 +176,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
-func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node) (*usedRefs, error) {
+func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node) error {
 	// initialize the resource list + provide the topology key
 	r.resources.Init(client.MatchingLabels{
 		invv1alpha1.NephioTopologyKey: cr.GetLabels()[invv1alpha1.NephioTopologyKey],
@@ -191,46 +187,34 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 	// get the specific provider implementation of the network device
 	node, err := r.nodeRegistry.NewNodeOfProvider(cr.Spec.Provider, r.Client, r.scheme)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// get the node config associated to the node
 	nc, err := node.GetNodeConfig(ctx, cr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	usedRefs := &usedRefs{}
 	if nc.APIVersion != "" && nc.Kind != "" {
-		usedRefs.usedNodeConfigref = &corev1.ObjectReference{
+		cr.Status.UsedNodeConfigRef = &corev1.ObjectReference{
 			APIVersion: nc.APIVersion,
 			Kind:       nc.Kind,
 			Name:       nc.Name,
 			Namespace:  nc.Namespace,
 		}
 	}
+	cr.Status.UsedNodeModelRef = node.GetNodeModelConfig(ctx, nc)
 	// get interfaces
 	nm, err := node.GetInterfaces(ctx, nc)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	usedRefs.usedNodeModelref = &corev1.ObjectReference{
-		APIVersion: nm.APIVersion,
-		Kind:       nm.Kind,
-		Name:       nm.Name,
-		Namespace:  nm.Namespace,
-	}
+
 	// build endpoints based on the node model
 	for epIdx, itfce := range nm.Spec.Interfaces {
 		r.resources.AddNewResource(buildEndpoint(cr, itfce, epIdx))
 	}
 
-	r.l.Info("status", "usedModelConfig", cr.Status.UsedNodeModelRef.String())
-
-	return usedRefs, r.resources.APIApply(ctx, cr)
-}
-
-type usedRefs struct {
-	usedNodeConfigref *corev1.ObjectReference
-	usedNodeModelref  *corev1.ObjectReference
+	return r.resources.APIApply(ctx, cr)
 }
 
 func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
