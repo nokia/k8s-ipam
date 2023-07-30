@@ -55,6 +55,8 @@ rules:
   resources:
   - interconnects
   - interconnects/status
+  - logicalinterconnects
+  - logicalinterconnects/status
   - rawtopologies
   - rawtopologies/status
   verbs:

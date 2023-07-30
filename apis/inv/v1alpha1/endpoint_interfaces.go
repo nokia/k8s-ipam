@@ -60,3 +60,48 @@ func BuildEndpoint(meta metav1.ObjectMeta, spec EndpointSpec, status EndpointSta
 func (r *Endpoint) GetLinkName() string {
 	return r.Labels[NephioInventoryLinkNameKey]
 }
+
+// IsNodeDiverse returns false if a the endpoint nodeName matches
+// the name in the node slice
+// Only the
+func (r *Endpoint) IsNodeDiverse(idx int, nodes []string) bool {
+	for nodeIdx, nodeName := range nodes {
+		// only for the nodes
+		if nodeIdx != idx && nodeName != "" && nodeName == r.Spec.NodeName {
+			return false
+		}
+	}
+	return true
+}
+
+// IsAllocated returns a bool that indicates if the endpoint
+// was already allocated by another owner
+func (r *Endpoint) IsAllocated(gvkString, name string) bool {
+	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerGvkKey]; ok {
+		if v != gvkString {
+			return true
+		}
+	}
+	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerNsnNameKey]; ok {
+		if v != name {
+			return true
+		}
+	}
+	return false
+}
+
+// WasAllocated returns a bool that indicates if the endpoint
+// was already allocated by this CR
+func (r *Endpoint) WasAllocated(gvkString, name string) bool {
+	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerGvkKey]; ok {
+		if v == gvkString {
+			if v, ok := r.Labels[resourcev1alpha1.NephioOwnerNsnNameKey]; ok {
+				if v == name {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}

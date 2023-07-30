@@ -33,14 +33,15 @@ type ReplicaSetSpec struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty" yaml:"replicas,omitempty"`
 
-	// Label selector for interconnects. Existing ReplicaSets whose pods are
-	// selected by this will be the ones affected by this deployment.
-	// It must match the pod template's labels.
+	// ObjectSelector selects objects that can be served as input to the pipeline
+	// for parameter mutation/validation
 	ObjectSelectors []ObjectSelector `json:"selectors,omitempty" yaml:"selectors,omitempty"`
 
-	// Template is the embedded krm template
+	// Template is the embedded KRM template
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Template runtime.RawExtension `json:"template" yaml:"template"`
+
+	Pipeline *Pipeline `json:"pipeline,omitempty" yaml:"pipeline,omitempty"`
 }
 
 type ObjectSelector struct {
@@ -63,6 +64,19 @@ type ObjectSelector struct {
 
 	// Note: while namespace is not allowed; the namespace
 	// must match the namespace of the ReplicaSet resource
+}
+
+type Pipeline struct {
+	// Mutators defines a list of of KRM functions that mutate the templ;ate.
+	Mutators []Function `yaml:"mutators,omitempty" json:"mutators,omitempty"`
+
+	// Validators defines a list of KRM functions that validate resources.
+	// Validators are not permitted to mutate resources.
+	Validators []Function `yaml:"validators,omitempty" json:"validators,omitempty"`
+}
+
+type Function struct {
+	Expr *string `yaml:"expression,omitempty" json:"expression,omitempty"`
 }
 
 // ReplicaSetStatus defines the observed state of ReplicaSet

@@ -31,7 +31,7 @@ type RawTopologySpec struct {
 	//Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"`
 	// Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
 	Nodes map[string]invv1alpha1.NodeSpec `json:"nodes" yaml:"nodes"`
-	Links []InterconnectLink              `json:"links" yaml:"links"`
+	Links []invv1alpha1.LinkSpec          `json:"links" yaml:"links"`
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels

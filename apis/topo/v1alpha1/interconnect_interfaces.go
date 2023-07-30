@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"fmt"
 
@@ -110,15 +111,16 @@ func (r *Interconnect) IsAllocated(epLabels map[string]string) bool {
 	return false
 }
 
-func (r *Interconnect) GetLogicalLinkIndex(linkIdx int) int {
+func (r *Interconnect) GetLogicalLinkId(linkIdx int) int {
 	if err := r.validateLinkIndex(linkIdx); err != nil {
 		return -1
 	}
 	if r.Spec.Links[linkIdx].Links != nil {
 		return linkIdx
 	}
-	if r.Spec.Links[linkIdx].LogicalLinkIndex != nil {
-		return *r.Spec.Links[linkIdx].LogicalLinkIndex
+	if r.Spec.Links[linkIdx].LogicalLinkId != nil {
+		return *r.Spec.Links[linkIdx].LogicalLinkId
 	}
 	return -1
 }
+*/

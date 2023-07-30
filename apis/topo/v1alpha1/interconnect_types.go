@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"reflect"
 
@@ -40,9 +41,9 @@ type InterconnectSpec struct {
 
 type InterconnectLink struct {
 	Name *string `json:"name,omitempty" yaml:"name,omitempty"`
-	// LogicalLinkIndex defines the index to which this logical link belongs
+	// LogicalLinkId defines the logical link id to which this logical link belongs
 	// when using abstract interconnect links this is derived from the link index
-	LogicalLinkIndex *int `json:"LogicalLinkIndex,omitempty" yaml:"LogicalLinkIndex,omitempty"`
+	LogicalLinkId *int `json:"logicalLinkId,omitempty" yaml:"logicalLinkId,omitempty"`
 	// Links define the physical links in an interconnect link
 	// this means this is an abstract interconnect link
 	Links *uint32 `json:"links,omitempty" yaml:"links,omitempty"`
@@ -81,9 +82,6 @@ type InterconnectLinkEndpoint struct {
 	SelectorPolicy *SelectorPolicy `json:"selectorPolicy,omitempty" yaml:"selectorPolicy,omitempty"`
 }
 
-type SelectorPolicy struct {
-	MultiHomedNodes *uint32 `json:"multiHomedNodes,omitempty" yaml:"multiHomedNodes,omitempty"`
-}
 
 // InterconnectStatus defines the observed state of Interconnect
 type InterconnectStatus struct {
@@ -130,3 +128,4 @@ var (
 		Kind:    InterconnectKind,
 	})
 )
+*/

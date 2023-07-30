@@ -27,8 +27,13 @@ import (
 
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
+	// topology defines the topology to which this endpoint belongs
+	Topology *string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	// InterfaceName provide the name of the interface of the endpoint
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
-	NodeName      string `json:"nodeName" yaml:"nodeName"`
+	// NodeName provide the name of the node on which this
+	// endpoint belongs.
+	NodeName string `json:"nodeName" yaml:"nodeName"`
 	// LacpFallback defines if the link is part of a lag
 	// mutually exclusive with Lag parameter
 	// +optional

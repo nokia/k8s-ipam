@@ -4,17 +4,17 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: replicasets.auto.nephio.org
+  name: logicalinterconnects.topo.nephio.org
 spec:
-  group: auto.nephio.org
+  group: topo.nephio.org
   names:
     categories:
     - nephio
     - inv
-    kind: ReplicaSet
-    listKind: ReplicaSetList
-    plural: replicasets
-    singular: replicaset
+    kind: LogicalInterconnect
+    listKind: LogicalInterconnectList
+    plural: logicalinterconnects
+    singular: logicalinterconnect
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -24,7 +24,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ReplicaSet is the Schema for the ReplicaSet API
+        description: Interconnect is the Schema for the interconnect API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -35,87 +35,81 @@ spec:
           metadata:
             type: object
           spec:
-            description: ReplicaSetSpec defines the desired state of ReplicaSet
             properties:
-              pipeline:
-                properties:
-                  mutators:
-                    description: Mutators defines a list of of KRM functions that mutate the templ;ate.
-                    items:
-                      properties:
-                        expression:
-                          type: string
-                      type: object
-                    type: array
-                  validators:
-                    description: Validators defines a list of KRM functions that validate resources. Validators are not permitted to mutate resources.
-                    items:
-                      properties:
-                        expression:
-                          type: string
-                      type: object
-                    type: array
-                type: object
-              replicas:
-                description: Number of desired replicas. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
-                format: int32
-                type: integer
-              selectors:
-                description: ObjectSelector selects objects that can be served as input to the pipeline for parameter mutation/validation
+              endpoints:
+                description: Endpoints defines exactly 2 endpoints, the first entry is the local endpoint, the 2nd entry is the remote endpoint
                 items:
                   properties:
-                    apiVersion:
-                      description: APIVersion of the target resources
-                      type: string
-                    kind:
-                      description: Kind of the target resources
-                      type: string
-                    matchExpressions:
-                      description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                      items:
-                        description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                        properties:
-                          key:
-                            description: key is the label key that the selector applies to.
-                            type: string
-                          operator:
-                            description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                            type: string
-                          values:
-                            description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                            items:
-                              type: string
-                            type: array
-                        required:
-                        - key
-                        - operator
-                        type: object
-                      type: array
-                    matchLabels:
-                      additionalProperties:
-                        type: string
-                      description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                      type: object
                     name:
-                      description: Name of the target resource
+                      description: Name is the name of logical endpoint. E.g. bond0
                       type: string
-                    variableName:
-                      description: VariableName is the name of the variable that is used for variable propagation
-                      type: string
+                    selector:
+                      description: we need to find a way to indicate selecting endpoints from multiple topologies or multiple nodes within a topologies
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    selectorPolicy:
+                      description: SelectorPolicy defines the policy used to select the endpoints
+                      properties:
+                        nodeDiversity:
+                          description: NodeDiversity is a selection policy to select endpoints that are node diverse NodeDiversity defines the amount of different nodes to be used when selecting endpoints
+                          type: integer
+                      type: object
+                    topologies:
+                      description: topologies define the topologies to which the endpoints of the logical interconnect link belongs to This allows multi-homing to different topologies
+                      items:
+                        type: string
+                      type: array
                   required:
-                  - variableName
+                  - topologies
                   type: object
-                  x-kubernetes-map-type: atomic
+                maxItems: 2
+                minItems: 2
                 type: array
-              template:
-                description: Template is the embedded KRM template
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels as user defined labels
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
+              lacp:
+                description: lacp
+                type: boolean
+              links:
+                type: integer
+              type:
+                description: lag, vesi
+                type: string
             required:
-            - template
+            - endpoints
             type: object
           status:
-            description: ReplicaSetStatus defines the observed state of ReplicaSet
+            description: LogicalInterconnectStatus defines the observed state of LogicalInterconnect
             properties:
               conditions:
                 description: Conditions of the resource.

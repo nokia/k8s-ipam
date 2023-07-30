@@ -14,11 +14,12 @@
  limitations under the License.
 */
 
-package interconnect
+package logicalinterconnect
 
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio/controllers/pkg/resource"
@@ -44,7 +45,7 @@ import (
 )
 
 func init() {
-	controllers.Register("interconnects", &reconciler{})
+	controllers.Register("logicalinterconnects", &reconciler{})
 }
 
 const (
@@ -81,8 +82,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
-			Named("Interconnect").
-			For(&topov1alpha1.Interconnect{}).
+			Named("LogicalInterconnect").
+			For(&topov1alpha1.LogicalInterconnect{}).
 			Owns(&invv1alpha1.Link{}).
 			Owns(&invv1alpha1.LogicalEndpoint{}).
 			Complete(r)
@@ -110,7 +111,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.l = log.FromContext(ctx)
 	r.l.Info("reconcile", "req", req)
 
-	cr := &topov1alpha1.Interconnect{}
+	cr := &topov1alpha1.LogicalInterconnect{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
@@ -139,6 +140,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
+	// initializes an inventory for the gvk resources (in this case endpoints per topology)
 	if err := r.getDependencyInventory(ctx, cr); err != nil {
 		r.l.Error(err, "cannot populate resources")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
@@ -155,150 +157,146 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
-func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.Interconnect) error {
+func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.LogicalInterconnect) error {
+	var err error
 	// initialize the resource list
 	r.resources.Init(client.MatchingLabels{})
 
-	// check ready state
-	selectedEndpoints := []invv1alpha1.Endpoint{}
-	logicalEndpoints := map[int][]invv1alpha1.LogicalEndpointSpec{}
-	for linkIdx, link := range cr.Spec.Links {
-		// getLinkSpecs initializes the links based on links
-		// in an abstracted link we can have multiple links within an
-		// abstracted link
-		linkSpecs := getLinkSpecs(link.Links)
-		isLogicalLink := false
-		llIndex := cr.GetLogicalLinkIndex(linkIdx)
-		if llIndex != -1 {
-			isLogicalLink = true
-			if _, ok := logicalEndpoints[llIndex]; !ok {
-				logicalEndpoints[llIndex] = make([]invv1alpha1.LogicalEndpointSpec, 2)
-			}
-		}
-
-		for epIdx, ep := range link.Endpoints {
-			topology, err := cr.GetTopology(linkIdx, epIdx)
-			if err != nil {
-				return err
-			}
-			s, err := cr.GetEndpointSelector(linkIdx, epIdx)
-			if err != nil {
-				return err
-			}
-			// we will always get 1 endpoint back,
-			// otherwise we get an error
-			seps, err := r.getEndpoints(topology, s)
-			if err != nil {
-				return err
-			}
-			if link.Links != nil {
-				// logical link
-				if *link.Links > uint32(len(seps)) {
-					return fmt.Errorf("cannot allocate logical interconect links, no available eps for linkidx: %d, epidx: %d", linkIdx, epIdx)
-				}
-				var found bool
-				for _, sep := range seps {
-					if cr.IsAllocated(sep.Labels) {
-						continue
-					}
-					// sort the endpoints
-					// if multi-node provide the list per node and sort per interface-index
-					// if not multi-node sort the list per
-				}
-				if !found {
-					return fmt.Errorf("cannot allocate physical interconect links, no available eps for linkidx: %d, epidx: %d", linkIdx, epIdx)
-				}
-
-			} else {
-				// physical link, we pick the first available ep that is not allocated
-				// by another resource
-				var found bool
-				for _, sep := range seps {
-					// validate if this link was not already allocated/ used by something
-					// else
-					if cr.IsAllocated(sep.Labels) {
-						continue
-					}
-					found = true
-					linkSpecs[0].Endpoints[epIdx] = invv1alpha1.EndpointSpec{
-						InterfaceName: sep.Spec.InterfaceName,
-						NodeName:      sep.Spec.NodeName,
-					}
-					selectedEndpoints = append(selectedEndpoints, sep)
-
-					if isLogicalLink {
-						if len(logicalEndpoints[llIndex][epIdx].Endpoints) == 0 {
-							logicalEndpoints[llIndex][epIdx].Endpoints = make([]invv1alpha1.EndpointSpec, 0)
-						}
-						logicalEndpoints[llIndex][epIdx].Endpoints = append(logicalEndpoints[llIndex][epIdx].Endpoints, sep.Spec)
-						if ep.LogicalEndpointName != nil {
-							logicalName := *ep.LogicalEndpointName
-							logicalEndpoints[llIndex][epIdx].LagName = &logicalName
-							if link.Lacp != nil {
-								lacp := *link.Lacp
-								logicalEndpoints[llIndex][epIdx].Lacp = &lacp
-							}
-						}
-					}
-					break
-
-				}
-				if !found {
-					return fmt.Errorf("cannot allocate physical interconect links, no available eps for linkidx: %d, epidx: %d", linkIdx, epIdx)
-				}
-			}
-		}
-		for _, l := range linkSpecs {
-			linkName := fmt.Sprintf("%s-%s-%s-%s", l.Endpoints[0].NodeName, l.Endpoints[0].InterfaceName, l.Endpoints[1].NodeName, l.Endpoints[1].InterfaceName)
-			r.resources.AddNewResource(invv1alpha1.BuildLink(
-				metav1.ObjectMeta{
-					Name:            linkName,
-					Namespace:       cr.Namespace,
-					OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
-				},
-				l,
-				invv1alpha1.LinkStatus{},
-			))
-		}
-		// determine multihoming
-		for _, leps := range logicalEndpoints {
-			for _, lep := range leps {
-				// topology
-				r.resources.AddNewResource(invv1alpha1.BuildLogicalEndpoint(
-					metav1.ObjectMeta{
-						Name:            "tbd",
-						Namespace:       cr.Namespace,
-						OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
-					},
-					lep,
-					invv1alpha1.LogicalEndpointStatus{},
-				))
-			}
-		}
-
+	// we keep track of all selected enpoints to ensure they get labelled
+	sctx, err := r.selectEndpoints(cr)
+	if err != nil {
+		return err
 	}
+	// in this case the allocation was successfull
+	for _, l := range sctx.getLinkSpecs() {
+		linkName := fmt.Sprintf("%s-%s-%s-%s", l.Endpoints[0].NodeName, l.Endpoints[0].InterfaceName, l.Endpoints[1].NodeName, l.Endpoints[1].InterfaceName)
+		r.resources.AddNewResource(invv1alpha1.BuildLink(
+			metav1.ObjectMeta{
+				Name:            linkName,
+				Namespace:       cr.Namespace,
+				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			},
+			l,
+			invv1alpha1.LinkStatus{},
+		))
+	}
+	// tbd determine multihoming
+	for epIdx, lep := range sctx.getLogicalEndpoints() {
+		// topology
+		r.resources.AddNewResource(invv1alpha1.BuildLogicalEndpoint(
+			metav1.ObjectMeta{
+				Name:            fmt.Sprintf("%s-logical-ep%d", cr.GetName(), epIdx),
+				Namespace:       cr.Namespace,
+				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			},
+			lep,
+			invv1alpha1.LogicalEndpointStatus{},
+		))
+	}
+
 	// TODO label selected endpoints
 
 	return r.resources.APIApply(ctx, cr)
 }
 
-func getLinkSpecs(links *uint32) []invv1alpha1.LinkSpec {
-	linkSpecs := []invv1alpha1.LinkSpec{}
-	if links == nil {
-		linkSpecs = append(linkSpecs, invv1alpha1.LinkSpec{
-			Endpoints: make([]invv1alpha1.EndpointSpec, 0, 2),
-		})
-	} else {
-		for i := 0; i <= int(*links); i++ {
-			linkSpecs = append(linkSpecs, invv1alpha1.LinkSpec{
-				Endpoints: make([]invv1alpha1.EndpointSpec, 0, 2),
-			})
+func (r *reconciler) selectEndpoints(cr *topov1alpha1.LogicalInterconnect) (*selectionContext, error) {
+	sctx := newSelectionContext(cr.Spec.Links)
+
+	// selection is run per logical link endpoint to ensure we take into account topology and node diversity
+	for epIdx, ep := range cr.Spec.Endpoints {
+		// for node diversity we keep track of the nodes per topology
+		// that have been selected - key = topology
+		selectedNodes := map[string][]string{}
+		// retrieve endpoints per topology - key = topology
+		topoEndpoints := map[string][]invv1alpha1.Endpoint{}
+		for _, topology := range ep.Topologies {
+			var err error
+			topoEndpoints[topology], err = r.getTopologyEndpoints(topology, ep.Selector)
+			if err != nil {
+				return nil, err
+			}
+			selectedNodes[topology] = []string{"", ""}
+		}
+
+		// allocate endpoint per link
+		for linkIdx := 0; linkIdx < int(cr.Spec.Links); linkIdx++ {
+			// topoIdx is used to find the topology we should use for the
+			// endpoint selection
+			// Current strategy we walk one by one through each topology
+			topoIdx := linkIdx % len(ep.Topologies)
+			topology := ep.Topologies[topoIdx]
+			// nodeIdx is used for node selection when node diversity is used
+			// we assume max 2 nodes for node diversity
+			nodeIdx := 0
+			// for a multi topology environment node selection is not applicable
+			// (we ignore it)
+			if len(ep.Topologies) == 1 {
+				nodeIdx = linkIdx % 2
+			}
+
+			// select an endpoint within a topology
+			found := false
+			for _, tep := range topoEndpoints[topology] {
+				if tep.WasAllocated(topov1alpha1.LogicalInterconnectKindGVKString, cr.Name) {
+					found = true
+					if err := sctx.addEndpoint(topology, linkIdx, epIdx, tep); err != nil {
+						return nil, err
+					}
+					break
+				}
+
+				// if the selectedNode was already selected, node diversity was already
+				// checked so we need to allocate an endpoint on the
+				selectedNode := selectedNodes[topology][nodeIdx]
+				if selectedNode != "" {
+					// node selection was already done, we need to select an endpoint
+					// on the same node that was not already allocated
+					if tep.Spec.NodeName == selectedNode && !tep.IsAllocated(topov1alpha1.LogicalInterconnectKindGVKString, cr.Name) {
+						// the nodeName previously selected node matches
+						// -> we need to continue searching for an endpoint
+						// that matches the previous selected node
+						found = true
+						if err := sctx.addEndpoint(topology, linkIdx, epIdx, tep); err != nil {
+							return nil, err
+						}
+						break
+					}
+				} else {
+					// node selection is required
+					if len(ep.Topologies) == 1 && ep.SelectorPolicy != nil && ep.SelectorPolicy.NodeDiversity != nil && *ep.SelectorPolicy.NodeDiversity > 1 {
+						// we need to select a node - ensure the node we select is
+						// node diverse from the previous selected nodes and not allocated
+						if tep.IsNodeDiverse(nodeIdx, selectedNodes[topology]) && !tep.IsAllocated(topov1alpha1.LogicalInterconnectKindGVKString, cr.Name) {
+							// the ep is node diverse and not allocated -> we allocated this endpoint
+							found = true
+							selectedNodes[topology][nodeIdx] = tep.Spec.NodeName
+							if err := sctx.addEndpoint(topology, linkIdx, epIdx, tep); err != nil {
+								return nil, err
+							}
+							break
+						}
+					} else {
+						if !tep.IsAllocated(topov1alpha1.LogicalInterconnectKindGVKString, cr.Name) {
+							found = true
+							selectedNodes[topology][nodeIdx] = tep.Spec.NodeName
+							if err := sctx.addEndpoint(topology, linkIdx, epIdx, tep); err != nil {
+								return nil, err
+							}
+							break
+						}
+					}
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("no endpoints available")
+			}
 		}
 	}
-	return linkSpecs
+
+	return sctx, nil
 }
 
-func (r *reconciler) getEndpoints(topology string, s *metav1.LabelSelector) ([]invv1alpha1.Endpoint, error) {
+func (r *reconciler) getTopologyEndpoints(topology string, s *metav1.LabelSelector) ([]invv1alpha1.Endpoint, error) {
 	tgvk := topogvk{
 		GroupVersionKind: invv1alpha1.EndpointGroupVersionKind,
 		topology:         topology}
@@ -316,8 +314,12 @@ func (r *reconciler) getEndpoints(topology string, s *metav1.LabelSelector) ([]i
 			return nil, err
 		}
 		eps = append(eps, *ep)
-
 	}
+
+	sort.Slice(eps, func(i, j int) bool {
+		return eps[i].Spec.InterfaceName > eps[j].Spec.InterfaceName
+	})
+
 	return eps, nil
 }
 
@@ -333,29 +335,29 @@ func convertUnstructuredToEndpoint(unstructuredObj *unstructured.Unstructured) (
 	return typedEndpoint, nil
 }
 
-// getDependencyInventory provides an inventory based on a dependency gvk list (nodes, endpoints in this case)
+// getDependencyInventory provides an inventory based on a dependency gvk list (endpoints in this case)
 // stores this in a map for fast lookup using a gvk + topology
-func (r *reconciler) getDependencyInventory(ctx context.Context, cr *topov1alpha1.Interconnect) error {
+func (r *reconciler) getDependencyInventory(ctx context.Context, cr *topov1alpha1.LogicalInterconnect) error {
 	// init nodes
 	r.inventory = map[topogvk]objects.Objects{}
-	for linkIdx, link := range cr.Spec.Links {
-		for epIdx := range link.Endpoints {
+	for _, ep := range cr.Spec.Endpoints {
+		for _, topology := range ep.Topologies {
+			r.l.Info("getDependencyInventory", "topology", topology)
 			for _, gvk := range r.dependencies {
-				topology, err := cr.GetTopology(linkIdx, epIdx)
-				if err != nil {
-					return err
-				}
-				// only get the objects if the gvk topo has not yet been requested
 				if _, ok := r.inventory[topogvk{GroupVersionKind: gvk, topology: topology}]; !ok {
 					o, err := r.listObjectsPerTopology(ctx, gvk, topology)
 					if err != nil {
 						return err
+					}
+					for _, obj := range o.GetAllObjects() {
+						r.l.Info("getDependencyInventory", "gvk", fmt.Sprintf("%s.%s.%s", obj.GetAPIVersion(), obj.GetKind(), obj.GetName()))
 					}
 					r.inventory[topogvk{GroupVersionKind: gvk, topology: topology}] = o
 				}
 			}
 		}
 	}
+
 	return nil
 }
 

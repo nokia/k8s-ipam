@@ -13,7 +13,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/hansthienpondt/nipam v0.0.5
-	github.com/henderiw-nephio/network-node-operator v0.0.0-20230724181905-dc3e36892403
+	github.com/henderiw-nephio/network-node-operator v0.0.0-20230725011206-3110827f2100
 	github.com/nephio-project/nephio-controller-poc v0.0.0-20221111013453-5a31b4722094
 	github.com/nephio-project/nephio/controllers/pkg v0.0.0-20230629025102-1d5a6bc22053
 	github.com/onsi/ginkgo/v2 v2.9.5
@@ -60,7 +60,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/henderiw-nephio/network v0.0.0-20230626193806-04743403261e // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

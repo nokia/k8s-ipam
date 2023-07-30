@@ -1,0 +1,20 @@
+apiVersion: topo.nephio.org/v1alpha1
+kind: LogicalInterconnect
+metadata:
+  name: sever2network-bond0
+spec:
+  links: 2
+  type: lag
+  lacp: true
+  endpoints:
+  - name: bond0
+    topologies:
+    - cluster01
+    selector:
+      topo.nephio.org/node-name: 'server' + '-' + index
+  - topologies:
+    - dc
+    selector:
+      topo.nephio.org/redundancy-group: rack1
+    selectorPolicy:
+      nodeDiversity: 2

@@ -34,9 +34,11 @@ import (
 	//_ "github.com/nokia/k8s-ipam/controllers/vlanspecializer"
 	"github.com/henderiw-nephio/network-node-operator/pkg/node"
 	"github.com/henderiw-nephio/network-node-operator/pkg/node/srlinux"
+	"github.com/henderiw-nephio/network-node-operator/pkg/node/xserver"
 	_ "github.com/nokia/k8s-ipam/controllers/ipclaim"
 	_ "github.com/nokia/k8s-ipam/controllers/ipnetworkinstance"
 	_ "github.com/nokia/k8s-ipam/controllers/ipprefix"
+	_ "github.com/nokia/k8s-ipam/controllers/logicalinterconnect"
 	_ "github.com/nokia/k8s-ipam/controllers/node"
 	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanclaim"
@@ -220,6 +222,7 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 func registerSupportedNodeProviders() node.NodeRegistry {
 	nodeRegistry := node.NewNodeRegistry()
 	srlinux.Register(nodeRegistry)
+	xserver.Register(nodeRegistry)
 
 	return nodeRegistry
 }

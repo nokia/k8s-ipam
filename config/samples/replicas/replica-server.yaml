@@ -1,0 +1,43 @@
+apiVersion: auto.nephio.org/v1alpha1
+kind: ReplicaSet
+metadata:
+  name: server
+  namespace: default
+spec:
+  replicas: 10
+  pipeline:
+  - variables:
+      nodepool:
+        cluster: cluster01
+        apiVersion: v1
+        kind: ConfigMap
+        name: cluster01-nodepool01
+  - expression: nodepool.data.cluster + '-' + nodepool.data.nodepool + '-' + 'server' + '-' + index
+    templatefields: 
+    - metadata.name 
+    - metadata.labels.topo.nephio.org/node-name
+  templates:
+  - apiVersion: inv.nephio.org/v1alpha1
+    kind: Node
+    metadata:
+      name: empty
+      namespace: default
+      labels:
+        topo.nephio.org/position: server
+        topo.nephio.org/rack: rack1
+        topo.nephio.org/node-name: empty
+        topo.nephio.org/node-pool: 1
+    spec:
+      provider: server.nephio.com
+  - apiVersion: topo.nephio.org/v1alpha1
+    kind: Interconnect
+    metadata:
+      name: empty
+      namespace: default
+      labels:
+        topo.nephio.org/position: server
+        topo.nephio.org/rack: rack1
+        topo.nephio.org/node-name: empty
+        topo.nephio.org/node-pool: 1
+    spec:
+      provider: server.nephio.com

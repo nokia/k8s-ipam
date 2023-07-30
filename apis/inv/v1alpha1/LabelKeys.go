@@ -31,7 +31,7 @@ const (
 	NephioInventoryLinkNameKey      = "inv.nephio.org/link-name"
 	NephioInventoryInterfaceNameKey = "inv.nephio.org/interface-name"
 	// user defined common
-	NephioTopologyKey         = "topo.nephio.org/topology"
+	NephioTopologyKey         = "inv.nephio.org/topology"
 	NephioClusterNameKey      = "nephio.org/cluster-name"
 	NephioSiteKey             = "nephio.org/site"
 	NephioRegionKey           = "nephio.org/region"

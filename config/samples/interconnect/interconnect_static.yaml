@@ -5,17 +5,19 @@ metadata:
 spec:
   links:
   - name: 'server' + '-' + index + eth0 + switch1 + e1-1
+    logicalRef: 
     endpoints:
     - nodeName: 'server' + '-' + index
       interfaceName: eth0
-      logicalEndpointName: bond0
+      #logicalEndpointName: bond0
     - nodeName: switch
       interfaceName: e1-1
   - name: 'server' + '-' + index + eth1 + switch2 + e1-1
+    logicalLinkIdx: 0
     endpoints:
     - nodeName: 'server' + '-' + index
       interfaceName: eth0
-      logicalEndpointName: bond0
+      #logicalEndpointName: bond0
     - nodeName: switch
       interfaceName: e1-1
   - name: 'server' + '-' + index + eth3 + switch1 + e1-2

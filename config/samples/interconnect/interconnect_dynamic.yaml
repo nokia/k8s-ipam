@@ -8,7 +8,7 @@ spec:
   - nephio
   links:
   - name: logical-link1
-    logicalLinks: 2
+    links: 2
     type: lag
     endpoints:
     - selector:
@@ -22,7 +22,7 @@ spec:
       selectorPolicy:
         multiHomedNodes: 2
   - name: logical-link2
-    logicalLinks: 2
+    links: 2
     type: lag
     endpoints:
     - selector:

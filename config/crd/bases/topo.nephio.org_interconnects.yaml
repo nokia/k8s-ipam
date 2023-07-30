@@ -46,11 +46,6 @@ spec:
                 description: Links define the links part of the interconnect
                 items:
                   properties:
-                    LogicalLinkIndex:
-                      description: LogicalLinkIndex defines the index to which this
-                        logical link belongs when using abstract interconnect links
-                        this is derived from the link index
-                      type: integer
                     endpoints:
                       description: Endpoints defines exactly 2 endpoints, the first
                         entry is the local endpoint, the 2nd entry is the remote endpoint
@@ -144,6 +139,11 @@ spec:
                       description: Links define the physical links in an interconnect
                         link this means this is an abstract interconnect link
                       format: int32
+                      type: integer
+                    logicalLinkId:
+                      description: LogicalLinkId defines the logical link id to which
+                        this logical link belongs when using abstract interconnect
+                        links this is derived from the link index
                       type: integer
                     name:
                       type: string

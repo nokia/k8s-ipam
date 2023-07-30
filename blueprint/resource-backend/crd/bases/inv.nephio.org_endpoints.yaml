@@ -38,6 +38,7 @@ spec:
             description: EndpointSpec defines the desired state of Endpoint
             properties:
               interfaceName:
+                description: InterfaceName provide the name of the interface of the endpoint
                 type: string
               labels:
                 additionalProperties:
@@ -48,6 +49,10 @@ spec:
                 description: LacpFallback defines if the link is part of a lag mutually exclusive with Lag parameter
                 type: boolean
               nodeName:
+                description: NodeName provide the name of the node on which this endpoint belongs.
+                type: string
+              topology:
+                description: topology defines the topology to which this endpoint belongs
                 type: string
             required:
             - interfaceName
