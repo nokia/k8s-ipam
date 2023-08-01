@@ -185,7 +185,7 @@ func (r *reconciler) getTopologies(l invv1alpha1.LinkSpec) []string {
 			topologies[0] = n.Spec.Topology
 		}
 		if ref.Name == l.Endpoints[1].NodeName {
-			topologies[0] = n.Spec.Topology
+			topologies[1] = n.Spec.Topology
 		}
 	}
 	return topologies

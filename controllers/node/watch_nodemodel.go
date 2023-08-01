@@ -63,7 +63,11 @@ func (r *nodeModelEventHandler) add(ctx context.Context, obj runtime.Object, que
 		return
 	}
 	r.l = log.FromContext(ctx)
-	r.l.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	r.l.Info("event",
+		"gvk", fmt.Sprintf("%s.%s",
+			obj.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			obj.GetObjectKind().GroupVersionKind().Kind),
+		"name", cr.GetName())
 
 	// only select the nodes belonging to this provider
 	opts := []client.ListOption{

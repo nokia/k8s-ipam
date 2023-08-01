@@ -69,6 +69,7 @@ type NodeStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".spec.topology"
 // +kubebuilder:resource:categories={nephio,inv}
 // Node is the Schema for the vlan API
 type Node struct {

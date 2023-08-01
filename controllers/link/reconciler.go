@@ -102,7 +102,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return reconcile.Result{}, nil
 	}
-	cr = cr.DeepCopy()
 
 	// initialize claimed endpoints
 	var err error
@@ -136,6 +135,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
+	cr = cr.DeepCopy()
 	// acquire lease to update the resource
 	if err := r.lease.AcquireLease(ctx, cr); err != nil {
 		r.l.Error(err, "cannot acquire lease")
@@ -182,12 +182,12 @@ func (r *reconciler) claimResources(ctx context.Context, cr *invv1alpha1.Link) e
 		eps, err := r.endpoint.GetTopologyEndpointsWithSelector(ep.Topology, &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				invv1alpha1.NephioInventoryInterfaceNameKey: ep.InterfaceName,
-				invv1alpha1.NephioInventoryNodeNameKey:      ep.NodeName,
-			},
+				invv1alpha1.NephioInventoryNodeNameKey:      ep.NodeName},
 		})
 		if err != nil {
 			return err
 		}
+		r.l.Info("link claimResources", "nbr endpoints", len(eps), "endpoint", eps[0].Name)
 		if len(eps) != 1 {
 			return fmt.Errorf("expecting 1 endpoint, got: %d, data: %v", len(eps), eps)
 		}

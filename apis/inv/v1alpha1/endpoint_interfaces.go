@@ -81,7 +81,7 @@ func (r *Endpoint) IsAllocated(cr client.Object) bool {
 		return false
 	}
 	if r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
-		r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().Kind &&
+		r.Status.ClaimRef.Kind == cr.GetObjectKind().GroupVersionKind().Kind &&
 		r.Status.ClaimRef.Namespace == cr.GetNamespace() &&
 		r.Status.ClaimRef.Name == cr.GetName() {
 		return false
@@ -96,7 +96,7 @@ func (r *Endpoint) WasAllocated(cr client.Object) bool {
 		return false
 	}
 	if r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
-		r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().Kind &&
+		r.Status.ClaimRef.Kind == cr.GetObjectKind().GroupVersionKind().Kind &&
 		r.Status.ClaimRef.Namespace == cr.GetNamespace() &&
 		r.Status.ClaimRef.Name == cr.GetName() {
 		return true
