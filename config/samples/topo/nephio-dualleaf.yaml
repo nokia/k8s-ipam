@@ -12,39 +12,11 @@ spec:
         inv.nephio.org/redundancy-group: rack1
     leaf2: 
       provider: srl.nokia.com
-    mgmt: 
-      provider: docker.io
-    cluster01: 
-      provider: docker.io
       labels:
-        nephio.org/cluster-name: cluster01
-    cluster02: 
-      provider: docker.io
-      labels:
-        nephio.org/cluster-name: cluster02
-    cluster03: 
-      provider: docker.io
-      labels:
-        nephio.org/cluster-name: cluster03
+        inv.nephio.org/rack: rack1
+        inv.nephio.org/rack-index: "1"
+        inv.nephio.org/redundancy-group: rack1
   links:
-  - endpoints: 
-    - { nodeName: leaf1, interfaceName: e1-1}
-    - { nodeName: cluster01, interfaceName: eth1}
-  - endpoints: 
-    - { nodeName: leaf1, interfaceName: e1-1}
-    - { nodeName: cluster01, interfaceName: eth2}
-  - endpoints: 
-    - { nodeName: leaf1, interfaceName: e1-2}
-    - { nodeName: cluster02, interfaceName: eth1}
-  - endpoints: 
-    - { nodeName: leaf2, interfaceName: e1-2}
-    - { nodeName: cluster02, interfaceName: eth2}
-  - endpoints: 
-    - { nodeName: leaf1, interfaceName: e1-3}
-    - { nodeName: cluster03, interfaceName: eth1}
-  - endpoints: 
-    - { nodeName: leaf1, interfaceName: e1-3}
-    - { nodeName: cluster03, interfaceName: eth2}
   - endpoints: 
     - { nodeName: leaf1, interfaceName: e1-30}
     - { nodeName: leaf2, interfaceName: e1-30}

@@ -142,11 +142,10 @@ spec:
                       description: Provider defines the provider implementing this node.
                       type: string
                     topology:
-                      description: Topology defines the topology to which this node belongs
+                      description: Topology defines the topology to which this node belongs Topology is actually a mandatory parameter, but to be able to reuse this struct for both rawtopology and node CRD we allow this validation is done in the respective controllers
                       type: string
                   required:
                   - provider
-                  - topology
                   type: object
                 description: Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"` Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
                 type: object
