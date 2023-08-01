@@ -169,9 +169,26 @@ func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.Raw
 		r.resources.AddNewResource(buildNode(cr, nodeName, node).DeepCopy())
 	}
 	for _, l := range cr.Spec.Links {
-		r.resources.AddNewResource(buildLink(cr, l).DeepCopy())
+		r.resources.AddNewResource(buildLink(cr, l, r.getTopologies(l)).DeepCopy())
 	}
 	return r.resources.APIApply(ctx, cr)
+}
+
+func (r *reconciler) getTopologies(l invv1alpha1.LinkSpec) []string {
+	topologies := make([]string, 2)
+	for ref, o := range r.resources.GetNewResources() {
+		n, ok := o.(*invv1alpha1.Node)
+		if !ok {
+			continue
+		}
+		if ref.Name == l.Endpoints[0].NodeName {
+			topologies[0] = n.Spec.Topology
+		}
+		if ref.Name == l.Endpoints[1].NodeName {
+			topologies[0] = n.Spec.Topology
+		}
+	}
+	return topologies
 }
 
 func validate(topo *topov1alpha1.RawTopology) error {
@@ -225,9 +242,11 @@ func buildNode(cr *topov1alpha1.RawTopology, nodeName string, nodeSpec invv1alph
 	for k, v := range nodeSpec.Labels {
 		labels[k] = v
 	}
-	labels[invv1alpha1.NephioTopologyKey] = cr.Name
+	labels[invv1alpha1.NephioTopologyKey] = nodeSpec.GetTopology(cr.Name)
 	labels[invv1alpha1.NephioInventoryNodeNameKey] = nodeName
 	labels[invv1alpha1.NephioProviderKey] = nodeSpec.Provider
+
+	nodeSpec.Topology = nodeSpec.GetTopology(cr.Name)
 	return invv1alpha1.BuildNode(
 		metav1.ObjectMeta{
 			Name:            nodeName,
@@ -240,7 +259,7 @@ func buildNode(cr *topov1alpha1.RawTopology, nodeName string, nodeSpec invv1alph
 	)
 }
 
-func buildLink(cr *topov1alpha1.RawTopology, linkSpec invv1alpha1.LinkSpec) *invv1alpha1.Link {
+func buildLink(cr *topov1alpha1.RawTopology, linkSpec invv1alpha1.LinkSpec, topologies []string) *invv1alpha1.Link {
 	linkName := fmt.Sprintf("%s-%s-%s-%s",
 		linkSpec.Endpoints[0].NodeName,
 		linkSpec.Endpoints[0].InterfaceName,
@@ -249,8 +268,8 @@ func buildLink(cr *topov1alpha1.RawTopology, linkSpec invv1alpha1.LinkSpec) *inv
 	)
 
 	// add the topology to the linkSpec
-	linkSpec.Endpoints[0].Topology = cr.Name
-	linkSpec.Endpoints[1].Topology = cr.Name
+	linkSpec.Endpoints[0].Topology = topologies[0]
+	linkSpec.Endpoints[1].Topology = topologies[1]
 	return invv1alpha1.BuildLink(
 		metav1.ObjectMeta{
 			Name:            linkName,

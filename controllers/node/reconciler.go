@@ -182,6 +182,10 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 	r.resources.Init(client.MatchingLabels{
 		invv1alpha1.NephioTopologyKey: cr.Spec.Topology,
 	})
+
+	if cr.Spec.Topology == "" {
+		return fmt.Errorf("cannot reconcile topology is a mandatory parameter for a node cr")
+	}
 	// build target CR and add it to the resource inventory
 	r.resources.AddNewResource(buildTarget(cr).DeepCopy())
 

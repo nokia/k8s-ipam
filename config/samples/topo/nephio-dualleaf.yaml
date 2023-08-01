@@ -1,11 +1,15 @@
 apiVersion: topo.nephio.org/v1alpha1
 kind: RawTopology
 metadata:
-  name: nephio
+  name: fabric1
 spec:
   nodes:
     leaf1: 
       provider: srl.nokia.com
+      labels:
+        inv.nephio.org/rack: rack1
+        inv.nephio.org/rack-index: "1"
+        inv.nephio.org/redundancy-group: rack1
     leaf2: 
       provider: srl.nokia.com
     mgmt: 

@@ -29,7 +29,10 @@ import (
 // NodeSpec defines the desired state of Node
 type NodeSpec struct {
 	// Topology defines the topology to which this node belongs
-	Topology string `json:"topology" yaml:"topology"`
+	// Topology is actually a mandatory parameter, but to be able to reuse
+	// this struct for both rawtopology and node CRD we allow this
+	// validation is done in the respective controllers
+	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
 	// Provider defines the provider implementing this node.
 	Provider string `json:"provider" yaml:"provider"`
 	// Address defines the address of the mgmt interface of this node
