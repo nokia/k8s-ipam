@@ -17,26 +17,26 @@ limitations under the License.
 package v1alpha1
 
 import (
-	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition returns the condition based on the condition kind
-func (r *Endpoint) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
-	return r.Status.GetCondition(t)
-}
+//func (r *Endpoint) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
+//	return r.Status.GetCondition(t)
+//}
 
 // SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
 // to be set at once
-func (r *Endpoint) SetConditions(c ...resourcev1alpha1.Condition) {
-	r.Status.SetConditions(c...)
-}
+//func (r *Endpoint) SetConditions(c ...resourcev1alpha1.Condition) {
+//	r.Status.SetConditions(c...)
+//}
 
 func (r *EndpointList) GetItems() []client.Object {
 	objs := []client.Object{}
-	for _, r := range r.Items {
-		objs = append(objs, &r)
+	for _, ep := range r.Items {
+		x := ep
+		objs = append(objs, &x)
 	}
 	return objs
 }
@@ -76,32 +76,30 @@ func (r *Endpoint) IsNodeDiverse(idx int, nodes []string) bool {
 
 // IsAllocated returns a bool that indicates if the endpoint
 // was already allocated by another owner
-func (r *Endpoint) IsAllocated(gvkString, name string) bool {
-	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerGvkKey]; ok {
-		if v != gvkString {
-			return true
-		}
+func (r *Endpoint) IsAllocated(cr client.Object) bool {
+	if r.Status.ClaimRef == nil {
+		return false
 	}
-	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerNsnNameKey]; ok {
-		if v != name {
-			return true
-		}
+	if r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
+		r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().Kind &&
+		r.Status.ClaimRef.Namespace == cr.GetNamespace() &&
+		r.Status.ClaimRef.Name == cr.GetName() {
+		return false
 	}
-	return false
+	return true
 }
 
 // WasAllocated returns a bool that indicates if the endpoint
 // was already allocated by this CR
-func (r *Endpoint) WasAllocated(gvkString, name string) bool {
-	if v, ok := r.Labels[resourcev1alpha1.NephioOwnerGvkKey]; ok {
-		if v == gvkString {
-			if v, ok := r.Labels[resourcev1alpha1.NephioOwnerNsnNameKey]; ok {
-				if v == name {
-					return true
-				}
-			}
-		}
+func (r *Endpoint) WasAllocated(cr client.Object) bool {
+	if r.Status.ClaimRef == nil {
+		return false
 	}
-
+	if r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
+		r.Status.ClaimRef.APIVersion == cr.GetObjectKind().GroupVersionKind().Kind &&
+		r.Status.ClaimRef.Namespace == cr.GetNamespace() &&
+		r.Status.ClaimRef.Name == cr.GetName() {
+		return true
+	}
 	return false
 }

@@ -11,10 +11,12 @@ spec:
     topologies:
     - cluster01
     selector:
-      topo.nephio.org/node-name: 'server' + '-' + index
+      matchLabels:
+        topo.nephio.org/node-name: 'server' + '-' + index
   - topologies:
     - dc
     selector:
-      topo.nephio.org/redundancy-group: rack1
+      matchLabels:
+        topo.nephio.org/redundancy-group: rack1
     selectorPolicy:
       nodeDiversity: 2

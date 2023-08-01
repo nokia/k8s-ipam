@@ -86,7 +86,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
-			Named("Node").
+			Named("NodeController").
 			For(&invv1alpha1.Node{}).
 			Owns(&invv1alpha1.Endpoint{}).
 			Owns(&invv1alpha1.Target{}).
@@ -158,6 +158,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	cr.Labels[invv1alpha1.NephioInventoryNodeNameKey] = cr.GetName()
 	cr.Labels[invv1alpha1.NephioProviderKey] = cr.Spec.Provider
+	cr.Labels[invv1alpha1.NephioTopologyKey] = cr.Spec.Topology
 	if err := r.Apply(ctx, cr); err != nil {
 		r.l.Error(err, "cannot update labels on resource")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
@@ -179,10 +180,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node) error {
 	// initialize the resource list + provide the topology key
 	r.resources.Init(client.MatchingLabels{
-		invv1alpha1.NephioTopologyKey: cr.GetLabels()[invv1alpha1.NephioTopologyKey],
+		invv1alpha1.NephioTopologyKey: cr.Spec.Topology,
 	})
 	// build target CR and add it to the resource inventory
-	r.resources.AddNewResource(buildTarget(cr))
+	r.resources.AddNewResource(buildTarget(cr).DeepCopy())
 
 	// get the specific provider implementation of the network device
 	node, err := r.nodeRegistry.NewNodeOfProvider(cr.Spec.Provider, r.Client, r.scheme)
@@ -211,7 +212,7 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 
 	// build endpoints based on the node model
 	for epIdx, itfce := range nm.Spec.Interfaces {
-		r.resources.AddNewResource(buildEndpoint(cr, itfce, epIdx))
+		r.resources.AddNewResource(buildEndpoint(cr, itfce, epIdx).DeepCopy())
 	}
 
 	return r.resources.APIApply(ctx, cr)
@@ -219,6 +220,7 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 
 func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 	labels := cr.GetLabels()
+	labels[invv1alpha1.NephioTopologyKey] = cr.Spec.Topology
 	if len(labels) == 0 {
 		labels = map[string]string{}
 	}
@@ -246,7 +248,7 @@ func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 
 func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface, epIdx int) *invv1alpha1.Endpoint {
 	labels := map[string]string{}
-	labels[invv1alpha1.NephioTopologyKey] = cr.GetLabels()[invv1alpha1.NephioTopologyKey]
+	labels[invv1alpha1.NephioTopologyKey] = cr.Spec.Topology
 	labels[invv1alpha1.NephioProviderKey] = cr.GetLabels()[invv1alpha1.NephioProviderKey]
 	labels[invv1alpha1.NephioInventoryNodeNameKey] = cr.GetLabels()[invv1alpha1.NephioInventoryNodeNameKey]
 	labels[invv1alpha1.NephioInventoryInterfaceNameKey] = itfce.Name
@@ -254,7 +256,11 @@ func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface, e
 	for k, v := range cr.Spec.GetUserDefinedLabels() {
 		labels[k] = v
 	}
+	for k, v := range cr.GetLabels() {
+		labels[k] = v
+	}
 	epSpec := invv1alpha1.EndpointSpec{
+		Topology:      cr.Spec.Topology,
 		NodeName:      cr.GetName(),
 		InterfaceName: itfce.Name,
 	}

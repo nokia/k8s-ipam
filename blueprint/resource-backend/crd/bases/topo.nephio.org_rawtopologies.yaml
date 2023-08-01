@@ -97,7 +97,7 @@ spec:
                   description: NodeSpec defines the desired state of Node
                   properties:
                     address:
-                      description: Address is the address of the mgmt interface of this node
+                      description: Address defines the address of the mgmt interface of this node
                       type: string
                     labels:
                       additionalProperties:
@@ -139,10 +139,14 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     provider:
-                      description: Provider specifies the provider implementing this node.
+                      description: Provider defines the provider implementing this node.
+                      type: string
+                    topology:
+                      description: Topology defines the topology to which this node belongs
                       type: string
                   required:
                   - provider
+                  - topology
                   type: object
                 description: Defaults *NodeProperties `json:"defaults,omitempty" yaml:"defaults,omitempty"` Kinds map[string]NodeProperties `json:"kinds,omitempty" yaml:"kinds,omitempty"`
                 type: object

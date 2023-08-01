@@ -72,8 +72,8 @@ spec:
               lacp:
                 description: Lacp defines if the lag enabled LACP
                 type: boolean
-              lagName:
-                description: MultiHoming defines if this logical endpoint is multi-homed MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"` LagName defines the lag name for the logical single-homed or multi-homed endpoint
+              name:
+                description: MultiHoming defines if this logical endpoint is multi-homed MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"` Name defines the logical endpoint name can be single-homed or multi-homed
                 type: string
             required:
             - endpoints

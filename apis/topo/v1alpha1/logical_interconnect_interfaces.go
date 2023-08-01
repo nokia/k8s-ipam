@@ -30,3 +30,11 @@ func (r *LogicalInterconnect) GetCondition(t resourcev1alpha1.ConditionType) res
 func (r *LogicalInterconnect) SetConditions(c ...resourcev1alpha1.Condition) {
 	r.Status.SetConditions(c...)
 }
+
+func (r *LogicalInterconnect) GetTopologies() []string {
+	topologies := []string{}
+	for _, ep := range r.Spec.Endpoints {
+		topologies = append(topologies, ep.Topologies...)
+	}
+	return topologies
+}

@@ -28,9 +28,11 @@ import (
 
 // NodeSpec defines the desired state of Node
 type NodeSpec struct {
-	// Provider specifies the provider implementing this node.
+	// Topology defines the topology to which this node belongs
+	Topology string `json:"topology" yaml:"topology"`
+	// Provider defines the provider implementing this node.
 	Provider string `json:"provider" yaml:"provider"`
-	// Address is the address of the mgmt interface of this node
+	// Address defines the address of the mgmt interface of this node
 	Address *string `json:"address,omitempty" yaml:"address,omitempty"`
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels

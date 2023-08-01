@@ -18,18 +18,19 @@ package rawtopology
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/nephio-project/nephio/controllers/pkg/resource"
 	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	topov1alpha1 "github.com/nokia/k8s-ipam/apis/topo/v1alpha1"
 	"github.com/nokia/k8s-ipam/controllers"
 	"github.com/nokia/k8s-ipam/controllers/ctrlconfig"
 	"github.com/nokia/k8s-ipam/pkg/meta"
-	"github.com/nokia/k8s-ipam/pkg/resource"
-	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/nokia/k8s-ipam/pkg/resources"
+	perrors "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
@@ -78,11 +79,19 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	// initialize reconciler
 	r.APIPatchingApplicator = resource.NewAPIPatchingApplicator(mgr.GetClient())
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
+	r.resources = resources.New(r.APIPatchingApplicator, resources.Config{
+		Owns: []schema.GroupVersionKind{
+			invv1alpha1.NodeGroupVersionKind,
+			invv1alpha1.LinkGroupVersionKind,
+		},
+	})
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
 			Named("RawTopologyController").
 			For(&topov1alpha1.RawTopology{}).
+			Owns(&invv1alpha1.Node{}).
+			Owns(&invv1alpha1.Link{}).
 			Complete(r)
 }
 
@@ -90,6 +99,8 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 type reconciler struct {
 	resource.APIPatchingApplicator
 	finalizer *resource.APIFinalizer
+
+	resources resources.Resources
 
 	l logr.Logger
 }
@@ -104,7 +115,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// requeued implicitly because we return an error.
 		if resource.IgnoreNotFound(err) != nil {
 			r.l.Error(err, errGetCr)
-			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+			return ctrl.Result{}, perrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return reconcile.Result{}, nil
 	}
@@ -113,7 +124,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			r.l.Error(err, "cannot remove finalizer")
 			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		r.l.Info("Successfully deleted resource")
 		return reconcile.Result{Requeue: false}, nil
@@ -124,43 +135,43 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// not, we requeue explicitly, which will trigger backoff.
 		r.l.Error(err, "cannot add finalizer")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if err := validate(cr); err != nil {
-		r.l.Error(err, "failed validation")
-		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{}, r.Status().Update(ctx, cr)
-	}
-
-	newResources := getNewResources(cr)
-
-	existingresources, err := r.getExistingResources(ctx, cr)
-	if err != nil {
-		r.l.Error(err, "cannot get existing resources")
-		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
-
-	for ref := range newResources {
-		delete(existingresources, ref)
-	}
-	for _, o := range existingresources {
-		if err := r.Delete(ctx, o); err != nil {
-			r.l.Error(err, "cannot delete existing resources")
-			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	if err := r.populateResources(ctx, cr); err != nil {
+		// populate resources failed
+		if errd := r.resources.APIDelete(ctx, cr); errd != nil {
+			err = errors.Join(err, errd)
+			r.l.Error(err, "cannot populate and delete existingresources")
+			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
+		r.l.Error(err, "cannot populate resources")
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
+		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	for _, o := range newResources {
-		if err := r.Apply(ctx, o); err != nil {
-			r.l.Error(err, "cannot apply resource")
-			cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-	}
+
 	cr.SetConditions(resourcev1alpha1.Ready())
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	return ctrl.Result{}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+}
+
+func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.RawTopology) error {
+	// initialize the resource list + provide the topology key
+	r.resources.Init(client.MatchingLabels{
+		invv1alpha1.NephioTopologyKey: cr.Name,
+	})
+
+	// validate the input
+	if err := validate(cr); err != nil {
+		return err
+	}
+	// add the node to the resourceList
+	for nodeName, node := range cr.Spec.Nodes {
+		r.resources.AddNewResource(buildNode(cr, nodeName, node).DeepCopy())
+	}
+	for _, l := range cr.Spec.Links {
+		r.resources.AddNewResource(buildLink(cr, l).DeepCopy())
+	}
+	return r.resources.APIApply(ctx, cr)
 }
 
 func validate(topo *topov1alpha1.RawTopology) error {
@@ -209,6 +220,49 @@ func validateLinks(topo *topov1alpha1.RawTopology) error {
 	return nil
 }
 
+func buildNode(cr *topov1alpha1.RawTopology, nodeName string, nodeSpec invv1alpha1.NodeSpec) *invv1alpha1.Node {
+	labels := map[string]string{}
+	for k, v := range nodeSpec.Labels {
+		labels[k] = v
+	}
+	labels[invv1alpha1.NephioTopologyKey] = cr.Name
+	labels[invv1alpha1.NephioInventoryNodeNameKey] = nodeName
+	labels[invv1alpha1.NephioProviderKey] = nodeSpec.Provider
+	return invv1alpha1.BuildNode(
+		metav1.ObjectMeta{
+			Name:            nodeName,
+			Namespace:       cr.Namespace,
+			Labels:          labels,
+			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+		},
+		nodeSpec,
+		invv1alpha1.NodeStatus{},
+	)
+}
+
+func buildLink(cr *topov1alpha1.RawTopology, linkSpec invv1alpha1.LinkSpec) *invv1alpha1.Link {
+	linkName := fmt.Sprintf("%s-%s-%s-%s",
+		linkSpec.Endpoints[0].NodeName,
+		linkSpec.Endpoints[0].InterfaceName,
+		linkSpec.Endpoints[1].NodeName,
+		linkSpec.Endpoints[1].InterfaceName,
+	)
+
+	// add the topology to the linkSpec
+	linkSpec.Endpoints[0].Topology = cr.Name
+	linkSpec.Endpoints[1].Topology = cr.Name
+	return invv1alpha1.BuildLink(
+		metav1.ObjectMeta{
+			Name:            linkName,
+			Namespace:       cr.Namespace,
+			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+		},
+		linkSpec,
+		invv1alpha1.LinkStatus{},
+	)
+}
+
+/*
 func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]client.Object {
 	resources := map[corev1.ObjectReference]client.Object{}
 
@@ -325,7 +379,9 @@ func getNewResources(cr *topov1alpha1.RawTopology) map[corev1.ObjectReference]cl
 	}
 	return resources
 }
+*/
 
+/*
 func (r *reconciler) getExistingResources(ctx context.Context, cr *topov1alpha1.RawTopology) (map[corev1.ObjectReference]client.Object, error) {
 	resources := map[corev1.ObjectReference]client.Object{}
 
@@ -366,3 +422,4 @@ type ObjectList interface {
 
 	GetItems() []client.Object
 }
+*/

@@ -75,7 +75,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 
 	return map[schema.GroupVersionKind]chan event.GenericEvent{vlanv1alpha1.VLANIndexGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
-			Named("VLANIndex").
+			Named("VLANIndexController").
 			For(&vlanv1alpha1.VLANIndex{}).
 			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			//Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).

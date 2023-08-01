@@ -77,7 +77,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 
 	return map[schema.GroupVersionKind]chan event.GenericEvent{vlanv1alpha1.VLANClaimGroupVersionKind: ge},
 		ctrl.NewControllerManagedBy(mgr).
-			Named("VLANCLaim").
+			Named("VLANCLaimController").
 			For(&vlanv1alpha1.VLANClaim{}).
 			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			//Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).

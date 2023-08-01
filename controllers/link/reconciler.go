@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package logicalinterconnect
+package link
 
 import (
 	"context"
@@ -32,21 +32,18 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/lease"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	"github.com/nokia/k8s-ipam/pkg/objects/endpoint"
-	"github.com/nokia/k8s-ipam/pkg/resources"
 	perrors "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func init() {
-	controllers.Register("logicalinterconnects", &reconciler{})
+	controllers.Register("links", &reconciler{})
 }
 
 const (
@@ -62,28 +59,18 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		return nil, err
 	}
-	if err := topov1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		return nil, err
-	}
 
 	// initialize reconciler
 	r.APIPatchingApplicator = resource.NewAPIPatchingApplicator(mgr.GetClient())
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	r.resources = resources.New(r.APIPatchingApplicator, resources.Config{
-		Owns: []schema.GroupVersionKind{
-			invv1alpha1.LinkGroupVersionKind,
-			invv1alpha1.LogicalEndpointGroupVersionKind,
-		},
-	})
+
 	r.endpoint = endpoint.New(mgr.GetClient())
 	r.lease = lease.New(mgr.GetClient(), types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: "endpoint"})
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
-			Named("LogicalInterconnectController").
-			For(&topov1alpha1.LogicalInterconnect{}).
-			Owns(&invv1alpha1.Link{}).
-			Owns(&invv1alpha1.LogicalEndpoint{}).
+			Named("LinkController").
+			For(&invv1alpha1.Link{}).
 			Watches(&invv1alpha1.Endpoint{}, &endpointEventHandler{client: mgr.GetClient()}).
 			Complete(r)
 }
@@ -93,9 +80,8 @@ type reconciler struct {
 	resource.APIPatchingApplicator
 	finalizer *resource.APIFinalizer
 
-	resources resources.Resources
-	endpoint  endpoint.Endpoint
-	lease     lease.Lease
+	endpoint endpoint.Endpoint
+	lease    lease.Lease
 
 	claimedEndpoints []invv1alpha1.Endpoint
 
@@ -106,7 +92,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.l = log.FromContext(ctx)
 	r.l.Info("reconcile", "req", req)
 
-	cr := &topov1alpha1.LogicalInterconnect{}
+	cr := &invv1alpha1.Link{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
@@ -116,14 +102,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return reconcile.Result{}, nil
 	}
+	cr = cr.DeepCopy()
+
+	// initialize claimed endpoints
 	var err error
 	r.claimedEndpoints, err = r.endpoint.GetClaimedEndpoints(ctx, cr)
 	if err != nil {
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-
-	cr = cr.DeepCopy()
 
 	if meta.WasDeleted(cr) {
 		// delete usedRef from endpoint status
@@ -156,19 +143,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if err := r.populateResources(ctx, cr); err != nil {
-		// populate resources failed
-		if errd := r.resources.APIDelete(ctx, cr); errd != nil {
-			err = errors.Join(err, errd)
-			r.l.Error(err, "cannot populate and delete existingresources")
-			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
+	if err := r.claimResources(ctx, cr); err != nil {
+		// claim resources failed
 		if errd := r.endpoint.DeleteClaim(ctx, r.claimedEndpoints); errd != nil {
 			err = errors.Join(err, errd)
-			r.l.Error(err, "cannot populate and delete endpoint claims")
+			r.l.Error(err, "cannot claim resource and delete endpoint claims")
 			return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		r.l.Error(err, "cannot populate resources")
+		r.l.Error(err, "cannot claim resources")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -177,50 +159,49 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
-func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.LogicalInterconnect) error {
-	r.l.Info("populate resources")
-	var err error
-	// initialize the resource list
-	r.resources.Init(client.MatchingLabels{})
+func (r *reconciler) claimResources(ctx context.Context, cr *invv1alpha1.Link) error {
+	r.l.Info("claim resources")
 
-	// we keep track of all selected enpoints to ensure they get labelled
-	s := newSelector(cr.Spec.Links, r.endpoint)
-	selectionResult, err := s.selectEndpoints(ctx, cr)
-	if err != nil {
+	// LogicalInterconnectKind provides its own claim logic
+	// so we ignore links which such owner reference
+	for _, ownRef := range cr.OwnerReferences {
+		if ownRef.APIVersion == topov1alpha1.GroupVersion.String() &&
+			ownRef.Kind == topov1alpha1.LogicalInterconnectKind {
+			return nil
+		}
+	}
+
+	// initialize the endpoint topologies
+	if err := r.endpoint.Init(ctx, cr.GetTopologies()); err != nil {
 		return err
 	}
-	// in this case the allocation was successfull
-	for _, l := range selectionResult.getLinkSpecs() {
-		linkName := fmt.Sprintf("%s-%s-%s-%s", l.Endpoints[0].NodeName, l.Endpoints[0].InterfaceName, l.Endpoints[1].NodeName, l.Endpoints[1].InterfaceName)
-		r.resources.AddNewResource(invv1alpha1.BuildLink(
-			metav1.ObjectMeta{
-				Name:            linkName,
-				Namespace:       cr.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+
+	// claim the endpoints
+	endpoints := []invv1alpha1.Endpoint{}
+	for _, ep := range cr.Spec.Endpoints {
+		eps, err := r.endpoint.GetTopologyEndpointsWithSelector(ep.Topology, &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				invv1alpha1.NephioInventoryInterfaceNameKey: ep.InterfaceName,
+				invv1alpha1.NephioInventoryNodeNameKey:      ep.NodeName,
 			},
-			l,
-			invv1alpha1.LinkStatus{},
-		).DeepCopy())
-	}
-	// tbd determine multihoming
-	for epIdx, lep := range selectionResult.getLogicalEndpoints() {
-		// topology
-		r.resources.AddNewResource(invv1alpha1.BuildLogicalEndpoint(
-			metav1.ObjectMeta{
-				Name:            fmt.Sprintf("%s-logical-ep%d", cr.GetName(), epIdx),
-				Namespace:       cr.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
-			},
-			lep,
-			invv1alpha1.LogicalEndpointStatus{},
-		).DeepCopy())
+		})
+		if err != nil {
+			return err
+		}
+		if len(eps) != 1 {
+			return fmt.Errorf("expecting 1 endpoint, got: %d, data: %v", len(eps), eps)
+		}
+		if eps[0].IsAllocated(cr) {
+			return fmt.Errorf("endpoint allocated by another resource: %v", eps[0].Status.ClaimRef)
+		}
+		endpoints = append(endpoints, eps[0])
 	}
 
 	// identify claims to be deleted
 	tobeDeletedClaims := []invv1alpha1.Endpoint{}
 	for _, cep := range r.claimedEndpoints {
 		found := false
-		for _, ep := range selectionResult.getSelectedEndpoints() {
+		for _, ep := range endpoints {
 			if cep.Name == ep.Name && cep.Namespace == ep.Namespace {
 				found = true
 				break
@@ -236,9 +217,9 @@ func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.Log
 	}
 
 	// updated the claim ref in the selected endpoints
-	if err := r.endpoint.Claim(ctx, cr, selectionResult.getSelectedEndpoints()); err != nil {
+	if err := r.endpoint.Claim(ctx, cr, endpoints); err != nil {
 		return err
 	}
 
-	return r.resources.APIApply(ctx, cr)
+	return nil
 }

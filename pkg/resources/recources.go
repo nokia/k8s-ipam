@@ -22,6 +22,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio/controllers/pkg/resource"
+
+	//kresource "github.com/nephio-project/nephio/controllers/pkg/resource"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -157,8 +159,10 @@ func (r *resources) APIApply(ctx context.Context, cr client.Object) error {
 	// step2b delete the exisiting resource that are no longer needed
 	for _, o := range r.existingResources {
 		if err := r.Delete(ctx, o); err != nil {
-			r.l.Info("api apply", "error", err, "object", o)
-			return err
+			if resource.IgnoreNotFound(err) != nil {
+				r.l.Info("api apply", "error", err, "object", o)
+				return err
+			}
 		}
 	}
 
@@ -178,6 +182,7 @@ func (r *resources) GetNewResources() map[corev1.ObjectReference]client.Object {
 	return r.newResources
 }
 
+/*
 func (r *resources) getNewRefs() []corev1.ObjectReference {
 	l := []corev1.ObjectReference{}
 	for ref := range r.newResources {
@@ -185,6 +190,7 @@ func (r *resources) getNewRefs() []corev1.ObjectReference {
 	}
 	return l
 }
+*/
 
 func (r *resources) getExistingRefs() []corev1.ObjectReference {
 	l := []corev1.ObjectReference{}

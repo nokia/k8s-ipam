@@ -41,13 +41,13 @@ const (
 	NephioProviderKey         = "nephio.org/provider"
 	NephioWiringKey           = "nephio.org/wiring"
 	// user defined topology
-	NephioInventoryRack                = "inv.nephio.org/rack"
-	NephioInventoryPodIndex            = "inv.nephio.org/pod-index"
-	NephioInventoryPlaneIndex          = "inv.nephio.org/plane-index"
-	NephioInventoryRackIndex           = "inv.nephio.org/rack-index"
-	NephioInventoryNodeIndex           = "inv.nephio.org/node-index"
-	NephioInventoryNodeRedundancyGroup = "inv.nephio.org/node-redundancy-group"
-	NephioInventoryEndpointIndex       = "inv.nephio.org/interface-index"
+	NephioInventoryRack            = "inv.nephio.org/rack"
+	NephioInventoryPodIndex        = "inv.nephio.org/pod-index"
+	NephioInventoryPlaneIndex      = "inv.nephio.org/plane-index"
+	NephioInventoryRackIndex       = "inv.nephio.org/rack-index"
+	NephioInventoryNodeIndex       = "inv.nephio.org/node-index"
+	NephioInventoryRedundancyGroup = "inv.nephio.org/redundancy-group"
+	NephioInventoryEndpointIndex   = "inv.nephio.org/interface-index"
 
 	RevisionHash = "nephio.org/revision-hash"
 )

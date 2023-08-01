@@ -41,6 +41,14 @@ func (r *LinkList) GetItems() []client.Object {
 	return objs
 }
 
+func (r *Link) GetTopologies() []string {
+	topologies := []string{}
+	for _, ep := range r.Spec.Endpoints {
+		topologies = append(topologies, ep.Topology)
+	}
+	return topologies
+}
+
 // BuildLink returns a Link from a client Object a crName and
 // a Link Spec/Status
 func BuildLink(meta metav1.ObjectMeta, spec LinkSpec, status LinkStatus) *Link {

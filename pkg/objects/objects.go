@@ -18,21 +18,28 @@ package objects
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type ExtObjects interface {
+	client.ObjectList
+
+	// GetItems returns the list of managed resources.
+	GetItems() []client.Object
+}
+
 type Objects struct {
-	unstructured.UnstructuredList
+	ExtObjects
 }
 
-func (r Objects) iterator() *iterator[unstructured.Unstructured] {
-	return &iterator[unstructured.Unstructured]{curIdx: -1, items: r.Items}
+func (r Objects) iterator() *iterator[client.Object] {
+	return &iterator[client.Object]{curIdx: -1, items: r.GetItems()}
 }
 
-func (r *Objects) GetAllObjects() []unstructured.Unstructured {
-	objs := []unstructured.Unstructured{}
+func (r Objects) GetAllObjects() []client.Object {
+	objs := []client.Object{}
 
 	iter := r.iterator()
 	for iter.HasNext() {
@@ -41,20 +48,19 @@ func (r *Objects) GetAllObjects() []unstructured.Unstructured {
 	return objs
 }
 
-func (r Objects) GetSelectedObjects(s *metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+func (r Objects) GetSelectedObjects(s *metav1.LabelSelector) ([]client.Object, error) {
 	selector, err := metav1.LabelSelectorAsSelector(s)
 	if err != nil {
 		return nil, err
 	}
 
-	objs := []unstructured.Unstructured{}
+	objs := []client.Object{}
 	uniqueValues := map[string]struct{}{}
 
 	iter := r.iterator()
 	for iter.HasNext() {
 		v := iter.Value()
 		if selector.Matches(labels.Set(v.GetLabels())) {
-
 			name := types.NamespacedName{Name: v.GetName(), Namespace: v.GetNamespace()}
 			if _, ok := uniqueValues[name.String()]; !ok {
 				objs = append(objs, iter.Value())

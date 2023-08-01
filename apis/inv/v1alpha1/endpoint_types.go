@@ -21,6 +21,7 @@ import (
 
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -28,7 +29,7 @@ import (
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
 	// topology defines the topology to which this endpoint belongs
-	Topology *string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
 	// InterfaceName provide the name of the interface of the endpoint
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
 	// NodeName provide the name of the node on which this
@@ -51,12 +52,13 @@ type EndpointStatus struct {
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
-	resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	//resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty" yaml:"claimRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="CLAIMREF",type="string",JSONPath=".status.claimRef"
 // +kubebuilder:resource:categories={nephio,inv}
 // Endpoint is the Schema for the vlan API
 type Endpoint struct {

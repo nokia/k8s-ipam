@@ -29,9 +29,9 @@ import (
 type LogicalEndpointSpec struct {
 	// MultiHoming defines if this logical endpoint is multi-homed
 	//MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"`
-	// LagName defines the lag name for the logical single-homed or multi-homed
-	// endpoint
-	LagName *string `json:"lagName,omitempty" yaml:"lagName,omitempty"`
+	// Name defines the logical endpoint name
+	// can be single-homed or multi-homed
+	Name *string `json:"name,omitempty" yaml:"name,omitempty"`
 	// Lacp defines if the lag enabled LACP
 	// +optional
 	Lacp *bool `json:"lacp,omitempty" yaml:"lacp,omitempty"`
