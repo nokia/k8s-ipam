@@ -120,7 +120,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.claimedEndpoints, err = r.endpoint.GetClaimedEndpoints(ctx, cr)
 	if err != nil {
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	cr = cr.DeepCopy()

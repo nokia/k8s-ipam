@@ -125,8 +125,8 @@ spec:
                         longitude:
                           type: string
                       type: object
-                    nodeConfigName:
-                      description: NodeConfigName provides a reference to a node config
+                    nodeConfig:
+                      description: NodeConfig provides a reference to a node config
                         resource only name is used, we expect the namespace to be
                         the same as the node for now
                       properties:

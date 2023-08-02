@@ -43,9 +43,9 @@ type NodeSpec struct {
 	// Location defines the location information where this resource is located
 	// in lon/lat coordinates
 	Location *Location `json:"location,omitempty" yaml:"location,omitempty"`
-	// NodeConfigName provides a reference to a node config resource
+	// NodeConfig provides a reference to a node config resource
 	// only name is used, we expect the namespace to be the same as the node for now
-	NodeConfig *corev1.ObjectReference `json:"nodeConfigName,omitempty" yaml:"nodeConfigName,omitempty"`
+	NodeConfig *corev1.ObjectReference `json:"nodeConfig,omitempty" yaml:"nodeConfig,omitempty"`
 }
 
 type Location struct {

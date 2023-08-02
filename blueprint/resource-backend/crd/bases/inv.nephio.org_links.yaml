@@ -21,6 +21,12 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
+    - jsonPath: .spec.endpoints[0].topology
+      name: TOPOLOGY0
+      type: string
+    - jsonPath: .spec.endpoints[1].topology
+      name: TOPOLOGY1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

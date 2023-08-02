@@ -18,6 +18,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.topology
+      name: TOPOLOGY
+      type: string
     - jsonPath: .status.claimRef
       name: CLAIMREF
       type: string

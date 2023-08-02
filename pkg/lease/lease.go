@@ -34,6 +34,7 @@ import (
 
 const (
 	defaultLeaseInterval = 1 * time.Second
+	RequeueInterval      = 2 * defaultLeaseInterval
 )
 
 type Lease interface {

@@ -103,6 +103,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcile.Result{}, nil
 	}
 
+	// for links owned by the logical interconnect link we dont do anything
+	for _, ownRef := range cr.OwnerReferences {
+		if ownRef.APIVersion == topov1alpha1.GroupVersion.String() &&
+			ownRef.Kind == topov1alpha1.LogicalInterconnectKind {
+			return reconcile.Result{}, nil
+		}
+	}
+
 	// initialize claimed endpoints
 	var err error
 	r.claimedEndpoints, err = r.endpoint.GetClaimedEndpoints(ctx, cr)
@@ -140,7 +148,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.lease.AcquireLease(ctx, cr); err != nil {
 		r.l.Error(err, "cannot acquire lease")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
-		return reconcile.Result{Requeue: true}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.claimResources(ctx, cr); err != nil {

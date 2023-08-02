@@ -41,7 +41,18 @@ const (
 	NephioProviderKey         = "nephio.org/provider"
 	NephioWiringKey           = "nephio.org/wiring"
 	// user defined topology
-	NephioInventoryRack            = "inv.nephio.org/rack"
+	// endpoint
+	NephioInventorySlot      = "inv.nephio.org/slot"
+	NephioInventoryComponent = "inv.nephio.org/component" // board, sub-slot
+	NephioInventoryBoard     = "inv.nephio.org/board"
+	NephioInventoryConnector = "inv.nephio.org/connector"
+	NephioInventoryPort      = "inv.nephio.org/port"
+	// node
+	NephioInventoryRack   = "inv.nephio.org/rack"
+	NephioInventoryRoom   = "inv.nephio.org/room"
+	NephioInventoryRow    = "inv.nephio.org/row"
+	NephioInventoryColumn = "inv.nephio.org/column"
+	// logical index
 	NephioInventoryPodIndex        = "inv.nephio.org/pod-index"
 	NephioInventoryPlaneIndex      = "inv.nephio.org/plane-index"
 	NephioInventoryRackIndex       = "inv.nephio.org/rack-index"
