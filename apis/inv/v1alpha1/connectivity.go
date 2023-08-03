@@ -35,7 +35,6 @@ const (
 type Connectivity struct {
 	ClusterConnectivity ClusterConnectivity
 	HostConnectivity    HostConnectivity
-	Endpoints           []HostConnectivity
 }
 
 func GetClusterConnectivity(topology string, clusterTopologies map[string]struct{}) ClusterConnectivity {
