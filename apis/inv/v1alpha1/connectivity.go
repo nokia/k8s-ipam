@@ -27,7 +27,7 @@ const (
 type HostConnectivity string
 
 const (
-	HostConnectivityUnknwon HostConnectivity = "unknown"
+	HostConnectivityUnknown HostConnectivity = "unknown"
 	HostConnectivityLocal   HostConnectivity = "local"
 	HostConnectivityRemote  HostConnectivity = "remote"
 )
