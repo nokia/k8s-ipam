@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +49,13 @@ func (r *Link) GetTopologies() []string {
 		topologies = append(topologies, ep.Topology)
 	}
 	return topologies
+}
+
+func (r *Link) Validate() error {
+	if len(r.Spec.Endpoints) != 2 {
+		return fmt.Errorf("a link requires exactly 2 endpoints, got: %v", len(r.Spec.Endpoints))
+	}
+	return nil
 }
 
 // BuildLink returns a Link from a client Object a crName and
