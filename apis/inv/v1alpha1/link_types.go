@@ -30,11 +30,21 @@ type LinkSpec struct {
 	// Endpoints define the node + interface endpoints associated with this link
 	// +kubebuilder:validation:MaxItems:=2
 	// +kubebuilder:validation:MinItems:=2
-	Endpoints []EndpointSpec `json:"endpoints"`
+	Endpoints []LinkEndpointSpec `json:"endpoints"`
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
+	//resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
+}
+
+type LinkEndpointSpec struct {
+	// topology defines the topology to which this endpoint belongs
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=64
+	Topology string `json:"topology" yaml:"topology"`
+	// EndpointSpec defines the desired state of Endpoint
+	EndpointSpec `json:",inline" yaml:",inline"`
 }
 
 // LinkStatus defines the observed state of Link
@@ -48,7 +58,9 @@ type LinkStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="TOPOLOGY0",type="string",JSONPath=".spec.endpoints[0].topology"
 // +kubebuilder:printcolumn:name="TOPOLOGY1",type="string",JSONPath=".spec.endpoints[1].topology"

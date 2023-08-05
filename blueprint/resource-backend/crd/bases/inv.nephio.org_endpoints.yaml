@@ -41,24 +41,23 @@ spec:
             description: EndpointSpec defines the desired state of Endpoint
             properties:
               interfaceName:
-                description: InterfaceName provide the name of the interface of the endpoint
+                description: topology defines the topology to which this endpoint belongs Topology string `json:"topology,omitempty" yaml:"topology,omitempty"` InterfaceName provide the name of the interface of the endpoint
+                maxLength: 64
                 type: string
-              labels:
-                additionalProperties:
-                  type: string
-                description: Labels as user defined labels
-                type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               lacpFallback:
                 description: LacpFallback defines if the link is part of a lag mutually exclusive with Lag parameter
                 type: boolean
               nodeName:
                 description: NodeName provide the name of the node on which this endpoint belongs.
+                maxLength: 64
                 type: string
-              topology:
-                description: topology defines the topology to which this endpoint belongs
-                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
             required:
-            - interfaceName
             - nodeName
             type: object
           status:
@@ -92,6 +91,9 @@ spec:
                 x-kubernetes-map-type: atomic
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Value is required once set
+          rule: '!has(oldSelf.value) || has(self.value)'
     served: true
     storage: true
     subresources:

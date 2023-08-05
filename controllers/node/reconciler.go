@@ -264,7 +264,7 @@ func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface, e
 		labels[k] = v
 	}
 	epSpec := invv1alpha1.EndpointSpec{
-		Topology:      cr.Spec.Topology,
+		//Topology:      cr.Spec.Topology,
 		NodeName:      cr.GetName(),
 		InterfaceName: itfce.Name,
 	}

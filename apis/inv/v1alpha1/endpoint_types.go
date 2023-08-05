@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
-	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	//resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,11 +29,19 @@ import (
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
 	// topology defines the topology to which this endpoint belongs
-	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxLength=64
+	//Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
 	// InterfaceName provide the name of the interface of the endpoint
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=64
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
 	// NodeName provide the name of the node on which this
 	// endpoint belongs.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=64
 	NodeName string `json:"nodeName" yaml:"nodeName"`
 	// LacpFallback defines if the link is part of a lag
 	// mutually exclusive with Lag parameter
@@ -42,7 +50,7 @@ type EndpointSpec struct {
 
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
+	//resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // EndpointStatus defines the observed state of Endpoint
@@ -57,7 +65,9 @@ type EndpointStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 // +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".spec.topology"
 // +kubebuilder:printcolumn:name="CLAIMREF",type="string",JSONPath=".status.claimRef"
 // +kubebuilder:resource:categories={nephio,inv}

@@ -55,17 +55,17 @@ spec:
                       description: Endpoints define the node + interface endpoints
                         associated with this link
                       items:
-                        description: EndpointSpec defines the desired state of Endpoint
                         properties:
                           interfaceName:
-                            description: InterfaceName provide the name of the interface
-                              of the endpoint
+                            description: topology defines the topology to which this
+                              endpoint belongs Topology string `json:"topology,omitempty"
+                              yaml:"topology,omitempty"` InterfaceName provide the
+                              name of the interface of the endpoint
+                            maxLength: 64
                             type: string
-                          labels:
-                            additionalProperties:
-                              type: string
-                            description: Labels as user defined labels
-                            type: object
+                            x-kubernetes-validations:
+                            - message: Value is immutable
+                              rule: self == oldSelf
                           lacpFallback:
                             description: LacpFallback defines if the link is part
                               of a lag mutually exclusive with Lag parameter
@@ -73,23 +73,26 @@ spec:
                           nodeName:
                             description: NodeName provide the name of the node on
                               which this endpoint belongs.
+                            maxLength: 64
                             type: string
+                            x-kubernetes-validations:
+                            - message: Value is immutable
+                              rule: self == oldSelf
                           topology:
                             description: topology defines the topology to which this
                               endpoint belongs
+                            maxLength: 64
                             type: string
+                            x-kubernetes-validations:
+                            - message: Value is immutable
+                              rule: self == oldSelf
                         required:
-                        - interfaceName
                         - nodeName
+                        - topology
                         type: object
                       maxItems: 2
                       minItems: 2
                       type: array
-                    labels:
-                      additionalProperties:
-                        type: string
-                      description: Labels as user defined labels
-                      type: object
                   required:
                   - endpoints
                   type: object

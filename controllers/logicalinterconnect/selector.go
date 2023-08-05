@@ -80,12 +80,14 @@ func (r *selector) addEndpoint(topology string, linkIdx, epIdx int, ep invv1alph
 	r.result.endpoints = append(r.result.endpoints, ep)
 	// add linkSpec
 	if len(r.result.linkSpecs[linkIdx].Endpoints) == 0 {
-		r.result.linkSpecs[linkIdx].Endpoints = make([]invv1alpha1.EndpointSpec, 2)
+		r.result.linkSpecs[linkIdx].Endpoints = make([]invv1alpha1.LinkEndpointSpec, 2)
 	}
-	r.result.linkSpecs[linkIdx].Endpoints[epIdx] = invv1alpha1.EndpointSpec{
-		Topology:      topology,
-		InterfaceName: ep.Spec.InterfaceName,
-		NodeName:      ep.Spec.NodeName,
+	r.result.linkSpecs[linkIdx].Endpoints[epIdx] = invv1alpha1.LinkEndpointSpec{
+		Topology: topology,
+		EndpointSpec: invv1alpha1.EndpointSpec{
+			InterfaceName: ep.Spec.InterfaceName,
+			NodeName:      ep.Spec.NodeName,
+		},
 	}
 	// add logical endpoint
 	r.result.logicalEndpoints[epIdx].Lacp = lacp
@@ -95,7 +97,7 @@ func (r *selector) addEndpoint(topology string, linkIdx, epIdx int, ep invv1alph
 	}
 	r.result.logicalEndpoints[epIdx].Endpoints = append(r.result.logicalEndpoints[epIdx].Endpoints,
 		invv1alpha1.EndpointSpec{
-			Topology:      topology,
+			//Topology:      topology,
 			InterfaceName: ep.Spec.InterfaceName,
 			NodeName:      ep.Spec.NodeName,
 		},
