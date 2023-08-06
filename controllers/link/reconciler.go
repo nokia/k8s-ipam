@@ -66,6 +66,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 
 	r.endpoint = endpoint.New(mgr.GetClient())
 	r.epLease = lease.New(mgr.GetClient(), types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: "endpoint"})
+	r.linkLease = lease.New(mgr.GetClient(), types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: "link"})
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
@@ -80,8 +81,9 @@ type reconciler struct {
 	resource.APIPatchingApplicator
 	finalizer *resource.APIFinalizer
 
-	endpoint endpoint.Endpoint
-	epLease    lease.Lease
+	endpoint  endpoint.Endpoint
+	epLease   lease.Lease
+	linkLease lease.Lease
 
 	claimedEndpoints []invv1alpha1.Endpoint
 
@@ -144,9 +146,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	cr = cr.DeepCopy()
-	// acquire lease to update the resource
+	// acquire endpoint lease to update the resource
 	if err := r.epLease.AcquireLease(ctx, cr); err != nil {
-		r.l.Error(err, "cannot acquire lease")
+		r.l.Error(err, "cannot acquire endpoint lease")
+		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
+		return reconcile.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	// acquire endpoint lease to update the resource
+	if err := r.linkLease.AcquireLease(ctx, cr); err != nil {
+		r.l.Error(err, "cannot acquire link lease")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
