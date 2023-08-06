@@ -95,7 +95,7 @@ type reconciler struct {
 
 	resources resources.Resources
 	endpoint  endpoint.Endpoint
-	epLease     lease.Lease
+	epLease   lease.Lease
 
 	claimedEndpoints []invv1alpha1.Endpoint
 

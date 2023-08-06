@@ -52,13 +52,9 @@ type EndpointSpec struct {
 
 // EndpointStatus defines the observed state of Endpoint
 type EndpointStatus struct {
-	// ConditionedStatus provides the status of the Endpoint using conditions
-	// 2 conditions are used:
-	// - a condition for the reconcilation status
-	// - a condition for the ready status
-	// if both are true the other attributes in the status are meaningful
-	//resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty" yaml:"claimRef,omitempty"`
+
+	VtepID string `json:"vtepID,omitempty" yaml:"vtepID,omitempty"`
 }
 
 // +kubebuilder:object:root=true

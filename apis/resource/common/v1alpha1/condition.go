@@ -31,6 +31,8 @@ const (
 	ConditionTypeSynced ConditionType = "Synced"
 	// ConditionTypeReady represents the resource ready condition
 	ConditionTypeReady ConditionType = "Ready"
+	// ConditionTypeWired represents the resource wire condition
+	ConditionTypeWired ConditionType = "Wired"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -48,6 +50,13 @@ const (
 const (
 	ConditionReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
 	ConditionReasonReconcileFailure ConditionReason = "ReconcileFailure"
+)
+
+// Reasons a resource is synced or not
+const (
+	ConditionReasonWireSuccess ConditionReason = "Success"
+	ConditionReasonWireFailure ConditionReason = "Failure"
+	ConditionReasonWireUnknown ConditionReason = "Unknown"
 )
 
 type Condition struct {
@@ -216,5 +225,39 @@ func ReconcileError(err error) Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReconcileFailure),
 		Message:            err.Error(),
+	}}
+}
+
+// Wired returns a condition indicating that the wiring
+// was successfull
+func Wired() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeWired),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonWireSuccess),
+	}}
+}
+
+// Wired returns a condition indicating that the wiring
+// failed
+func WiringFailed(err error) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeWired),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonWireFailure),
+		Message:            err.Error(),
+	}}
+}
+
+// WiringUknown returns a condition indicating that the wiring
+// is unknown
+func WiringUknown() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeWired),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonWireUnknown),
 	}}
 }
