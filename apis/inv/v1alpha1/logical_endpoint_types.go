@@ -28,7 +28,7 @@ import (
 // LogicalEndpointSpec defines the desired state of LogicalEndpoint
 type LogicalEndpointSpec struct {
 	// MultiHoming defines if this logical endpoint is multi-homed
-	//MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"`
+	// MultiHoming *bool `json:"multiHoming,omitempty" yaml:"multiHoming,omitempty"`
 	// Name defines the logical endpoint name
 	// can be single-homed or multi-homed
 	Name *string `json:"name,omitempty" yaml:"name,omitempty"`
@@ -36,11 +36,12 @@ type LogicalEndpointSpec struct {
 	// +optional
 	Lacp *bool `json:"lacp,omitempty" yaml:"lacp,omitempty"`
 	// Endpoints define the endpoints that belong to the logical link
-	// this can be more than 2
+	// +kubebuilder:validation:MaxItems:=16
+	// +kubebuilder:validation:MinItems:=1
 	Endpoints []EndpointSpec `json:"endpoints" yaml:"endpoints"`
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
-	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
+	//resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
 }
 
 // LogicalEndpointStatus defines the observed state of LogicalEndpoint
@@ -62,7 +63,6 @@ type LogicalEndpointStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:resource:categories={nephio,inv}
 // LogicalEndpoint is the Schema for the vlan API

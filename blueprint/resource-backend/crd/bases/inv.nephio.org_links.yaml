@@ -51,9 +51,6 @@ spec:
                       description: topology defines the topology to which this endpoint belongs Topology string `json:"topology,omitempty" yaml:"topology,omitempty"` InterfaceName provide the name of the interface of the endpoint
                       maxLength: 64
                       type: string
-                      x-kubernetes-validations:
-                      - message: Value is immutable
-                        rule: self == oldSelf
                     lacpFallback:
                       description: LacpFallback defines if the link is part of a lag mutually exclusive with Lag parameter
                       type: boolean
@@ -61,17 +58,12 @@ spec:
                       description: NodeName provide the name of the node on which this endpoint belongs.
                       maxLength: 64
                       type: string
-                      x-kubernetes-validations:
-                      - message: Value is immutable
-                        rule: self == oldSelf
                     topology:
                       description: topology defines the topology to which this endpoint belongs
                       maxLength: 64
                       type: string
-                      x-kubernetes-validations:
-                      - message: Value is immutable
-                        rule: self == oldSelf
                   required:
+                  - interfaceName
                   - nodeName
                   - topology
                   type: object
@@ -129,9 +121,6 @@ spec:
                 type: array
             type: object
         type: object
-        x-kubernetes-validations:
-        - message: Value is required once set
-          rule: '!has(oldSelf.value) || has(self.value)'
     served: true
     storage: true
     subresources:

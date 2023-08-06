@@ -65,7 +65,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 
 	r.endpoint = endpoint.New(mgr.GetClient())
-	r.lease = lease.New(mgr.GetClient(), types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: "endpoint"})
+	r.epLease = lease.New(mgr.GetClient(), types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: "endpoint"})
 
 	return nil,
 		ctrl.NewControllerManagedBy(mgr).
@@ -81,7 +81,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	endpoint endpoint.Endpoint
-	lease    lease.Lease
+	epLease    lease.Lease
 
 	claimedEndpoints []invv1alpha1.Endpoint
 
@@ -145,7 +145,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 	// acquire lease to update the resource
-	if err := r.lease.AcquireLease(ctx, cr); err != nil {
+	if err := r.epLease.AcquireLease(ctx, cr); err != nil {
 		r.l.Error(err, "cannot acquire lease")
 		cr.SetConditions(resourcev1alpha1.Failed(err.Error()))
 		return reconcile.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, perrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)

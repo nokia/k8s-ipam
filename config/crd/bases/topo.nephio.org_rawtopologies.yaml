@@ -63,9 +63,6 @@ spec:
                               name of the interface of the endpoint
                             maxLength: 64
                             type: string
-                            x-kubernetes-validations:
-                            - message: Value is immutable
-                              rule: self == oldSelf
                           lacpFallback:
                             description: LacpFallback defines if the link is part
                               of a lag mutually exclusive with Lag parameter
@@ -75,18 +72,13 @@ spec:
                               which this endpoint belongs.
                             maxLength: 64
                             type: string
-                            x-kubernetes-validations:
-                            - message: Value is immutable
-                              rule: self == oldSelf
                           topology:
                             description: topology defines the topology to which this
                               endpoint belongs
                             maxLength: 64
                             type: string
-                            x-kubernetes-validations:
-                            - message: Value is immutable
-                              rule: self == oldSelf
                         required:
+                        - interfaceName
                         - nodeName
                         - topology
                         type: object

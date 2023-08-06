@@ -44,7 +44,7 @@ spec:
             properties:
               endpoints:
                 description: Endpoints define the endpoints that belong to the logical
-                  link this can be more than 2
+                  link
                 items:
                   description: EndpointSpec defines the desired state of Endpoint
                   properties:
@@ -54,9 +54,6 @@ spec:
                         InterfaceName provide the name of the interface of the endpoint
                       maxLength: 64
                       type: string
-                      x-kubernetes-validations:
-                      - message: Value is immutable
-                        rule: self == oldSelf
                     lacpFallback:
                       description: LacpFallback defines if the link is part of a lag
                         mutually exclusive with Lag parameter
@@ -66,18 +63,13 @@ spec:
                         this endpoint belongs.
                       maxLength: 64
                       type: string
-                      x-kubernetes-validations:
-                      - message: Value is immutable
-                        rule: self == oldSelf
                   required:
+                  - interfaceName
                   - nodeName
                   type: object
+                maxItems: 16
+                minItems: 1
                 type: array
-              labels:
-                additionalProperties:
-                  type: string
-                description: Labels as user defined labels
-                type: object
               lacp:
                 description: Lacp defines if the lag enabled LACP
                 type: boolean
@@ -165,9 +157,6 @@ spec:
                 type: integer
             type: object
         type: object
-        x-kubernetes-validations:
-        - message: Value is required once set
-          rule: '!has(oldSelf.value) || has(self.value)'
     served: true
     storage: true
     subresources:

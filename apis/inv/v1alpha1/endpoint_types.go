@@ -29,18 +29,15 @@ import (
 // EndpointSpec defines the desired state of Endpoint
 type EndpointSpec struct {
 	// topology defines the topology to which this endpoint belongs
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MaxLength=64
 	//Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
 	// InterfaceName provide the name of the interface of the endpoint
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:validation:MaxLength=64
 	InterfaceName string `json:"interfaceName" yaml:"interfaceName"`
 	// NodeName provide the name of the node on which this
 	// endpoint belongs.
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:validation:MaxLength=64
 	NodeName string `json:"nodeName" yaml:"nodeName"`
 	// LacpFallback defines if the link is part of a lag
@@ -67,7 +64,6 @@ type EndpointStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 // +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".spec.topology"
 // +kubebuilder:printcolumn:name="CLAIMREF",type="string",JSONPath=".status.claimRef"
 // +kubebuilder:resource:categories={nephio,inv}
