@@ -61,4 +61,8 @@ const (
 	NephioInventoryEndpointIndex   = "inv.nephio.org/interface-index"
 
 	RevisionHash = "nephio.org/revision-hash"
+
+	NephioWireNodeAddress = "wire.nephio.org/node-address"
+	NephioWireGRPCAddress = "wire.nephio.org/grpc-address"
+	NephioWireGRPCPort    = "wire.nephio.org/grpc-port"
 )
