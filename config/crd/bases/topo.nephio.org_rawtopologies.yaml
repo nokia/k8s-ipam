@@ -84,6 +84,14 @@ spec:
                       maxItems: 2
                       minItems: 2
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - topology
+                      - nodeName
+                      - interfaceName
+                      x-kubernetes-list-type: map
+                      x-kubernetes-validations:
+                      - message: Link Endpoints are immutable
+                        rule: self.all(element, element in oldSelf)
                   required:
                   - endpoints
                   type: object
