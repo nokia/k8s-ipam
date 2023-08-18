@@ -57,6 +57,7 @@ const (
 	ConditionReasonWireSuccess ConditionReason = "Success"
 	ConditionReasonWireFailure ConditionReason = "Failure"
 	ConditionReasonWireUnknown ConditionReason = "Unknown"
+	ConditionReasonWireWiring  ConditionReason = "Wiring"
 )
 
 type Condition struct {
@@ -259,5 +260,17 @@ func WiringUknown() Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonWireUnknown),
+	}}
+}
+
+// Wiring returns a condition indicating that the wiring
+// is unknown
+func Wiring(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeWired),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonWireWiring),
+		Message:            msg,
 	}}
 }
