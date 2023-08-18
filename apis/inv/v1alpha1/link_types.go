@@ -59,6 +59,7 @@ type LinkStatus struct {
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="WIRED",type="string",JSONPath=".status.conditions[?(@.type=='Wired')].status"
 // +kubebuilder:printcolumn:name="TOPOLOGY_0",type="string",JSONPath=".spec.endpoints[0].topology"
 // +kubebuilder:printcolumn:name="NODE_NAME_0",type="string",JSONPath=".spec.endpoints[0].nodeName"
 // +kubebuilder:printcolumn:name="IF_NAME_0",type="string",JSONPath=".spec.endpoints[0].interfaceName"
