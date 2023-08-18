@@ -60,7 +60,7 @@ type EndpointStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".spec.topology"
+// +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".metadata.namespace"
 // +kubebuilder:printcolumn:name="CLAIMREF",type="string",JSONPath=".status.claimRef"
 // +kubebuilder:resource:categories={nephio,inv}
 // Endpoint is the Schema for the vlan API

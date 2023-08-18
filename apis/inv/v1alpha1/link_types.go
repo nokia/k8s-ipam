@@ -59,8 +59,12 @@ type LinkStatus struct {
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="TOPOLOGY0",type="string",JSONPath=".spec.endpoints[0].topology"
-// +kubebuilder:printcolumn:name="TOPOLOGY1",type="string",JSONPath=".spec.endpoints[1].topology"
+// +kubebuilder:printcolumn:name="TOPOLOGY_0",type="string",JSONPath=".spec.endpoints[0].topology"
+// +kubebuilder:printcolumn:name="NODE_NAME_0",type="string",JSONPath=".spec.endpoints[0].nodeName"
+// +kubebuilder:printcolumn:name="IF_NAME_0",type="string",JSONPath=".spec.endpoints[0].interfaceName"
+// +kubebuilder:printcolumn:name="TOPOLOGY_1",type="string",JSONPath=".spec.endpoints[1].topology"
+// +kubebuilder:printcolumn:name="NODE_NAME_1",type="string",JSONPath=".spec.endpoints[1].nodeName"
+// +kubebuilder:printcolumn:name="IF_NAME_1",type="string",JSONPath=".spec.endpoints[1].interfaceName"
 // +kubebuilder:resource:categories={nephio,inv}
 // Link is the Schema for the vlan API
 type Link struct {

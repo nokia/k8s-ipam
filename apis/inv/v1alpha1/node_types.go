@@ -32,7 +32,7 @@ type NodeSpec struct {
 	// Topology is actually a mandatory parameter, but to be able to reuse
 	// this struct for both rawtopology and node CRD we allow this
 	// validation is done in the respective controllers
-	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	//Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
 	// Provider defines the provider implementing this node.
 	Provider string `json:"provider" yaml:"provider"`
 	// Address defines the address of the mgmt interface of this node
@@ -69,7 +69,7 @@ type NodeStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".spec.topology"
+// +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".metadata.namespace"
 // +kubebuilder:resource:categories={nephio,inv}
 // Node is the Schema for the vlan API
 type Node struct {

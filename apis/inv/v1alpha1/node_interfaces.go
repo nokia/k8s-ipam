@@ -55,9 +55,11 @@ func BuildNode(meta metav1.ObjectMeta, spec NodeSpec, status NodeStatus) *Node {
 	}
 }
 
+/*
 func (r NodeSpec) GetTopology(topoName string) string {
 	if r.Topology == "" {
 		return topoName
 	}
 	return r.Topology
 }
+*/

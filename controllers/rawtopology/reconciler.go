@@ -182,10 +182,10 @@ func (r *reconciler) getTopologies(l invv1alpha1.LinkSpec) []string {
 			continue
 		}
 		if ref.Name == l.Endpoints[0].NodeName {
-			topologies[0] = n.Spec.Topology
+			topologies[0] = n.Namespace
 		}
 		if ref.Name == l.Endpoints[1].NodeName {
-			topologies[1] = n.Spec.Topology
+			topologies[1] = n.Namespace
 		}
 	}
 	return topologies
@@ -242,11 +242,11 @@ func buildNode(cr *topov1alpha1.RawTopology, nodeName string, nodeSpec invv1alph
 	for k, v := range nodeSpec.Labels {
 		labels[k] = v
 	}
-	labels[invv1alpha1.NephioTopologyKey] = nodeSpec.GetTopology(cr.Name)
+	labels[invv1alpha1.NephioTopologyKey] = cr.Namespace
 	labels[invv1alpha1.NephioInventoryNodeNameKey] = nodeName
 	labels[invv1alpha1.NephioProviderKey] = nodeSpec.Provider
 
-	nodeSpec.Topology = nodeSpec.GetTopology(cr.Name)
+	//nodeSpec.Topology = nodeSpec.GetTopology(cr.Name)
 	return invv1alpha1.BuildNode(
 		metav1.ObjectMeta{
 			Name:            nodeName,

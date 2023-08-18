@@ -160,14 +160,12 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     provider:
-                      description: Provider defines the provider implementing this
-                        node.
-                      type: string
-                    topology:
                       description: Topology defines the topology to which this node
                         belongs Topology is actually a mandatory parameter, but to
                         be able to reuse this struct for both rawtopology and node
                         CRD we allow this validation is done in the respective controllers
+                        Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
+                        Provider defines the provider implementing this node.
                       type: string
                   required:
                   - provider

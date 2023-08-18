@@ -21,10 +21,22 @@ spec:
       name: READY
       type: string
     - jsonPath: .spec.endpoints[0].topology
-      name: TOPOLOGY0
+      name: TOPOLOGY_0
+      type: string
+    - jsonPath: .spec.endpoints[0].nodeName
+      name: NODE_NAME_0
+      type: string
+    - jsonPath: .spec.endpoints[0].interfaceName
+      name: IF_NAME_0
       type: string
     - jsonPath: .spec.endpoints[1].topology
-      name: TOPOLOGY1
+      name: TOPOLOGY_1
+      type: string
+    - jsonPath: .spec.endpoints[1].nodeName
+      name: NODE_NAME_1
+      type: string
+    - jsonPath: .spec.endpoints[1].interfaceName
+      name: IF_NAME_1
       type: string
     name: v1alpha1
     schema:
