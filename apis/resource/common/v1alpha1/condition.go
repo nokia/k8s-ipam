@@ -241,13 +241,13 @@ func Wired() Condition {
 
 // Wired returns a condition indicating that the wiring
 // failed
-func WiringFailed(err error) Condition {
+func WiringFailed(msg string) Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeWired),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonWireFailure),
-		Message:            err.Error(),
+		Message:            msg,
 	}}
 }
 
