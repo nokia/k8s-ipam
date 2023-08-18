@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
+    - jsonPath: .status.conditions[?(@.type=='Wired')].status
+      name: WIRED
+      type: string
     - jsonPath: .spec.endpoints[0].topology
       name: TOPOLOGY_0
       type: string
