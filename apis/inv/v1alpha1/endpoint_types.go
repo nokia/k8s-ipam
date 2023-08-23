@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	//resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +53,11 @@ type EndpointSpec struct {
 
 // EndpointStatus defines the observed state of Endpoint
 type EndpointStatus struct {
+	// ConditionedStatus provides the status of the Endpoint using conditions
+	// 1 condition is used:
+	// - a condition for the ep status
+	resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+
 	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty" yaml:"claimRef,omitempty"`
 
 	VtepID string `json:"vtepID,omitempty" yaml:"vtepID,omitempty"`

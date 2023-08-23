@@ -49,8 +49,8 @@ type LinkEndpointSpec struct {
 type LinkStatus struct {
 	// ConditionedStatus provides the status of the Link using conditions
 	// 2 conditions are used:
-	// - a condition for the reconcilation status
 	// - a condition for the ready status
+	// - a condition for the wire status if deployed
 	// if both are true the other attributes in the status are meaningful
 	resourcev1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 }
