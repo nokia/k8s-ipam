@@ -40,7 +40,7 @@ import (
 	_ "github.com/nokia/k8s-ipam/controllers/ipprefix"
 	_ "github.com/nokia/k8s-ipam/controllers/link"
 	_ "github.com/nokia/k8s-ipam/controllers/logicalinterconnect"
-	_ "github.com/nokia/k8s-ipam/controllers/node"
+	//_ "github.com/nokia/k8s-ipam/controllers/node"
 	_ "github.com/nokia/k8s-ipam/controllers/rawtopology"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanclaim"
 	_ "github.com/nokia/k8s-ipam/controllers/vlanindex"

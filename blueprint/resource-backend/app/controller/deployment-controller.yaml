@@ -87,8 +87,6 @@ spec:
           value: "true"
         - name: ENABLE_RAWTOPOLOGIES
           value: "true"
-        - name: ENABLE_NODES
-          value: "true"
         - name: ENABLE_LINKS
           value: "true"
         - name: ENABLE_LOGICALINTERCONNECTS
