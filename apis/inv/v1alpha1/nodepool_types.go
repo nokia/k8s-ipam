@@ -43,7 +43,7 @@ type NodePoolSpec struct {
 
 // NodePoolStatus defines the observed state of NodePool
 type NodePoolStatus struct {
-	// ConditionedStatus provides the status of the Node using conditions
+	// ConditionedStatus provides the status of the NodePool using conditions
 	// 2 conditions are used:
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
@@ -59,22 +59,22 @@ type NodePoolStatus struct {
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".metadata.namespace"
 // +kubebuilder:resource:categories={nephio,inv}
-// Node is the Schema for the vlan API
+// NodePool is the Schema for the NodePool API
 type NodePool struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	Spec   NodeSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Status NodeStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Spec   NodePoolSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Status NodePoolStatus `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// NodeList contains a list of Nodes
+// NodeList contains a list of NodePools
 type NodePoolList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []Node `json:"items" yaml:"items"`
+	Items           []NodePool `json:"items" yaml:"items"`
 }
 
 func init() {
@@ -89,6 +89,6 @@ var (
 	NodePoolKindGVKString    = meta.GVKToString(schema.GroupVersionKind{
 		Group:   GroupVersion.Group,
 		Version: GroupVersion.Version,
-		Kind:    NodeKind,
+		Kind:    NodePoolKind,
 	})
 )
