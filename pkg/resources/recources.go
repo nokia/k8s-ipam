@@ -222,6 +222,7 @@ func (r *resources) APIApply(ctx context.Context, cr client.Object) error {
 
 	// step3b apply the new resources to the api server
 	for _, o := range r.newResources {
+		r.l.Info("api apply", "object", o)
 		if err := r.Apply(ctx, o); err != nil {
 			return err
 		}
