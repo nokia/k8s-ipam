@@ -123,6 +123,7 @@ func (r *resources) getExistingResources(ctx context.Context, cr client.Object) 
 	//defer r.m.Unlock()
 
 	for _, gvk := range r.cfg.Owns {
+		gvk := gvk
 		objs := meta.GetUnstructuredListFromGVK(&gvk)
 
 		opts := []client.ListOption{}
@@ -181,6 +182,8 @@ func (r *resources) APIDelete(ctx context.Context, cr client.Object) error {
 func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 	// delete in priority
 	for ref, o := range r.existingResources {
+		ref := ref
+		o := o
 		r.l.Info("api delete existing resource", "referernce", ref.String())
 		if ref.Kind == "Namespace" {
 			continue
@@ -195,6 +198,8 @@ func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 		}
 	}
 	for ref, o := range r.existingResources {
+		ref := ref
+		o := o
 		if err := r.Delete(ctx, o); err != nil {
 			if resource.IgnoreNotFound(err) != nil {
 				r.l.Info("api delete", "error", err, "object", o)
@@ -209,6 +214,8 @@ func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 func (r *resources) apiCreate(ctx context.Context, cr client.Object) error {
 	// apply in priority
 	for ref, o := range r.newResources {
+		ref := ref
+		o := o
 		if ref.Kind == "Namespace" {
 			r.l.Info("api apply", "object", o)
 			if err := r.Apply(ctx, o); err != nil {
@@ -220,6 +227,7 @@ func (r *resources) apiCreate(ctx context.Context, cr client.Object) error {
 		}
 	}
 	for _, o := range r.newResources {
+		o := o
 		r.l.Info("api apply", "object", o)
 		if err := r.Apply(ctx, o); err != nil {
 			return err
@@ -265,7 +273,13 @@ func (r *resources) GetNewResources() map[corev1.ObjectReference]client.Object {
 	r.m.RLock()
 	defer r.m.RUnlock()
 
-	return r.newResources
+	res := make(map[corev1.ObjectReference]client.Object, len(r.newResources))
+	for ref, o := range r.newResources {
+		ref:= ref
+		o := o
+		res[ref] = o
+	}
+	return res
 }
 
 /*
@@ -281,6 +295,7 @@ func (r *resources) getNewRefs() []corev1.ObjectReference {
 func (r *resources) getExistingRefs() []corev1.ObjectReference {
 	l := []corev1.ObjectReference{}
 	for ref := range r.existingResources {
+		ref := ref
 		l = append(l, ref)
 	}
 	return l
