@@ -187,15 +187,17 @@ func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 			if resource.IgnoreNotFound(err) != nil {
 				return err
 			}
+			delete(r.existingResources, ref)
 		}
-		delete(r.existingResources, ref)
 	}
 	for ref, o := range r.existingResources {
 		if err := r.Delete(ctx, o); err != nil {
 			r.l.Info("api delete", "error", err, "object", o)
-			return err
+			if resource.IgnoreNotFound(err) != nil {
+				return err
+			}
+			delete(r.existingResources, ref)
 		}
-		delete(r.existingResources, ref)
 	}
 	return nil
 }
