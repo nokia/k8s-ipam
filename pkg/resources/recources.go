@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -179,11 +180,12 @@ func (r *resources) APIDelete(ctx context.Context, cr client.Object) error {
 func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 	// delete in priority
 	for ref, o := range r.existingResources {
-		r.l.Info("api delete", "res", ref.String())
+		r.l.Info("api delete existing resource", "referernce", ref.String())
 		if ref.Kind == "Namespace" {
 			continue
 		}
 		if err := r.Delete(ctx, o); err != nil {
+			r.l.Info("api delete delete", "referernce", ref.String(), "nsn", types.NamespacedName{Name: o.GetName(), Namespace: o.GetNamespace()}.String())
 			if resource.IgnoreNotFound(err) != nil {
 				r.l.Info("api delete", "error", err, "object", o)
 				return err
