@@ -37,7 +37,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -70,6 +69,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	r.APIPatchingApplicator = resource.NewAPIPatchingApplicator(mgr.GetClient())
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	r.resources = resources.New(r.APIPatchingApplicator, resources.Config{
+		OwnerRef: true,
 		Owns: []schema.GroupVersionKind{
 			invv1alpha1.LinkGroupVersionKind,
 			invv1alpha1.LogicalEndpointGroupVersionKind,
@@ -192,28 +192,32 @@ func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.Log
 	// in this case the allocation was successfull
 	for _, l := range selectionResult.getLinkSpecs() {
 		linkName := fmt.Sprintf("%s-%s-%s-%s", l.Endpoints[0].NodeName, l.Endpoints[0].InterfaceName, l.Endpoints[1].NodeName, l.Endpoints[1].InterfaceName)
-		r.resources.AddNewResource(invv1alpha1.BuildLink(
+		if err := r.resources.AddNewResource(cr, invv1alpha1.BuildLink(
 			metav1.ObjectMeta{
-				Name:            linkName,
-				Namespace:       cr.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+				Name:      linkName,
+				Namespace: cr.GetNamespace(),
+				//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 			},
 			l,
 			invv1alpha1.LinkStatus{},
-		).DeepCopy())
+		).DeepCopy()); err != nil {
+			return err
+		}
 	}
 	// tbd determine multihoming
 	for epIdx, lep := range selectionResult.getLogicalEndpoints() {
 		// topology
-		r.resources.AddNewResource(invv1alpha1.BuildLogicalEndpoint(
+		if err := r.resources.AddNewResource(cr, invv1alpha1.BuildLogicalEndpoint(
 			metav1.ObjectMeta{
-				Name:            fmt.Sprintf("%s-logical-ep%d", cr.GetName(), epIdx),
-				Namespace:       cr.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+				Name:      fmt.Sprintf("%s-logical-ep%d", cr.GetName(), epIdx),
+				Namespace: cr.GetNamespace(),
+				//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 			},
 			lep,
 			invv1alpha1.LogicalEndpointStatus{},
-		).DeepCopy())
+		).DeepCopy()); err != nil {
+			return err
+		}
 	}
 
 	// identify claims to be deleted

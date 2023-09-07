@@ -50,10 +50,14 @@ rules:
   - nodeconfigs/status
   - nodemodels
   - nodemodels/status
+  - nodepools
+  - nodepools/status
   - nodes
   - nodes/status
   - targets
   - targets/status
+  - topologies
+  - topologies/status
   verbs:
   - get
   - list

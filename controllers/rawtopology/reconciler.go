@@ -33,7 +33,6 @@ import (
 	perrors "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -80,6 +79,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	r.APIPatchingApplicator = resource.NewAPIPatchingApplicator(mgr.GetClient())
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	r.resources = resources.New(r.APIPatchingApplicator, resources.Config{
+		OwnerRef: true,
 		Owns: []schema.GroupVersionKind{
 			invv1alpha1.NodeGroupVersionKind,
 			invv1alpha1.LinkGroupVersionKind,
@@ -166,10 +166,14 @@ func (r *reconciler) populateResources(ctx context.Context, cr *topov1alpha1.Raw
 	}
 	// add the node to the resourceList
 	for nodeName, node := range cr.Spec.Nodes {
-		r.resources.AddNewResource(buildNode(cr, nodeName, node).DeepCopy())
+		if err := r.resources.AddNewResource(cr, buildNode(cr, nodeName, node).DeepCopy()); err != nil {
+			return err
+		}
 	}
 	for _, l := range cr.Spec.Links {
-		r.resources.AddNewResource(buildLink(cr, l, r.getTopologies(l)).DeepCopy())
+		if err := r.resources.AddNewResource(cr, buildLink(cr, l, r.getTopologies(l)).DeepCopy()); err != nil {
+			return err
+		}
 	}
 	return r.resources.APIApply(ctx, cr)
 }
@@ -249,10 +253,10 @@ func buildNode(cr *topov1alpha1.RawTopology, nodeName string, nodeSpec invv1alph
 	//nodeSpec.Topology = nodeSpec.GetTopology(cr.Name)
 	return invv1alpha1.BuildNode(
 		metav1.ObjectMeta{
-			Name:            nodeName,
-			Namespace:       cr.Namespace,
-			Labels:          labels,
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			Name:      nodeName,
+			Namespace: cr.Namespace,
+			Labels:    labels,
+			//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 		},
 		nodeSpec,
 		invv1alpha1.NodeStatus{},
@@ -272,9 +276,9 @@ func buildLink(cr *topov1alpha1.RawTopology, linkSpec invv1alpha1.LinkSpec, topo
 	linkSpec.Endpoints[1].Topology = topologies[1]
 	return invv1alpha1.BuildLink(
 		metav1.ObjectMeta{
-			Name:            linkName,
-			Namespace:       cr.Namespace,
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			Name:      linkName,
+			Namespace: cr.Namespace,
+			//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 		},
 		linkSpec,
 		invv1alpha1.LinkStatus{},

@@ -42,7 +42,7 @@ type TopologyStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:resource:categories={nephio,inv}
+// +kubebuilder:resource:categories={nephio,inv},scope=Cluster
 // Topology is the Schema for the topology API
 type Topology struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`

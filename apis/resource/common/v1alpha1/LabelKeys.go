@@ -28,6 +28,7 @@ const (
 	NephioGvkKey               = "nephio.org/gvk"
 	NephioNsnNameKey           = "nephio.org/nsn-name"
 	NephioNsnNamespaceKey      = "nephio.org/nsn-namespace"
+	NephioOwnerRefKey          = "nephio.org/owner-ref"
 	// system defined ipam
 	NephioPrefixKindKey    = "nephio.org/prefix-kind"
 	NephioAddressFamilyKey = "nephio.org/address-family"

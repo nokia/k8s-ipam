@@ -18,14 +18,17 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/nephio-project/nephio/controllers/pkg/resource"
 
 	//kresource "github.com/nephio-project/nephio/controllers/pkg/resource"
+	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,14 +36,15 @@ import (
 
 type Resources interface {
 	Init(ml client.MatchingLabels)
-	AddNewResource(o client.Object)
+	AddNewResource(cr client.Object, o client.Object) error
 	APIApply(ctx context.Context, cr client.Object) error
 	APIDelete(ctx context.Context, cr client.Object) error
 	GetNewResources() map[corev1.ObjectReference]client.Object
 }
 
 type Config struct {
-	Owns []schema.GroupVersionKind
+	OwnerRef bool
+	Owns     []schema.GroupVersionKind
 }
 
 func New(c resource.APIPatchingApplicator, cfg Config) Resources {
@@ -71,15 +75,44 @@ func (r *resources) Init(ml client.MatchingLabels) {
 }
 
 // AddNewResource adds a new resource to the inventoru
-func (r *resources) AddNewResource(o client.Object) {
+func (r *resources) AddNewResource(cr, o client.Object) error {
 	r.m.Lock()
 	defer r.m.Unlock()
+
+	if r.cfg.OwnerRef {
+		o.SetOwnerReferences([]v1.OwnerReference{
+			{
+				APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+				Kind:       o.GetObjectKind().GroupVersionKind().Kind,
+				Name:       o.GetName(),
+				UID:        o.GetUID(),
+			},
+		})
+	} else {
+		b, err := json.Marshal(meta.OwnerRef{
+			APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			Kind:       o.GetObjectKind().GroupVersionKind().Kind,
+			Name:       o.GetName(),
+			Namespace:  o.GetNamespace(),
+			UID:        o.GetUID(),
+		})
+		if err != nil {
+			return err
+		}
+		labels := o.GetLabels()
+		if len(labels) == 0 {
+			labels = map[string]string{}
+		}
+		labels[resourcev1alpha1.NephioOwnerRefKey] = string(b)
+	}
+
 	r.newResources[corev1.ObjectReference{
 		APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 		Kind:       o.GetObjectKind().GroupVersionKind().Kind,
 		Namespace:  o.GetNamespace(),
 		Name:       o.GetName(),
 	}] = o
+	return nil
 }
 
 // GetExistingResources retrieves the exisiting resource that match the label selector and the owner reference
@@ -100,9 +133,27 @@ func (r *resources) getExistingResources(ctx context.Context, cr client.Object) 
 			return err
 		}
 		for _, o := range objs.Items {
-			for _, ref := range o.GetOwnerReferences() {
-				if ref.UID == cr.GetUID() {
-					r.existingResources[corev1.ObjectReference{APIVersion: o.GetAPIVersion(), Kind: o.GetKind(), Name: o.GetName(), Namespace: o.GetNamespace()}] = &o
+			if r.cfg.OwnerRef {
+				for _, ref := range o.GetOwnerReferences() {
+					if ref.UID == cr.GetUID() {
+						r.existingResources[corev1.ObjectReference{APIVersion: o.GetAPIVersion(), Kind: o.GetKind(), Name: o.GetName(), Namespace: o.GetNamespace()}] = &o
+					}
+				}
+			} else {
+				for k, v := range o.GetLabels() {
+					if k == resourcev1alpha1.NephioOwnerRefKey {
+						ownerRef := &meta.OwnerRef{}
+						if err := json.Unmarshal([]byte(v), ownerRef); err != nil {
+							return err
+						}
+						if ownerRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
+							ownerRef.Kind == cr.GetObjectKind().GroupVersionKind().Kind &&
+							ownerRef.Name == cr.GetName() &&
+							ownerRef.Namespace == cr.GetNamespace() &&
+							ownerRef.UID == cr.GetUID() {
+							r.existingResources[corev1.ObjectReference{APIVersion: o.GetAPIVersion(), Kind: o.GetKind(), Name: o.GetName(), Namespace: o.GetNamespace()}] = &o
+						}
+					}
 				}
 			}
 		}

@@ -36,7 +36,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -76,6 +75,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 	r.APIPatchingApplicator = resource.NewAPIPatchingApplicator(mgr.GetClient())
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	r.resources = resources.New(r.APIPatchingApplicator, resources.Config{
+		OwnerRef: true,
 		Owns: []schema.GroupVersionKind{
 			invv1alpha1.EndpointGroupVersionKind,
 			invv1alpha1.TargetGroupVersionKind,
@@ -184,7 +184,9 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 	})
 
 	// build target CR and add it to the resource inventory
-	r.resources.AddNewResource(buildTarget(cr).DeepCopy())
+	if err := r.resources.AddNewResource(cr, buildTarget(cr).DeepCopy()); err != nil {
+		return err
+	}
 
 	// get the specific provider implementation of the network device
 	node, err := r.nodeRegistry.NewNodeOfProvider(cr.Spec.Provider, r.Client, r.scheme)
@@ -213,7 +215,9 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 
 	// build endpoints based on the node model
 	for epIdx, itfce := range nm.Spec.Interfaces {
-		r.resources.AddNewResource(buildEndpoint(cr, itfce, epIdx).DeepCopy())
+		if err := r.resources.AddNewResource(cr, buildEndpoint(cr, itfce, epIdx).DeepCopy()); err != nil {
+			return err
+		}
 	}
 
 	return r.resources.APIApply(ctx, cr)
@@ -237,10 +241,10 @@ func buildTarget(cr *invv1alpha1.Node) *invv1alpha1.Target {
 	}
 	return invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
-			Name:            cr.GetName(),
-			Namespace:       cr.GetNamespace(),
-			Labels:          labels,
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			Name:      cr.GetName(),
+			Namespace: cr.GetNamespace(),
+			Labels:    labels,
+			//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 		},
 		targetSpec,
 		invv1alpha1.TargetStatus{},
@@ -268,10 +272,10 @@ func buildEndpoint(cr *invv1alpha1.Node, itfce invv1alpha1.NodeModelInterface, e
 
 	return invv1alpha1.BuildEndpoint(
 		metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", cr.GetName(), itfce.Name),
-			Namespace:       cr.GetNamespace(),
-			Labels:          labels,
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
+			Name:      fmt.Sprintf("%s-%s", cr.GetName(), itfce.Name),
+			Namespace: cr.GetNamespace(),
+			Labels:    labels,
+			//OwnerReferences: []metav1.OwnerReference{{APIVersion: cr.APIVersion, Kind: cr.Kind, Name: cr.Name, UID: cr.UID, Controller: pointer.Bool(true)}},
 		},
 		epSpec,
 		invv1alpha1.EndpointStatus{},
