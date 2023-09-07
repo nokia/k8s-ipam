@@ -18,7 +18,6 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -91,21 +90,17 @@ func (r *resources) AddNewResource(cr, o client.Object) error {
 			},
 		})
 	} else {
-		b, err := json.Marshal(meta.OwnerRef{
+		labels := o.GetLabels()
+		if len(labels) == 0 {
+			labels = map[string]string{}
+		}
+		labels[resourcev1alpha1.NephioOwnerRefKey] = meta.OwnerRefToString(meta.OwnerRef{
 			APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 			Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
 			Name:       cr.GetName(),
 			Namespace:  cr.GetNamespace(),
 			UID:        cr.GetUID(),
 		})
-		if err != nil {
-			return err
-		}
-		labels := o.GetLabels()
-		if len(labels) == 0 {
-			labels = map[string]string{}
-		}
-		labels[resourcev1alpha1.NephioOwnerRefKey] = string(b)
 		o.SetLabels(labels)
 	}
 
@@ -145,15 +140,14 @@ func (r *resources) getExistingResources(ctx context.Context, cr client.Object) 
 			} else {
 				for k, v := range o.GetLabels() {
 					if k == resourcev1alpha1.NephioOwnerRefKey {
-						ownerRef := &meta.OwnerRef{}
-						if err := json.Unmarshal([]byte(v), ownerRef); err != nil {
-							return err
-						}
-						if ownerRef.APIVersion == cr.GetObjectKind().GroupVersionKind().GroupVersion().String() &&
-							ownerRef.Kind == cr.GetObjectKind().GroupVersionKind().Kind &&
-							ownerRef.Name == cr.GetName() &&
-							ownerRef.Namespace == cr.GetNamespace() &&
-							ownerRef.UID == cr.GetUID() {
+
+						if v == meta.OwnerRefToString(meta.OwnerRef{
+							APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+							Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
+							Name:       cr.GetName(),
+							Namespace:  cr.GetNamespace(),
+							UID:        cr.GetUID(),
+						}) {
 							r.existingResources[corev1.ObjectReference{APIVersion: o.GetAPIVersion(), Kind: o.GetKind(), Name: o.GetName(), Namespace: o.GetNamespace()}] = &o
 						}
 					}

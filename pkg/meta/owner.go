@@ -16,7 +16,11 @@ limitations under the License.
 
 package meta
 
-import "k8s.io/apimachinery/pkg/types"
+import (
+	"strings"
+
+	"k8s.io/apimachinery/pkg/types"
+)
 
 type OwnerRef struct {
 	APIVersion string    `json:"apiVersion" yaml:"apiVersion"`
@@ -24,4 +28,26 @@ type OwnerRef struct {
 	Namespace  string    `json:"namespace" yaml:"namespace"`
 	Name       string    `json:"name" yaml:"name"`
 	UID        types.UID `json:"uid" yaml:"uid"`
+}
+
+func OwnerRefToString(ownerref OwnerRef) string {
+	var sb strings.Builder
+	if ownerref.APIVersion != "" {
+		sb.WriteString("." + ownerref.APIVersion)
+	}
+	if ownerref.Kind != "" {
+		sb.WriteString("." + ownerref.Kind)
+	}
+	if ownerref.Namespace != "" {
+		sb.WriteString("." + ownerref.Namespace)
+	}
+	if ownerref.Name != "" {
+		sb.WriteString("." + ownerref.Name)
+	}
+	/*
+		if ownerref.UID != "" {
+			sb.WriteString("." + string(ownerref.UID))
+		}
+	*/
+	return sb.String()
 }
