@@ -33,6 +33,8 @@ const (
 	ConditionTypeReady ConditionType = "Ready"
 	// ConditionTypeWired represents the resource wire condition
 	ConditionTypeWired ConditionType = "Wired"
+	// ConditionTypeEPReady represents the resource epready condition
+	ConditionTypeEPReady ConditionType = "EPReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -284,6 +286,65 @@ func Wiring(msg string) Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonWireWiring),
+		Message:            msg,
+	}}
+}
+
+
+// EPReady returns a condition that indicates the resource is
+// ready for use.
+func EPReady() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeEPReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+	}}
+}
+
+// Unknown returns a condition that indicates the resource is in an
+// unknown status.
+func EPUnknown() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeEPReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUnknown),
+	}}
+}
+
+// EPAction returns a condition that indicates the resource is in an
+// action status.
+func EPAction(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeEPReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonAction),
+		Message:            msg,
+	}}
+}
+
+// EPNotReady returns a condition that indicates the resource is in an
+// not ready status.
+func EPNotReady(msg string) Condition {
+	return Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeEPReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonNotReady),
+		Message:            msg,
+	}}
+}
+
+// Failed returns a condition that indicates the resource
+// failed to get reconciled.
+func EPFailed(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeEPReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}
 }

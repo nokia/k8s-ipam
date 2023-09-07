@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
+    - jsonPath: .status.conditions[?(@.type=='EPReady')].status
+      name: EPREADY
+      type: string
     - jsonPath: .metadata.namespace
       name: TOPOLOGY
       type: string

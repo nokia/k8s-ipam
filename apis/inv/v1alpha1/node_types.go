@@ -69,6 +69,7 @@ type NodeStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="EPREADY",type="string",JSONPath=".status.conditions[?(@.type=='EPReady')].status"
 // +kubebuilder:printcolumn:name="TOPOLOGY",type="string",JSONPath=".metadata.namespace"
 // +kubebuilder:resource:categories={nephio,inv}
 // Node is the Schema for the vlan API
