@@ -30,20 +30,20 @@ type OwnerRef struct {
 	UID        types.UID `json:"uid" yaml:"uid"`
 }
 
-func OwnerRefToString(ownerref OwnerRef) string {
+func (r *OwnerRef) String() string {
 	var sb strings.Builder
 	sb.WriteString("ref")
-	if ownerref.APIVersion != "" {
-		sb.WriteString("." + ownerref.APIVersion)
+	if r.APIVersion != "" {
+		sb.WriteString("." + r.APIVersion)
 	}
-	if ownerref.Kind != "" {
-		sb.WriteString("." + ownerref.Kind)
+	if r.Kind != "" {
+		sb.WriteString("." + r.Kind)
 	}
-	if ownerref.Namespace != "" {
-		sb.WriteString("." + ownerref.Namespace)
+	if r.Namespace != "" {
+		sb.WriteString("." + r.Namespace)
 	}
-	if ownerref.Name != "" {
-		sb.WriteString("." + ownerref.Name)
+	if r.Name != "" {
+		sb.WriteString("." + r.Name)
 	}
 	/*
 		if ownerref.UID != "" {

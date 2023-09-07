@@ -94,13 +94,15 @@ func (r *resources) AddNewResource(cr, o client.Object) error {
 		if len(labels) == 0 {
 			labels = map[string]string{}
 		}
-		labels[resourcev1alpha1.NephioOwnerRefKey] = meta.OwnerRefToString(meta.OwnerRef{
+		ownref := &meta.OwnerRef{
 			APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 			Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
 			Name:       cr.GetName(),
 			Namespace:  cr.GetNamespace(),
 			UID:        cr.GetUID(),
-		})
+		}
+
+		labels[resourcev1alpha1.NephioOwnerRefKey] = ownref.String()
 		o.SetLabels(labels)
 	}
 
@@ -140,14 +142,14 @@ func (r *resources) getExistingResources(ctx context.Context, cr client.Object) 
 			} else {
 				for k, v := range o.GetLabels() {
 					if k == resourcev1alpha1.NephioOwnerRefKey {
-
-						if v == meta.OwnerRefToString(meta.OwnerRef{
+						ownref := &meta.OwnerRef{
 							APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 							Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
 							Name:       cr.GetName(),
 							Namespace:  cr.GetNamespace(),
 							UID:        cr.GetUID(),
-						}) {
+						}
+						if v == ownref.String() {
 							r.existingResources[corev1.ObjectReference{APIVersion: o.GetAPIVersion(), Kind: o.GetKind(), Name: o.GetName(), Namespace: o.GetNamespace()}] = &o
 						}
 					}
@@ -182,7 +184,9 @@ func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
 		}
 		if err := r.Delete(ctx, o); err != nil {
 			r.l.Info("api delete", "error", err, "object", o)
-			return err
+			if resource.IgnoreNotFound(err) != nil {
+				return err
+			}
 		}
 		delete(r.existingResources, ref)
 	}
@@ -204,10 +208,10 @@ func (r *resources) apiCreate(ctx context.Context, cr client.Object) error {
 			if err := r.Apply(ctx, o); err != nil {
 				return err
 			}
+			delete(r.newResources, ref)
 		} else {
 			continue
 		}
-		delete(r.newResources, ref)
 	}
 	for _, o := range r.newResources {
 		r.l.Info("api apply", "object", o)
