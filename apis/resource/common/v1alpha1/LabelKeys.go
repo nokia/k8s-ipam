@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 const (
+	// app
+	NephioApp = "nephio.org/app"
 	// action
 	NephioAPIAction = "nephio.org/action" // values get
 	// system defined common
