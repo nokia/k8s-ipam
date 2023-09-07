@@ -134,6 +134,7 @@ func (r *resources) getExistingResources(ctx context.Context, cr client.Object) 
 			return err
 		}
 		for _, o := range objs.Items {
+			o := o
 			if r.cfg.OwnerRef {
 				for _, ref := range o.GetOwnerReferences() {
 					if ref.UID == cr.GetUID() {
