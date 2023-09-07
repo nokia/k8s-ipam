@@ -83,20 +83,20 @@ func (r *resources) AddNewResource(cr, o client.Object) error {
 	if r.cfg.OwnerRef {
 		o.SetOwnerReferences([]v1.OwnerReference{
 			{
-				APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-				Kind:       o.GetObjectKind().GroupVersionKind().Kind,
-				Name:       o.GetName(),
-				UID:        o.GetUID(),
+				APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+				Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
+				Name:       cr.GetName(),
+				UID:        cr.GetUID(),
 				Controller: ptr.To(true),
 			},
 		})
 	} else {
 		b, err := json.Marshal(meta.OwnerRef{
-			APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-			Kind:       o.GetObjectKind().GroupVersionKind().Kind,
-			Name:       o.GetName(),
-			Namespace:  o.GetNamespace(),
-			UID:        o.GetUID(),
+			APIVersion: cr.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+			Kind:       cr.GetObjectKind().GroupVersionKind().Kind,
+			Name:       cr.GetName(),
+			Namespace:  cr.GetNamespace(),
+			UID:        cr.GetUID(),
 		})
 		if err != nil {
 			return err
@@ -106,6 +106,7 @@ func (r *resources) AddNewResource(cr, o client.Object) error {
 			labels = map[string]string{}
 		}
 		labels[resourcev1alpha1.NephioOwnerRefKey] = string(b)
+		o.SetLabels(labels)
 	}
 
 	r.newResources[corev1.ObjectReference{
