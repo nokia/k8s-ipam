@@ -32,6 +32,7 @@ type OwnerRef struct {
 
 func OwnerRefToString(ownerref OwnerRef) string {
 	var sb strings.Builder
+	sb.WriteString("ref")
 	if ownerref.APIVersion != "" {
 		sb.WriteString("." + ownerref.APIVersion)
 	}
