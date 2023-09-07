@@ -171,9 +171,47 @@ func (r *resources) APIDelete(ctx context.Context, cr client.Object) error {
 	if err := r.getExistingResources(ctx, cr); err != nil {
 		return err
 	}
-	for _, o := range r.existingResources {
+	return r.apiDelete(ctx, cr)
+}
+
+func (r *resources) apiDelete(ctx context.Context, cr client.Object) error {
+	// delete in priority
+	for ref, o := range r.existingResources {
+		if ref.Kind == "Namespace" {
+			continue
+		}
 		if err := r.Delete(ctx, o); err != nil {
 			r.l.Info("api delete", "error", err, "object", o)
+			return err
+		}
+		delete(r.existingResources, ref)
+	}
+	for ref, o := range r.existingResources {
+		if err := r.Delete(ctx, o); err != nil {
+			r.l.Info("api delete", "error", err, "object", o)
+			return err
+		}
+		delete(r.existingResources, ref)
+	}
+	return nil
+}
+
+func (r *resources) apiCreate(ctx context.Context, cr client.Object) error {
+	// apply in priority
+	for ref, o := range r.newResources {
+		if ref.Kind == "Namespace" {
+			r.l.Info("api apply", "object", o)
+			if err := r.Apply(ctx, o); err != nil {
+				return err
+			}
+		} else {
+			continue
+		}
+		delete(r.newResources, ref)
+	}
+	for _, o := range r.newResources {
+		r.l.Info("api apply", "object", o)
+		if err := r.Apply(ctx, o); err != nil {
 			return err
 		}
 	}
@@ -205,23 +243,12 @@ func (r *resources) APIApply(ctx context.Context, cr client.Object) error {
 	r.l.Info("api apply existing resources to be deleted", "existing resources", r.getExistingRefs())
 
 	// step2b delete the exisiting resource that are no longer needed
-	for _, o := range r.existingResources {
-		if err := r.Delete(ctx, o); err != nil {
-			if resource.IgnoreNotFound(err) != nil {
-				r.l.Info("api apply", "error", err, "object", o)
-				return err
-			}
-		}
+	if err := r.apiDelete(ctx, cr); err != nil {
+		return err
 	}
 
 	// step3b apply the new resources to the api server
-	for _, o := range r.newResources {
-		r.l.Info("api apply", "object", o)
-		if err := r.Apply(ctx, o); err != nil {
-			return err
-		}
-	}
-	return nil
+	return r.apiCreate(ctx, cr)
 }
 
 func (r *resources) GetNewResources() map[corev1.ObjectReference]client.Object {
