@@ -49,5 +49,6 @@ func OwnerRefToString(ownerref OwnerRef) string {
 			sb.WriteString("." + string(ownerref.UID))
 		}
 	*/
-	return sb.String()
+	s := sb.String()
+	return strings.ReplaceAll(s, "/", "_")
 }
