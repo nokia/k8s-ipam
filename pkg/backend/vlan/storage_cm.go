@@ -116,7 +116,7 @@ func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *co
 	r.restoreVLANs(ctx, ca, claims, vlanList)
 
 	vlanClaimList := &vlanv1alpha1.VLANClaimList{}
-	if err := r.c.List(context.Background(), vlanList); err != nil {
+	if err := r.c.List(context.Background(), vlanClaimList); err != nil {
 		return errors.Wrap(err, "cannot get vlan claim list")
 	}
 	r.restoreVLANs(ctx, ca, claims, vlanClaimList)
@@ -135,7 +135,7 @@ func (r *cm) restoreVLANs(ctx context.Context, ca db.DB[uint16], claims map[uint
 		ownerGVK = vlanv1alpha1.VLANClaimKindGVKString
 		restoreFunc = r.restoreDynamicVLANs
 	default:
-		r.l.Error(fmt.Errorf("expecting networkInstance, ipprefixList or ipALlocaationList, got %T", reflect.TypeOf(input)), "unexpected input data to restore")
+		r.l.Error(fmt.Errorf("expecting vlanIndex, vlanList or ipClaimList, got %T", reflect.TypeOf(input)), "unexpected input data to restore")
 	}
 	for vlanID, labels := range claims {
 		r.l.Info("restore claims", "vlanID", vlanID, "labels", labels)

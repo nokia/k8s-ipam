@@ -446,7 +446,7 @@ func TestIterateFree(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		maxEntries  uint64
+		maxEntries  uint16
 		initEntries Entries[uint16]
 		keys        []uint16
 	}{
@@ -478,7 +478,7 @@ func TestIterateFree(t *testing.T) {
 
 func TestFindFree(t *testing.T) {
 	cases := map[string]struct {
-		maxEntries  uint64
+		maxEntries  uint16
 		initEntries Entries[uint16]
 		errExpected bool
 		expectedId  uint16
@@ -527,7 +527,7 @@ func TestFindFree(t *testing.T) {
 
 func TestFindFreeID(t *testing.T) {
 	cases := map[string]struct {
-		maxEntries  uint64
+		maxEntries  uint16
 		initEntries Entries[uint16]
 		id          uint16
 		errExpected bool
@@ -585,7 +585,7 @@ func TestFindFreeID(t *testing.T) {
 
 func TestFindFreeRange(t *testing.T) {
 	cases := map[string]struct {
-		maxEntries  uint64
+		maxEntries  uint16
 		initEntries Entries[uint16]
 		start       uint16
 		size        uint16
@@ -654,7 +654,7 @@ func TestFindFreeRange(t *testing.T) {
 
 func TestFindFreeSize(t *testing.T) {
 	cases := map[string]struct {
-		maxEntries  uint64
+		maxEntries  uint16
 		initEntries Entries[uint16]
 		size        uint16
 		errExpected bool

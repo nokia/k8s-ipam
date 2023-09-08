@@ -27,7 +27,8 @@ type DB[T constraints.Integer] interface {
 }
 
 type DBConfig[T constraints.Integer] struct {
-	MaxEntries       uint64
+	Offset           T
+	MaxEntries       T
 	InitEntries      Entries[T]
 	SetValidation    ValidationFn[T]
 	DeleteValidation ValidationFn[T]
@@ -35,12 +36,12 @@ type DBConfig[T constraints.Integer] struct {
 
 type ValidationFn[T constraints.Integer] func(id T) error
 
-func NewDB[T constraints.Integer](c *DBConfig[T]) DB[T] {
+func NewDB[T constraints.Integer](cfg *DBConfig[T]) DB[T] {
 
 	r := &db[T]{
 		m:     &sync.RWMutex{},
 		store: make(map[T]Entry[T]),
-		cfg:   c,
+		cfg:   cfg,
 	}
 	if r.cfg.InitEntries != nil {
 		for _, e := range r.cfg.InitEntries {
@@ -163,7 +164,7 @@ func (r *db[T]) IterateFree() *Iterator[T] {
 	var keys []T
 	store := map[T]Entry[T]{}
 
-	for id := 0; id < int(r.cfg.MaxEntries); id++ {
+	for id := int(r.cfg.Offset); id < int(r.cfg.Offset+r.cfg.MaxEntries); id++ {
 		_, exists := r.store[T(id)]
 		if !exists {
 			keys = append(keys, T(id))
@@ -190,7 +191,7 @@ func (r *db[T]) FindFree() (Entry[T], error) {
 
 func (r *db[T]) FindFreeID(id T) (Entry[T], error) {
 	// validation
-	if id > T(r.cfg.MaxEntries-1) {
+	if id > T(r.cfg.Offset+r.cfg.MaxEntries-1) {
 		return nil, fmt.Errorf("id %d is bigger then max allowed entries: %d", id, r.cfg.MaxEntries-1)
 	}
 	if _, ok := r.store[id]; !ok {
@@ -204,10 +205,10 @@ func (r *db[T]) FindFreeRange(start, size T) (Entries[T], error) {
 
 	end := start + size - 1
 	// validation
-	if start >= T(r.cfg.MaxEntries-1) {
+	if start >= T(r.cfg.Offset+r.cfg.MaxEntries-1) {
 		return nil, fmt.Errorf("start %d is bigger then max allowed entries: %d", start, r.cfg.MaxEntries-1)
 	}
-	if end >= T(r.cfg.MaxEntries-1) {
+	if end >= T(r.cfg.Offset+r.cfg.MaxEntries-1) {
 		return nil, fmt.Errorf("end %d is bigger then max allowed entries: %d", end, r.cfg.MaxEntries-1)
 	}
 
@@ -233,7 +234,7 @@ func (r *db[T]) FindFreeRange(start, size T) (Entries[T], error) {
 }
 
 func (r *db[T]) FindFreeSize(size T) (Entries[T], error) {
-	if size >= T(r.cfg.MaxEntries-1) {
+	if size >= T(r.cfg.Offset+r.cfg.MaxEntries-1) {
 		return nil, fmt.Errorf("size %d is bigger then max allowed entries: %d", size, r.cfg.MaxEntries-1)
 	}
 	entries := Entries[T]{}
