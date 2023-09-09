@@ -27,6 +27,10 @@ import (
 
 // VXLANIndexSpec defines the desired state of VXLANIndex
 type VXLANIndexSpec struct {
+	// Offset defines the offset where the vxlan index starts to claim vxlan IDs from
+	Offset     uint32 `json:"offset" yaml:"offset"`
+	// MaxEntryID defines the max vxlan entry id this index will claim
+	MaxEntryID uint32 `json:"maxEntryID" yaml:"maxEntryID"`
 	// UserDefinedLabels define metadata to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels
 	resourcev1alpha1.UserDefinedLabels `json:",inline" yaml:",inline"`
