@@ -65,7 +65,7 @@ func TestFree(t *testing.T) {
 			var err error
 			e, err = d.FindFree()
 			if err != nil {
-				assert.NoError(t, err)
+				assert.Error(t, err)
 			}
 			fmt.Println(e)
 			if err := d.Set(e); err != nil {

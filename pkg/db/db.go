@@ -10,6 +10,7 @@ import (
 )
 
 type DB[T constraints.Integer] interface {
+	GetConfig() (T, T)
 	Set(e Entry[T]) error
 	Get(id T) (Entry[T], error)
 	GetByLabel(selector labels.Selector) Entries[T]
@@ -56,6 +57,8 @@ type db[T constraints.Integer] struct {
 	store map[T]Entry[T]
 	cfg   *DBConfig[T]
 }
+
+func (r *db[T]) GetConfig() (T, T) { return r.cfg.Offset, r.cfg.MaxEntries}
 
 func (r *db[T]) Set(e Entry[T]) error {
 	r.m.Lock()

@@ -130,3 +130,18 @@ rules:
   - patch
   - create
   - delete
+- apiGroups:
+  - vxlan.resource.nephio.org
+  resources:
+  - vxlanclaims
+  - vxlanclaims/status
+  - vxlanindexes
+  - vxlanindexes/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - create
+  - delete
