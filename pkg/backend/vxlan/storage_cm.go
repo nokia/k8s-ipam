@@ -18,10 +18,9 @@ package vxlan
 
 import (
 	"context"
-	"fmt"
-	"reflect"
 
 	"github.com/go-logr/logr"
+	invv1alpha1 "github.com/nokia/k8s-ipam/apis/inv/v1alpha1"
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	vxlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vxlan/v1alpha1"
 	"github.com/nokia/k8s-ipam/internal/db"
@@ -109,50 +108,32 @@ func (r *cm) RestoreData(ctx context.Context, ref corev1.ObjectReference, cm *co
 		return err
 	}
 
-	/* No static VXLAN
-	vxlanList := &vxlanv1alpha1.VXLANList{}
-	if err := r.c.List(context.Background(), vxlanList); err != nil {
-		return errors.Wrap(err, "cannot get vxlan list")
+	linkList := &invv1alpha1.LinkList{}
+	if err := r.c.List(ctx, linkList); err != nil {
+		return errors.Wrap(err, "cannot get link list")
 	}
-	r.restoreVXLANs(ctx, ca, claims, vxlanList)
-	*/
-
-	vxlanClaimList := &vxlanv1alpha1.VXLANClaimList{}
-	if err := r.c.List(context.Background(), vxlanClaimList); err != nil {
-		return errors.Wrap(err, "cannot get vxlan claim list")
-	}
-	r.restoreVXLANs(ctx, ca, claims, vxlanClaimList)
+	r.restoreVXLANs(ctx, ca, claims, linkList)
 
 	return nil
 }
 
-func (r *cm) restoreVXLANs(ctx context.Context, ca db.DB[uint32], claims map[uint32]labels.Set, input any) {
-	var ownerGVK string
-	var restoreFunc func(ctx context.Context, ca db.DB[uint32], vxlanID uint32, labels labels.Set, specData any)
-	switch input.(type) {
-	case *vxlanv1alpha1.VXLANClaimList:
-		ownerGVK = vxlanv1alpha1.VXLANClaimKindGVKString
-		restoreFunc = r.restoreDynamicVXLANs
-	default:
-		r.l.Error(fmt.Errorf("expecting vxlanClaimList, got %T", reflect.TypeOf(input)), "unexpected input data to restore")
-	}
+func (r *cm) restoreVXLANs(ctx context.Context, ca db.DB[uint32], claims map[uint32]labels.Set, linkList *invv1alpha1.LinkList) {
+	var restoreFunc func(ctx context.Context, ca db.DB[uint32], vxlanID uint32, labels labels.Set, linkList *invv1alpha1.LinkList)
+	ownerGVK := invv1alpha1.LinkKindGVKString
+	restoreFunc = r.restoreDynamicVXLANs
+
 	for vxlanID, labels := range claims {
 		r.l.Info("restore claims", "vxlanID", vxlanID, "labels", labels)
 		// handle the claims owned by the network instance
 		if labels[resourcev1alpha1.NephioOwnerGvkKey] == ownerGVK {
-			restoreFunc(ctx, ca, vxlanID, labels, input)
+			restoreFunc(ctx, ca, vxlanID, labels, linkList)
 		}
 	}
 }
 
-func (r *cm) restoreDynamicVXLANs(ctx context.Context, ca db.DB[uint32], vxlanID uint32, labels labels.Set, input any) {
+func (r *cm) restoreDynamicVXLANs(ctx context.Context, ca db.DB[uint32], vxlanID uint32, labels labels.Set, linkList *invv1alpha1.LinkList) {
 	r.l = log.FromContext(ctx).WithValues("type", "vxlanClaims", "vxlanID", vxlanID)
-	vlanClaimList, ok := input.(*vxlanv1alpha1.VXLANClaimList)
-	if !ok {
-		r.l.Error(fmt.Errorf("expecting vlanClaimList got %T", reflect.TypeOf(input)), "unexpected input data to restore")
-		return
-	}
-	for _, claim := range vlanClaimList.Items {
+	for _, claim := range linkList.Items {
 		r.l.Info("restore Dynamic cliams", "claim", claim.GetName())
 		if labels[resourcev1alpha1.NephioNsnNameKey] == claim.GetName() &&
 			labels[resourcev1alpha1.NephioNsnNamespaceKey] == claim.GetNamespace() {

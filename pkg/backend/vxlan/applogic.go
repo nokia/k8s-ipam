@@ -59,7 +59,7 @@ type applogicFunctionConfig struct {
 }
 
 func (r *applogic) GetHandler(ctx context.Context, a *vxlanv1alpha1.VXLANClaim) (*vxlanv1alpha1.VXLANClaim, error) {
-	// get the entries in the table based on the lebels in the spec
+	// get the entries in the table based on the labels in the spec
 	claim := a.DeepCopy()
 	entries, err := r.getEntriesByOwner(r.table, a)
 	if err != nil {
