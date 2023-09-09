@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/internal/db"
+	"github.com/nokia/k8s-ipam/pkg/db"
 	"github.com/nokia/k8s-ipam/pkg/utils/util"
 )
 

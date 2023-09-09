@@ -3,7 +3,7 @@ package vlandb
 import (
 	"fmt"
 
-	"github.com/nokia/k8s-ipam/internal/db"
+	"github.com/nokia/k8s-ipam/pkg/db"
 )
 
 func New[T uint16]() db.DB[T] {

@@ -3,7 +3,7 @@ package vxlandb
 import (
 	"fmt"
 
-	"github.com/nokia/k8s-ipam/internal/db"
+	"github.com/nokia/k8s-ipam/pkg/db"
 )
 
 type Config[T uint32] struct {

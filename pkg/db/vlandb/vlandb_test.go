@@ -3,7 +3,7 @@ package vlandb
 import (
 	"testing"
 
-	"github.com/nokia/k8s-ipam/internal/db"
+	"github.com/nokia/k8s-ipam/pkg/db"
 	"github.com/stretchr/testify/assert"
 )
 
