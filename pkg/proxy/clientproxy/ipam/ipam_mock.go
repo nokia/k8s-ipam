@@ -25,7 +25,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/iputil"
 	"github.com/nokia/k8s-ipam/pkg/proxy/clientproxy"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
@@ -55,22 +55,22 @@ func (r *mock) getClaim(cr client.Object) (*ipamv1alpha1.IPClaim, error) {
 	switch claim.Spec.Kind {
 	case ipamv1alpha1.PrefixKindNetwork:
 		if claim.Spec.AddressFamily != nil && *claim.Spec.AddressFamily == iputil.AddressFamilyIpv6 {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("1000::2/64"), Gateway: pointer.String("1000::1")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("1000::2/64"), Gateway: ptr.To("1000::1")}
 		} else {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("10.0.0.10/24"), Gateway: pointer.String("10.0.0.1")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("10.0.0.10/24"), Gateway: ptr.To("10.0.0.1")}
 		}
 
 	case ipamv1alpha1.PrefixKindLoopback:
 		if claim.Spec.AddressFamily != nil && *claim.Spec.AddressFamily == iputil.AddressFamilyIpv6 {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("2000::2/128")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("2000::2/128")}
 		} else {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("172.0.0.10/32")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("172.0.0.10/32")}
 		}
 	case ipamv1alpha1.PrefixKindPool:
 		if claim.Spec.AddressFamily != nil && *claim.Spec.AddressFamily == iputil.AddressFamilyIpv6 {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("3000::/32")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("3000::/32")}
 		} else {
-			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: pointer.String("172.0.0.0/8")}
+			claim.Status = ipamv1alpha1.IPClaimStatus{Prefix: ptr.To("172.0.0.0/8")}
 		}
 
 	default:
