@@ -246,3 +246,7 @@ func (IPClaim) NewList() runtime.Object {
 func (r *IPClaimList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
+
+func (t *IPClaim) ObjectKinds(obj runtime.Object) ([]schema.GroupVersionKind, bool, error) {
+	return []schema.GroupVersionKind{IPClaimGroupVersionKind}, false, nil
+}
