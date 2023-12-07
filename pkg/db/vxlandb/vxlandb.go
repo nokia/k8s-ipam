@@ -15,7 +15,7 @@ func New[T uint32](cfg *Config[T]) db.DB[T] {
 	r := &vxlan[T]{cfg: cfg}
 	return db.NewDB(&db.DBConfig[T]{
 		Offset:           cfg.Offset,
-		MaxEntries:       cfg.MaxEntryID-cfg.Offset,
+		MaxEntries:       cfg.MaxEntryID - cfg.Offset,
 		SetValidation:    r.setVLANValidation,
 		DeleteValidation: r.deleteVLANValidation,
 	})

@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-logr/logr"
 	"github.com/hansthienpondt/nipam/pkg/table"
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/backend"
@@ -12,7 +11,7 @@ import (
 	"github.com/nokia/k8s-ipam/pkg/proto/resourcepb"
 	"google.golang.org/grpc/peer"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type ProxyState struct {
@@ -20,7 +19,6 @@ type ProxyState struct {
 	// key is clientName
 	clients  map[string]*clientContext
 	backends map[schema.GroupVersion]backend.Backend
-	l        logr.Logger
 }
 
 type ProxyStateConfig struct {
@@ -33,12 +31,10 @@ type clientContext struct {
 }
 
 func NewProxyState(cfg *ProxyStateConfig) *ProxyState {
-	l := ctrl.Log.WithName("server-proxy-state")
 	return &ProxyState{
 		clients: map[string]*clientContext{},
 		//ipam:    c.Ipam,
 		backends: cfg.Backends,
-		l:        l,
 	}
 }
 
@@ -53,6 +49,7 @@ func (r *ProxyState) AddCallBackFn(header *resourcepb.Header, stream resourcepb.
 		clientCtx.cancel()
 	}
 	ctx, cancel := context.WithCancel(stream.Context())
+	log := log.FromContext(ctx)
 
 	r.clients[p.Addr.String()+":::"+ownerGVK] = &clientContext{
 		stream: stream,
@@ -67,9 +64,8 @@ func (r *ProxyState) AddCallBackFn(header *resourcepb.Header, stream resourcepb.
 
 	for range ctx.Done() {
 		r.DeleteCallBackFn(p.Addr.String(), ownerGVK, gv)
-		r.l.Info("watch stopped", "ownerGvk", ownerGVK, "groupVersion", gv)
+		log.Info("watch stopped", "ownerGvk", ownerGVK, "groupVersion", gv)
 		return
-
 	}
 }
 
@@ -81,6 +77,7 @@ func (r *ProxyState) DeleteCallBackFn(clientName, ownerGvk string, gv schema.Gro
 }
 
 func (r *ProxyState) CreateCallBackFn(stream resourcepb.Resource_WatchClaimServer) backend.CallbackFn {
+	log := log.FromContext(context.Background())
 	return func(routes table.Routes, statusCode resourcepb.StatusCode) {
 		for _, route := range routes {
 			if err := stream.Send(&resourcepb.WatchResponse{
@@ -103,7 +100,7 @@ func (r *ProxyState) CreateCallBackFn(stream resourcepb.Resource_WatchClaimServe
 				if p != nil {
 					addr = p.Addr.String()
 				}
-				r.l.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[resourcev1alpha1.NephioOwnerGvkKey])
+				log.Error(err, "callback failed", "client", addr, "ownerGvk", route.Labels()[resourcev1alpha1.NephioOwnerGvkKey])
 			}
 		}
 	}

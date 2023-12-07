@@ -4,8 +4,8 @@ import (
 	"context"
 
 	vlanv1alpha1 "github.com/nokia/k8s-ipam/apis/resource/vlan/v1alpha1"
-	"github.com/nokia/k8s-ipam/pkg/db"
 	"github.com/nokia/k8s-ipam/pkg/backend"
+	"github.com/nokia/k8s-ipam/pkg/db"
 )
 
 func (r *be) newApplogic(cr *vlanv1alpha1.VLANClaim, initializing bool) (backend.AppLogic[*vlanv1alpha1.VLANClaim], error) {

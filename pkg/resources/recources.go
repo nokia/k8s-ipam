@@ -275,7 +275,7 @@ func (r *resources) GetNewResources() map[corev1.ObjectReference]client.Object {
 
 	res := make(map[corev1.ObjectReference]client.Object, len(r.newResources))
 	for ref, o := range r.newResources {
-		ref:= ref
+		ref := ref
 		o := o
 		res[ref] = o
 	}

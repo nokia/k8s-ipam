@@ -22,13 +22,21 @@ import (
 	"github.com/hansthienpondt/nipam/pkg/table"
 	resourcev1alpha1 "github.com/nokia/k8s-ipam/apis/resource/common/v1alpha1"
 	"github.com/nokia/k8s-ipam/pkg/iputil"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
 )
+
+const IPClaimPlural = "ipclaims"
+
+var _ resource.Object = &IPClaim{}
+var _ resource.ObjectList = &IPClaimList{}
 
 // GetCondition returns the condition based on the condition kind
 func (r *IPClaim) GetCondition(t resourcev1alpha1.ConditionType) resourcev1alpha1.Condition {
@@ -197,4 +205,44 @@ func BuildIPClaim(meta metav1.ObjectMeta, spec IPClaimSpec, status IPClaimStatus
 		Spec:       spec,
 		Status:     status,
 	}
+}
+
+func (IPClaim) GetGroupVersionResource() schema.GroupVersionResource {
+	return schema.GroupVersionResource{
+		Group:    GroupVersion.Group,
+		Version:  GroupVersion.Version,
+		Resource: IPClaimPlural,
+	}
+}
+
+// IsStorageVersion returns true -- v1alpha1.Config is used as the internal version.
+// IsStorageVersion implements resource.Object.
+func (IPClaim) IsStorageVersion() bool {
+	return true
+}
+
+// GetObjectMeta implements resource.Object
+func (r *IPClaim) GetObjectMeta() *metav1.ObjectMeta {
+	return &r.ObjectMeta
+}
+
+// NamespaceScoped returns true to indicate Fortune is a namespaced resource.
+// NamespaceScoped implements resource.Object.
+func (IPClaim) NamespaceScoped() bool {
+	return true
+}
+
+// New implements resource.Object
+func (IPClaim) New() runtime.Object {
+	return &IPClaim{}
+}
+
+// NewList implements resource.Object
+func (IPClaim) NewList() runtime.Object {
+	return &IPClaimList{}
+}
+
+// GetListMeta returns the ListMeta
+func (r *IPClaimList) GetListMeta() *metav1.ListMeta {
+	return &r.ListMeta
 }
