@@ -29,6 +29,9 @@ func TestInsert(t *testing.T) {
 		"Normal": {
 			names: []string{"a", "b", "x"},
 		},
+		"VPC": {
+			names: []string{"vpc-internal-e1-srl ", "vpc-internal-f1-srl"},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

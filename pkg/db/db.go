@@ -58,7 +58,7 @@ type db[T constraints.Integer] struct {
 	cfg   *DBConfig[T]
 }
 
-func (r *db[T]) GetConfig() (T, T) { return r.cfg.Offset, r.cfg.MaxEntries}
+func (r *db[T]) GetConfig() (T, T) { return r.cfg.Offset, r.cfg.MaxEntries }
 
 func (r *db[T]) Set(e Entry[T]) error {
 	r.m.Lock()

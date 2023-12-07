@@ -290,7 +290,6 @@ func Wiring(msg string) Condition {
 	}}
 }
 
-
 // EPReady returns a condition that indicates the resource is
 // ready for use.
 func EPReady() Condition {

@@ -166,7 +166,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ipamServerProxy := serverproxy.New(&serverproxy.Config{
+	serverProxy := serverproxy.New(&serverproxy.Config{
 		Backends: map[schema.GroupVersion]backend.Backend{
 			ipamv1alpha1.GroupVersion: ipambe,
 			vlanv1alpha1.GroupVersion: vlanbe,
@@ -178,12 +178,12 @@ func main() {
 		Address:  ":" + strconv.Itoa(9999),
 		Insecure: true,
 	},
-		grpcserver.WithCreateIndexHandler(ipamServerProxy.CreateIndex),
-		grpcserver.WithDeleteIndexHandler(ipamServerProxy.DeleteIndex),
-		grpcserver.WithGetClaimHandler(ipamServerProxy.GetClaim),
-		grpcserver.WithClaimHandler(ipamServerProxy.Claim),
-		grpcserver.WithDeleteClaimHandler(ipamServerProxy.DeleteClaim),
-		grpcserver.WithWatchClaimHandler(ipamServerProxy.Watch),
+		grpcserver.WithCreateIndexHandler(serverProxy.CreateIndex),
+		grpcserver.WithDeleteIndexHandler(serverProxy.DeleteIndex),
+		grpcserver.WithGetClaimHandler(serverProxy.GetClaim),
+		grpcserver.WithClaimHandler(serverProxy.Claim),
+		grpcserver.WithDeleteClaimHandler(serverProxy.DeleteClaim),
+		grpcserver.WithWatchClaimHandler(serverProxy.Watch),
 		grpcserver.WithWatchHandler(wh.Watch),
 		grpcserver.WithCheckHandler(wh.Check),
 	)
