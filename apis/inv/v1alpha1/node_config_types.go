@@ -34,8 +34,8 @@ type NodeConfigSpec struct {
 	StartupConfig *string `json:"startupConfig,omitempty"`
 	// license key from license secret that contains a license file
 	LicenseKey *string `json:"licenseKey,omitempty"`
-	// Constraints defaines the key/value constraints e.g. cpu, memory
-	Constraints map[string]string `json:"constraints,omitempty"`
+	// Resources defines the limits and requests as key/value
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 	// Persistent Volumes
 	PersistentVolumes []PersistentVolume `json:"persistentVolumes,omitempty"`
 	// ParametersRef points to the vendor or implementation specific params for the

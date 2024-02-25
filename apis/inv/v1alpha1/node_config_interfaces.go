@@ -36,21 +36,19 @@ func (r *NodeConfig) GetImage(defaultImageName string) string {
 	return image
 }
 
-func (r *NodeConfig) GetResourceRequirements(defaultConstraints map[string]string) corev1.ResourceRequirements {
-	constraints := defaultConstraints
-	if len(r.Spec.Constraints) != 0 {
-		// override the default constraints if they exist
-		for k := range defaultConstraints {
-			if v, ok := r.Spec.Constraints[k]; ok {
-				constraints[k] = v
-			}
+func (r *NodeConfig) GetResourceRequirements(defaultResourceLimits, defaultResourceRequests map[string]string) corev1.ResourceRequirements {
+	if len(r.Spec.Resources.Limits) == 0 {
+		r.Spec.Resources.Limits = corev1.ResourceList{}
+		for k, v := range defaultResourceLimits {
+			r.Spec.Resources.Limits[corev1.ResourceName(k)] = resource.MustParse(v)
 		}
 	}
-	req := corev1.ResourceRequirements{
-		Requests: map[corev1.ResourceName]resource.Quantity{},
+
+	if len(r.Spec.Resources.Requests) == 0 {
+		r.Spec.Resources.Requests = corev1.ResourceList{}
+		for k, v := range defaultResourceRequests {
+			r.Spec.Resources.Requests[corev1.ResourceName(k)] = resource.MustParse(v)
+		}
 	}
-	for k, v := range constraints {
-		req.Requests[corev1.ResourceName(k)] = resource.MustParse(v)
-	}
-	return req
+	return r.Spec.Resources
 }
