@@ -5,27 +5,33 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: topologies.inv.nephio.org
+  name: vxlanindices.vxlan.resource.nephio.org
 spec:
-  group: inv.nephio.org
+  group: vxlan.resource.nephio.org
   names:
     categories:
     - nephio
-    - inv
-    kind: Topology
-    listKind: TopologyList
-    plural: topologies
-    singular: topology
-  scope: Cluster
+    - resource
+    kind: VXLANIndex
+    listKind: VXLANIndexList
+    plural: vxlanindices
+    singular: vxlanindex
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Ready')].status
-      name: READY
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNC
       type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: STATUS
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Topology is the Schema for the topology API
+        description: VXLANIndex is the Schema for the vxlan database API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,10 +46,29 @@ spec:
           metadata:
             type: object
           spec:
-            description: TopologySpec defines the desired state of a Topology
+            description: VXLANIndexSpec defines the desired state of VXLANIndex
+            properties:
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels as user defined labels
+                type: object
+              maxEntryID:
+                description: MaxEntryID defines the max vxlan entry id this index
+                  will claim
+                format: int32
+                type: integer
+              offset:
+                description: Offset defines the offset where the vxlan index starts
+                  to claim vxlan IDs from
+                format: int32
+                type: integer
+            required:
+            - maxEntryID
+            - offset
             type: object
           status:
-            description: TopologyStatus defines the observed state of a Topology
+            description: VXLANIndexStatus defines the observed state of VXLANIndex
             properties:
               conditions:
                 description: Conditions of the resource.

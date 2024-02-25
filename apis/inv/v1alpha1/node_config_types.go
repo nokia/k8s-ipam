@@ -36,10 +36,18 @@ type NodeConfigSpec struct {
 	LicenseKey *string `json:"licenseKey,omitempty"`
 	// Constraints defaines the key/value constraints e.g. cpu, memory
 	Constraints map[string]string `json:"constraints,omitempty"`
+	// Persistent Volumes
+	PersistentVolumes []PersistentVolume `json:"persistentVolumes,omitempty"`
 	// ParametersRef points to the vendor or implementation specific params for the
 	// node.
 	// +optional
 	ParametersRef *corev1.ObjectReference `json:"parametersRef,omitempty" yaml:"parametersRef,omitempty"`
+}
+
+type PersistentVolume struct {
+	Name      string `json:"name"`
+	MountPath string `json:"mountPath"`
+	Storage   string `json:"storage"`
 }
 
 //+kubebuilder:object:root=true

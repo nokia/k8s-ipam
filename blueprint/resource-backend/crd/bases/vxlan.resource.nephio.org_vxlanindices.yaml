@@ -4,17 +4,17 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: vlanindices.vlan.resource.nephio.org
+  name: vxlanindices.vxlan.resource.nephio.org
 spec:
-  group: vlan.resource.nephio.org
+  group: vxlan.resource.nephio.org
   names:
     categories:
     - nephio
     - resource
-    kind: VLANIndex
-    listKind: VLANIndexList
-    plural: vlanindices
-    singular: vlanindex
+    kind: VXLANIndex
+    listKind: VXLANIndexList
+    plural: vxlanindices
+    singular: vxlanindex
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -30,7 +30,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VLANIndex is the Schema for the vlan database API
+        description: VXLANIndex is the Schema for the vxlan database API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -41,16 +41,27 @@ spec:
           metadata:
             type: object
           spec:
-            description: VLANIndexSpec defines the desired state of VLANIndex
+            description: VXLANIndexSpec defines the desired state of VXLANIndex
             properties:
               labels:
                 additionalProperties:
                   type: string
                 description: Labels as user defined labels
                 type: object
+              maxEntryID:
+                description: MaxEntryID defines the max vxlan entry id this index will claim
+                format: int32
+                type: integer
+              offset:
+                description: Offset defines the offset where the vxlan index starts to claim vxlan IDs from
+                format: int32
+                type: integer
+            required:
+            - maxEntryID
+            - offset
             type: object
           status:
-            description: VLANIndexStatus defines the observed state of VLANIndex
+            description: VXLANIndexStatus defines the observed state of VXLANIndex
             properties:
               conditions:
                 description: Conditions of the resource.

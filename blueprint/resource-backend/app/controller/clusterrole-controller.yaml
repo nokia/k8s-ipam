@@ -137,6 +137,8 @@ rules:
   - vxlanclaims/status
   - vxlanindexes
   - vxlanindexes/status
+  - vxlanindices
+  - vxlanindices/status
   verbs:
   - get
   - list
