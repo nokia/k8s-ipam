@@ -45,9 +45,9 @@ type NodeConfigSpec struct {
 }
 
 type PersistentVolume struct {
-	Name      string `json:"name"`
-	MountPath string `json:"mountPath"`
-	Storage   string `json:"storage"`
+	Name      string              `json:"name"`
+	MountPath string              `json:"mountPath"`
+	Requests  corev1.ResourceList `json:"requests"`
 }
 
 //+kubebuilder:object:root=true
