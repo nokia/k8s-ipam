@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-backend-controller
+  namespace: backend-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      fn.kptgen.dev/controller: resource-backend-controller
+      fn.kptgen.dev/grpc: resource-backend-controller
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: resource-backend
+        app.kubernetes.io/part-of: resource-backend
+        fn.kptgen.dev/controller: resource-backend-controller
+        fn.kptgen.dev/grpc: resource-backend-controller
+      name: resource-backend-controller
+      namespace: backend-system
+    spec:
+      containers:
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+        resources: {}
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: RESOURCE_BACKEND
+          value: 127.0.0.1:9999
+        - name: ENABLE_IPCLAIM
+          value: "true"
+        - name: ENABLE_NETWORKINSTANCE
+          value: "true"
+        - name: ENABLE_IPPREFIX
+          value: "true"
+        - name: ENABLE_VLANCLAIM
+          value: "true"
+        - name: ENABLE_VLANINDEX
+          value: "true"
+        - name: ENABLE_VLAN
+          value: "true"
+        - name: ENABLE_RAWTOPOLOGIES
+          value: "true"
+        - name: ENABLE_LINKS
+          value: "true"
+        - name: ENABLE_LOGICALINTERCONNECTS
+          value: "true"
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/resource-backend-controller:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: controller
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      serviceAccountName: resource-backend-controller
+status: {}

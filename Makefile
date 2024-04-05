@@ -46,7 +46,10 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen kpt kptgen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: controller-gen kpt kptgen kform ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	mkdir -p artifacts/out
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=artifacts
+	$(KFORM) apply artifacts -o artifacts/out/artifacts.yaml
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	mkdir -p ${KPT_BLUEPRINT_CFG_DIR}
 	mkdir -p ${KPT_BLUEPRINT_PKG_DIR}/crd/bases
@@ -96,7 +99,7 @@ docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
+docker-push:  docker-build ## Push docker image with the manager.
 	docker push ${IMG}
 
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
@@ -154,6 +157,7 @@ KPT ?= $(LOCALBIN)/kpt
 KPTGEN ?= $(LOCALBIN)/kptgen
 PROTOC_GO_FAST ?= $(LOCALBIN)/protoc-gen-gofast
 PROTOC_GO_GRPC ?= $(LOCALBIN)/protoc-gen-go-grpc
+KFORM ?= $(LOCALBIN)/kform
 
 ## Tool Versions
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -164,6 +168,7 @@ KPT_VERSION ?= main
 KPTGEN_VERSION ?= v0.0.9
 PROTOC_GO_FAST_VERSION ?= latest
 PROTOC_GO_GRPC_VERSION ?= latest
+KFORM_VERSION ?= v0.0.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -201,3 +206,7 @@ protoc-gen-gogrpc: $(PROTOC_GO_GRPC) ## Download protoc-gen-golang-grpc locally 
 $(PROTOC_GO_GRPC): $(LOCALBIN)
 	test -s $(LOCALBIN)/protoc-gen-go-grpc || GOBIN=$(LOCALBIN) go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GO_GRPC_VERSION)
 
+.PHONY: kform
+kform: $(KFORM) ## Download kform locally if necessary.
+$(KFORM): $(LOCALBIN)
+	test -s $(LOCALBIN)/kform || GOBIN=$(LOCALBIN) go install github.com/kform-dev/kform/cmd/kform@$(KFORM_VERSION)

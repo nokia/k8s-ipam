@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
+  name: resource-backend-controller-leader-election-role-binding
+  namespace: backend-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: resource-backend-controller-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: resource-backend-controller
+  namespace: backend-system

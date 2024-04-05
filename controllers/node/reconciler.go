@@ -208,7 +208,7 @@ func (r *reconciler) populateResources(ctx context.Context, cr *invv1alpha1.Node
 	}
 	cr.Status.UsedNodeModelRef = node.GetNodeModelConfig(ctx, nc)
 	// get interfaces
-	nm, err := node.GetInterfaces(ctx, nc)
+	nm, err := node.GetNodeModel(ctx, nc)
 	if err != nil {
 		return err
 	}

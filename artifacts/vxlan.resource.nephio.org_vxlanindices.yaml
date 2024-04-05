@@ -5,48 +5,33 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: links.inv.nephio.org
+  name: vxlanindices.vxlan.resource.nephio.org
 spec:
-  group: inv.nephio.org
+  group: vxlan.resource.nephio.org
   names:
     categories:
     - nephio
-    - inv
-    kind: Link
-    listKind: LinkList
-    plural: links
-    singular: link
+    - resource
+    kind: VXLANIndex
+    listKind: VXLANIndexList
+    plural: vxlanindices
+    singular: vxlanindex
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNC
+      type: string
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
-      name: READY
+      name: STATUS
       type: string
-    - jsonPath: .status.conditions[?(@.type=='Wired')].status
-      name: WIRED
-      type: string
-    - jsonPath: .spec.endpoints[0].topology
-      name: TOPOLOGY_0
-      type: string
-    - jsonPath: .spec.endpoints[0].nodeName
-      name: NODE_NAME_0
-      type: string
-    - jsonPath: .spec.endpoints[0].interfaceName
-      name: IF_NAME_0
-      type: string
-    - jsonPath: .spec.endpoints[1].topology
-      name: TOPOLOGY_1
-      type: string
-    - jsonPath: .spec.endpoints[1].nodeName
-      name: NODE_NAME_1
-      type: string
-    - jsonPath: .spec.endpoints[1].interfaceName
-      name: IF_NAME_1
-      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Link is the Schema for the vlan API
+        description: VXLANIndex is the Schema for the vxlan database API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -61,46 +46,29 @@ spec:
           metadata:
             type: object
           spec:
-            description: LinkSpec defines the desired state of Link
+            description: VXLANIndexSpec defines the desired state of VXLANIndex
             properties:
-              endpoints:
-                description: Endpoints define the node + interface endpoints associated
-                  with this link
-                items:
-                  properties:
-                    interfaceName:
-                      description: topology defines the topology to which this endpoint
-                        belongs Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
-                        InterfaceName provide the name of the interface of the endpoint
-                      maxLength: 64
-                      type: string
-                    lacpFallback:
-                      description: LacpFallback defines if the link is part of a lag
-                        mutually exclusive with Lag parameter
-                      type: boolean
-                    nodeName:
-                      description: NodeName provide the name of the node on which
-                        this endpoint belongs.
-                      maxLength: 64
-                      type: string
-                    topology:
-                      description: topology defines the topology to which this endpoint
-                        belongs
-                      maxLength: 64
-                      type: string
-                  required:
-                  - interfaceName
-                  - nodeName
-                  - topology
-                  type: object
-                maxItems: 2
-                minItems: 2
-                type: array
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels as user defined labels
+                type: object
+              maxEntryID:
+                description: MaxEntryID defines the max vxlan entry id this index
+                  will claim
+                format: int32
+                type: integer
+              offset:
+                description: Offset defines the offset where the vxlan index starts
+                  to claim vxlan IDs from
+                format: int32
+                type: integer
             required:
-            - endpoints
+            - maxEntryID
+            - offset
             type: object
           status:
-            description: LinkStatus defines the observed state of Link
+            description: VXLANIndexStatus defines the observed state of VXLANIndex
             properties:
               conditions:
                 description: Conditions of the resource.

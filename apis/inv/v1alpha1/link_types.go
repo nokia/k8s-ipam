@@ -30,11 +30,6 @@ type LinkSpec struct {
 	// Endpoints define the node + interface endpoints associated with this link
 	// +kubebuilder:validation:MaxItems:=2
 	// +kubebuilder:validation:MinItems:=2
-	// +listType=map
-	// +listMapKey=topology
-	// +listMapKey=nodeName
-	// +listMapKey=interfaceName
-	// +kubebuilder:validation:XValidation:rule="self.all(element, element in oldSelf)",message="Link Endpoints are immutable"
 	Endpoints []LinkEndpointSpec `json:"endpoints"`
 	// UserDefinedLabels define metadata  associated to the resource.
 	// defined in the spec to distingiush metadata labels from user defined labels

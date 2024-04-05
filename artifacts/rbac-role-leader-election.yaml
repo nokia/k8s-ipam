@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations: {}
+  labels:
+    app.kubernetes.io/name: resource-backend
+    app.kubernetes.io/part-of: resource-backend
+  name: resource-backend-controller-leader-election-role
+  namespace: backend-system
+rules:
+- apiGroups: [""]
+  resources: [configmaps]
+  verbs: [get, watch, list, create, update, patch, delete]
+- apiGroups: [coordination.k8s.io]
+  resources: [leases]
+  verbs: [get, watch, list, create, update, patch, delete]
+- apiGroups: [""]
+  resources: [events]
+  verbs: [create, patch]
