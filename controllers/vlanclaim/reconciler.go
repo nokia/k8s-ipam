@@ -79,7 +79,7 @@ func (r *reconciler) Setup(ctx context.Context, mgr ctrl.Manager, cfg *ctrlconfi
 		ctrl.NewControllerManagedBy(mgr).
 			Named("VLANCLaimController").
 			For(&vlanv1alpha1.VLANClaim{}).
-			WatchesRawSource(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
+			WatchesRawSource(source.Channel(ge, &handler.EnqueueRequestForObject{})).
 			//Watches(&source.Channel{Source: ge}, &handler.EnqueueRequestForObject{}).
 			Complete(r)
 }
