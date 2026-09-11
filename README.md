@@ -3,6 +3,11 @@
 
 
 ---
+# k8s-ipam is archived
+
+Sorry, but we moved on. k8s-ipam is no longer maintained and archived. 
+Our sugggested replacement is [kuid](https://docs.kuid.dev/).
+
 # A Native Kubernetes IPAM
 
 The IPAM is a kubernetes native IP address management, which supports:
